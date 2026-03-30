@@ -30,6 +30,8 @@ dependencies {
         bundledPlugin("org.jetbrains.plugins.yaml")
         bundledPlugin("com.intellij.database")
     }
+
+    implementation("com.llamatik:library:0.17.1")
 }
 
 intellijPlatform {

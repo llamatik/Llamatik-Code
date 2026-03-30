@@ -5,16 +5,15 @@
 
     <!-- Public plugin name should be written in Title Case.
          Guidelines: https://plugins.jetbrains.com/docs/marketplace/best-practices-for-listing.html#plugin-name -->
-    <name>LlamatikTeammate</name>
+    <name>Llamatik Teammate</name>
 
     <!-- A displayed Vendor name or Organization ID displayed on the Plugins Page. -->
-    <vendor url="https://www.yourcompany.com">YourCompany</vendor>
+    <vendor url="https://www.llamatik.com">Llamatik</vendor>
 
     <!-- Description of the plugin displayed on the Plugin Page and IDE Plugin Manager.
          Guidelines: https://plugins.jetbrains.com/docs/marketplace/best-practices-for-listing.html#plugin-description -->
     <description><![CDATA[
-        Enter short description for your plugin here.<br>
-        <em>most HTML tags may be used</em>
+        <em>AI coding assistant powered by Llamatik</em>
     ]]></description>
 
     <!-- Product and plugin compatibility requirements.
@@ -32,7 +31,16 @@
     <!-- Extensions defined by the plugin.
          Read more: https://plugins.jetbrains.com/docs/intellij/plugin-extension-points.html -->
     <extensions defaultExtensionNs="com.intellij">
-        <toolWindow id="MyToolWindow" factoryClass="com.llamatik.teammate.llamatikteammate.MyToolWindowFactory"
-                    icon="AllIcons.Toolwindows.ToolWindowPalette"/>
+        <!-- <toolWindow id="MyToolWindow" factoryClass="com.llamatik.teammate.llamatikteammate.MyToolWindowFactory"
+                    icon="AllIcons.Toolwindows.ToolWindowPalette"/> -->
+        <toolWindow
+                id="Llamatik"
+                anchor="right"
+                factoryClass="com.llamatik.teammate.llamatikteammate.LlamatikToolWindowFactory"/>
+
+        <applicationConfigurable
+                displayName="Llamatik Teammate"
+                id="llamatik.teammate.settings"
+                instance="com.llamatik.teammate.llamatikteammate.LlamatikSettingsConfigurable"/>
     </extensions>
 </idea-plugin>
