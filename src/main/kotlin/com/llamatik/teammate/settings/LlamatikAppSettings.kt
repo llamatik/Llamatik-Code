@@ -13,8 +13,8 @@ import java.nio.file.Path
 class LlamatikAppSettings : PersistentStateComponent<LlamatikAppSettings.State> {
     data class State(
         var modelPath: String = "",
-        var modelIdentifier: String = "Qwen/Qwen2.5-Coder-7B-Instruct-GGUF",
-        var temperature: Double = 0.2,
+        var modelIdentifier: String = "",
+        var temperature: Double = 0.7,
         var maxTokens: Int = 1024,
         var contextSize: Int = 8192,
         var localOnly: Boolean = true,
@@ -43,8 +43,23 @@ class LlamatikAppSettings : PersistentStateComponent<LlamatikAppSettings.State> 
     fun storageDir(): Path = Path.of(PathManager.getPluginsPath(), "llamatik-code-models")
 
     fun predefinedModels(): List<ModelDescriptor> = listOf(
-        ModelDescriptor("Qwen/Qwen2.5-Coder-7B-Instruct-GGUF", "Qwen 2.5 Coder 7B", "Hugging Face", "Balanced coding model for local use."),
-        ModelDescriptor("bartowski/DeepSeek-R1-Distill-Qwen-7B-GGUF", "DeepSeek R1 Distill Qwen 7B", "Hugging Face", "Reasoning-oriented local coding model."),
-        ModelDescriptor("lmstudio-community/Meta-Llama-3.1-8B-Instruct-GGUF", "Llama 3.1 8B Instruct", "Hugging Face", "General local assistant model."),
+        ModelDescriptor(
+            id = "Qwen3-14B-Q4_K_M",
+            displayName = "Qwen3 14B Q4_K_M",
+            source = "Manual local download",
+            description = "Recommended local default for the plugin. Download the GGUF yourself and then select the file path below.",
+        ),
+        ModelDescriptor(
+            id = "Qwen2.5-Coder-7B-Instruct-Q4_K_M",
+            displayName = "Qwen2.5 Coder 7B Q4_K_M",
+            source = "Manual local download",
+            description = "Smaller local coding model for lower storage and RAM usage.",
+        ),
+        ModelDescriptor(
+            id = "DeepSeek-R1-Distill-Qwen-7B-Q4_K_M",
+            displayName = "DeepSeek R1 Distill Qwen 7B Q4_K_M",
+            source = "Manual local download",
+            description = "Reasoning-oriented option, but still requires a manually downloaded GGUF file.",
+        ),
     )
 }

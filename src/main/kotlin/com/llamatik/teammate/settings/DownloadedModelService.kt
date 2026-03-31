@@ -5,9 +5,10 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.Messages
 import java.nio.file.Files
+import java.nio.file.Path
 import kotlin.io.path.deleteIfExists
-import kotlin.io.path.exists
 
 @Service(Service.Level.APP)
 class DownloadedModelService {
@@ -17,16 +18,24 @@ class DownloadedModelService {
     }
 
     fun registerLocalModel(path: String) {
+        val normalized = normalizeLocalModelPath(path) ?: return
         val settings = service<LlamatikAppSettings>()
-        if (path.isNotBlank() && path !in settings.data().downloadedModels) {
-            settings.data().downloadedModels.add(path)
+        if (normalized !in settings.data().downloadedModels) {
+            settings.data().downloadedModels.add(normalized)
         }
     }
 
     fun deleteModel(path: String) {
         val settings = service<LlamatikAppSettings>()
         settings.data().downloadedModels.remove(path)
-        runCatching { java.nio.file.Path.of(path).deleteIfExists() }
+        runCatching {
+            val nioPath = Path.of(path)
+            val managedDir = settings.storageDir().toAbsolutePath().normalize()
+            val target = nioPath.toAbsolutePath().normalize()
+            if (target.startsWith(managedDir)) {
+                target.deleteIfExists()
+            }
+        }
     }
 
     fun deleteAll() {
@@ -34,23 +43,35 @@ class DownloadedModelService {
     }
 
     fun downloadPredefined(project: Project?, modelId: String, onFinished: (String) -> Unit) {
-        object : Task.Backgroundable(project, "Registering model", false) {
+        object : Task.Backgroundable(project, "Model setup instructions", false) {
             override fun run(indicator: ProgressIndicator) {
-                val settings = service<LlamatikAppSettings>()
-                val baseDir = settings.storageDir()
-                Files.createDirectories(baseDir)
-                val sanitizedName = modelId.replace('/', '_') + ".gguf"
-                val target = baseDir.resolve(sanitizedName)
-                if (!target.exists()) {
-                    Files.writeString(
-                        target,
-                        "TODO: Replace placeholder file with a Hugging Face downloader integrated with Llamatik-supported model artifacts.\nRequested model: $modelId\n",
-                    )
+                indicator.text = "Preparing local model setup guidance"
+                val descriptor = service<LlamatikAppSettings>().predefinedModels().firstOrNull { it.id == modelId }
+                val message = buildString {
+                    appendLine("This plugin currently supports local GGUF files only.")
+                    appendLine()
+                    appendLine("Recommended model: ${descriptor?.displayName ?: modelId}")
+                    appendLine("Source: ${descriptor?.source ?: "Manual local download"}")
+                    appendLine()
+                    appendLine(descriptor?.description ?: "Download the model manually, then select the .gguf file in Settings.")
+                    appendLine()
+                    appendLine("Next steps:")
+                    appendLine("1. Download the GGUF model manually from your preferred source.")
+                    appendLine("2. If the model is sharded, keep all parts in the same folder and select the first .gguf file.")
+                    appendLine("3. In Settings > Tools > Llamatik Code, choose the local .gguf file path.")
                 }
-                registerLocalModel(target.toString())
-                onFinished(target.toString())
+                Messages.showInfoMessage(project, message, "Local Model Required")
+                onFinished("")
             }
         }.queue()
-        // TODO: Implement authenticated Hugging Face download + checksum verification.
+    }
+
+    private fun normalizeLocalModelPath(path: String): String? {
+        val trimmed = path.trim()
+        if (trimmed.isBlank()) return null
+        val nioPath = runCatching { Path.of(trimmed) }.getOrNull() ?: return null
+        if (!Files.exists(nioPath) || !Files.isRegularFile(nioPath)) return null
+        if (!trimmed.lowercase().endsWith(".gguf")) return null
+        return nioPath.toAbsolutePath().normalize().toString()
     }
 }

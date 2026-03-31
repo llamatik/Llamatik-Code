@@ -6,6 +6,8 @@ import com.llamatik.teammate.backend.AssistantBackend
 import com.llamatik.teammate.backend.GenerationCallbacks
 import com.llamatik.teammate.backend.GenerationHandle
 import com.llamatik.teammate.backend.GenerationRequest
+import java.nio.file.Files
+import java.nio.file.Path
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
 import java.util.concurrent.atomic.AtomicBoolean
@@ -14,6 +16,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 class LlamatikBackendService : AssistantBackend {
     private val logger = thisLogger()
     private val executor = Executors.newSingleThreadExecutor()
+    private val modelLock = Any()
 
     @Volatile private var initializedModel: String? = null
 
@@ -27,22 +30,19 @@ class LlamatikBackendService : AssistantBackend {
 
     override fun selectedModelLabel(): String = when {
         nativeLoadError != null -> "Native lib unavailable"
-        else -> initializedModel ?: "No model loaded"
+        else -> initializedModel?.let(::displayModelLabel) ?: "No model loaded"
     }
 
     override fun generate(request: GenerationRequest, callbacks: GenerationCallbacks): GenerationHandle {
         val cancelled = AtomicBoolean(false)
         callbacks.onStarted()
 
-        // Surface native load failures immediately instead of crashing in the background thread.
         val loadErr = nativeLoadError
         if (loadErr != null) {
             executor.submit {
                 callbacks.onError(
                     "Llamatik native library could not be loaded: $loadErr\n\n" +
-                        "This is likely caused by a missing native dependency (libllama.0.dylib). " +
-                        "Ensure the Llamatik runtime is installed and accessible, " +
-                        "or set the model path to a supported local model.",
+                        "Ensure the bundled native libraries are present and that macOS can load their dependencies.",
                     null,
                 )
             }
@@ -52,7 +52,6 @@ class LlamatikBackendService : AssistantBackend {
         val future: Future<String> = executor.submit<String> {
             ensureModel(request.config.modelIdOrPath)
             val prompt = buildPrompt(request)
-            // TODO: Replace with true streaming callbacks when Llamatik exposes streaming APIs.
             com.llamatik.library.platform.LlamaBridge.generate(prompt)
         }
 
@@ -74,39 +73,67 @@ class LlamatikBackendService : AssistantBackend {
             override fun cancel() {
                 cancelled.set(true)
                 future.cancel(true)
-                // TODO: cancel native generation when Llamatik exposes cooperative cancellation.
             }
+
             override val isCancelled: Boolean get() = cancelled.get()
         }
     }
 
     private fun ensureModel(modelPath: String) {
-        if (initializedModel == modelPath) return
-        val ok = com.llamatik.library.platform.LlamaBridge.initGenerateModel(modelPath)
-        if (!ok) error("Failed to initialize Llamatik model: $modelPath")
-        initializedModel = modelPath
+        val normalizedModelPath = validateModelPath(modelPath)
+        if (initializedModel == normalizedModelPath) return
+
+        synchronized(modelLock) {
+            if (initializedModel == normalizedModelPath) return
+            val ok = com.llamatik.library.platform.LlamaBridge.initGenerateModel(normalizedModelPath)
+            if (!ok) error("Failed to initialize Llamatik model: $normalizedModelPath")
+            initializedModel = normalizedModelPath
+        }
+    }
+
+    private fun validateModelPath(rawModelPath: String): String {
+        val modelPath = rawModelPath.trim()
+        require(modelPath.isNotEmpty()) {
+            "No model configured. Select a local .gguf model file in Settings > Tools > Llamatik Code."
+        }
+
+        require(!looksLikeRemoteIdentifier(modelPath)) {
+            "Model must be a local .gguf file path, not a repository identifier: $modelPath"
+        }
+
+        val path = runCatching { Path.of(modelPath) }.getOrElse {
+            throw IllegalArgumentException("Invalid model path: $modelPath", it)
+        }
+
+        require(Files.exists(path)) { "Model file does not exist: $modelPath" }
+        require(Files.isRegularFile(path)) { "Model path is not a file: $modelPath" }
+        require(modelPath.lowercase().endsWith(".gguf")) { "Model file must end with .gguf: $modelPath" }
+
+        return path.toAbsolutePath().normalize().toString()
     }
 
     private fun buildPrompt(request: GenerationRequest): String {
-        val transcript = request.messages.joinToString("\n\n") { msg ->
-            val prefix = when (msg.role) {
-                com.llamatik.teammate.model.ChatRole.SYSTEM -> "System"
-                com.llamatik.teammate.model.ChatRole.USER -> "User"
-                com.llamatik.teammate.model.ChatRole.ASSISTANT -> "Assistant"
-                com.llamatik.teammate.model.ChatRole.TOOL -> "Tool:${msg.toolName ?: "unknown"}"
-            }
-            "$prefix:\n${msg.content}"
-        }
         return buildString {
-            appendLine(request.systemPrompt)
-            appendLine()
-            appendLine("Configuration:")
-            appendLine("- temperature=${request.config.temperature}")
-            appendLine("- maxTokens=${request.config.maxTokens}")
-            appendLine("- contextSize=${request.config.contextSize}")
-            appendLine("- localOnly=${request.config.localOnly}")
-            appendLine()
-            append(transcript)
+            // System prompt
+            if (request.systemPrompt.isNotBlank()) {
+                append("<|im_start|>system\n")
+                append(request.systemPrompt.trim())
+                append("<|im_end|>\n")
+            }
+            // Conversation turns
+            for (msg in request.messages) {
+                val role = when (msg.role) {
+                    com.llamatik.teammate.model.ChatRole.SYSTEM -> "system"
+                    com.llamatik.teammate.model.ChatRole.USER -> "user"
+                    com.llamatik.teammate.model.ChatRole.ASSISTANT -> "assistant"
+                    com.llamatik.teammate.model.ChatRole.TOOL -> "tool"
+                }
+                append("<|im_start|>$role\n")
+                append(msg.content.trim())
+                append("<|im_end|>\n")
+            }
+            // Prompt the model to reply
+            append("<|im_start|>assistant\n")
         }
     }
 
@@ -123,23 +150,36 @@ class LlamatikBackendService : AssistantBackend {
     private fun friendlyError(t: Throwable): String {
         val cause = generateSequence(t) { it.cause }.firstOrNull { it is UnsatisfiedLinkError }
         if (cause != null) {
-            // Cache it so subsequent calls skip the executor overhead
             nativeLoadError = cause.message ?: "UnsatisfiedLinkError"
             return "Llamatik native library could not be loaded.\n${cause.message}\n\n" +
-                "Ensure libllama.0.dylib is on the library path or install the Llamatik runtime."
+                "Ensure the bundled native libraries are available for your current platform."
         }
         return t.message ?: "Generation failed"
     }
 
+    private fun looksLikeRemoteIdentifier(value: String): Boolean {
+        return !value.startsWith("/") &&
+            !value.startsWith(".") &&
+            !value.contains("\\") &&
+            value.count { it == '/' } == 1 &&
+            !value.lowercase().endsWith(".gguf")
+    }
+
+    private fun displayModelLabel(path: String): String = runCatching {
+        Path.of(path).fileName?.toString() ?: path
+    }.getOrDefault(path)
+
     private class NoOpHandle(private val cancelled: AtomicBoolean) : GenerationHandle {
-        override fun cancel() { cancelled.set(true) }
+        override fun cancel() {
+            cancelled.set(true)
+        }
+
         override val isCancelled: Boolean get() = cancelled.get()
     }
 }
 
 /** Returns a human-readable error string if the native lib can't be loaded, null if it's fine. */
 private fun tryLoadNative(): String? = runCatching {
-    // Trigger class initialisation of LlamaBridge — its <clinit> loads the dylib.
     Class.forName("com.llamatik.library.platform.LlamaBridge")
     null
 }.getOrElse { t ->

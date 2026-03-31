@@ -25,7 +25,7 @@ dependencies {
         bundledPlugin("org.jetbrains.plugins.yaml")
     }
 
-    implementation("com.llamatik:library:0.18.1")
+    implementation("com.llamatik:library:0.18.2")
 }
 
 intellijPlatform {
