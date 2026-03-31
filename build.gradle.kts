@@ -1,8 +1,9 @@
+import org.jetbrains.intellij.platform.gradle.extensions.intellijPlatform
+
 plugins {
     id("java")
-    id("org.jetbrains.kotlin.jvm") version "2.1.20"
+    id("org.jetbrains.kotlin.jvm") version "2.3.0"
     id("org.jetbrains.intellij.platform") version "2.10.2"
-    id("org.jetbrains.kotlin.plugin.compose") version "2.1.20"
 }
 
 group = "com.llamatik.teammate"
@@ -15,23 +16,16 @@ repositories {
     }
 }
 
-// Read more: https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin.html
 dependencies {
     intellijPlatform {
-        intellijIdea("2025.2.4")
+        intellijIdea("2026.1")
         testFramework(org.jetbrains.intellij.platform.gradle.TestFrameworkType.Platform)
-
-        // Add plugin dependencies for compilation here:
-
-        composeUI()
-
         bundledPlugin("org.jetbrains.kotlin")
         bundledPlugin("com.intellij.modules.json")
         bundledPlugin("org.jetbrains.plugins.yaml")
-        bundledPlugin("com.intellij.database")
     }
 
-    implementation("com.llamatik:library:0.17.1")
+    implementation("com.llamatik:library:0.18.1")
 }
 
 intellijPlatform {
@@ -39,15 +33,13 @@ intellijPlatform {
         ideaVersion {
             sinceBuild = "252.25557"
         }
-
         changeNotes = """
-            Initial version
+            Initial local-first MVP for Llamatik Code.
         """.trimIndent()
     }
 }
 
 tasks {
-    // Set the JVM compatibility versions
     withType<JavaCompile> {
         sourceCompatibility = "21"
         targetCompatibility = "21"

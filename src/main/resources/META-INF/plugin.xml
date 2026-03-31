@@ -1,46 +1,106 @@
 <!-- Plugin Configuration File: https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html -->
 <idea-plugin>
-    <!-- Unique identifier of the plugin. It should be FQN, cannot be changed between the plugin versions. -->
     <id>com.llamatik.teammate.LlamatikTeammate</id>
-
-    <!-- Public plugin name should be written in Title Case.
-         Guidelines: https://plugins.jetbrains.com/docs/marketplace/best-practices-for-listing.html#plugin-name -->
-    <name>Llamatik Teammate</name>
-
-    <!-- A displayed Vendor name or Organization ID displayed on the Plugins Page. -->
+    <name>Llamatik Code</name>
     <vendor url="https://www.llamatik.com">Llamatik</vendor>
-
-    <!-- Description of the plugin displayed on the Plugin Page and IDE Plugin Manager.
-         Guidelines: https://plugins.jetbrains.com/docs/marketplace/best-practices-for-listing.html#plugin-description -->
     <description><![CDATA[
-        <em>AI coding assistant powered by Llamatik</em>
+        <p>Local-first AI coding assistant for IntelliJ-based IDEs.</p>
+        <p>Project-aware chat, safe edit proposals, diff preview, and local model workflows powered by Llamatik.</p>
     ]]></description>
 
-    <!-- Product and plugin compatibility requirements.
-         Read more: https://plugins.jetbrains.com/docs/intellij/plugin-compatibility.html -->
-    <depends>com.intellij.modules.compose</depends>
-    <depends>com.intellij.modules.lsp</depends>
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.lang</depends>
+    <depends optionalId="kotlin">org.jetbrains.kotlin</depends>
 
-    <depends>org.jetbrains.kotlin</depends>
-    <depends>com.intellij.modules.json</depends>
-    <depends>org.jetbrains.plugins.yaml</depends>
-    <depends>com.intellij.modules.xml</depends>
-    <depends>com.intellij.properties</depends>
-    <depends>com.intellij.database</depends>
-    <resource-bundle>messages.MyMessageBundle</resource-bundle>
-    <!-- Extensions defined by the plugin.
-         Read more: https://plugins.jetbrains.com/docs/intellij/plugin-extension-points.html -->
-    <extensions defaultExtensionNs="com.intellij">
-        <!-- <toolWindow id="MyToolWindow" factoryClass="com.llamatik.teammate.llamatikteammate.MyToolWindowFactory"
-                    icon="AllIcons.Toolwindows.ToolWindowPalette"/> -->
-        <toolWindow
-                id="Llamatik"
-                anchor="right"
-                factoryClass="com.llamatik.teammate.llamatikteammate.LlamatikToolWindowFactory"/>
-
-        <applicationConfigurable
-                displayName="Llamatik Teammate"
-                id="llamatik.teammate.settings"
-                instance="com.llamatik.teammate.llamatikteammate.LlamatikSettingsConfigurable"/>
+    <extensions defaultExtensionNs="org.jetbrains.kotlin">
+        <supportsKotlinPluginMode supportsK2="true"/>
     </extensions>
+
+    <extensions defaultExtensionNs="com.intellij">
+
+        <!-- Tool window -->
+        <toolWindow
+                id="Llamatik Code"
+                anchor="right"
+                secondary="false"
+                factoryClass="com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowFactory"
+                icon="icons/llamatik.svg"/>
+
+        <!-- Application-level services -->
+        <applicationService
+                serviceImplementation="com.llamatik.teammate.settings.LlamatikAppSettings"/>
+        <applicationService
+                serviceImplementation="com.llamatik.teammate.settings.DownloadedModelService"/>
+        <applicationService
+                serviceImplementation="com.llamatik.teammate.llamatik.LlamatikBackendService"/>
+        <applicationService
+                serviceImplementation="com.llamatik.teammate.licensing.TrialService"/>
+
+        <!-- Project-level services -->
+        <projectService
+                serviceImplementation="com.llamatik.teammate.persistence.LlamatikProjectState"/>
+        <projectService
+                serviceImplementation="com.llamatik.teammate.persistence.ChatSessionStore"/>
+        <projectService
+                serviceImplementation="com.llamatik.teammate.agent.AgentOrchestrator"/>
+        <projectService
+                serviceImplementation="com.llamatik.teammate.tools.ToolRegistry"/>
+        <projectService
+                serviceImplementation="com.llamatik.teammate.diff.DiffPreviewService"/>
+
+        <!-- Settings page -->
+        <applicationConfigurable
+                displayName="Llamatik Code"
+                id="llamatik.code.settings"
+                instance="com.llamatik.teammate.settings.LlamatikSettingsConfigurable"/>
+
+    </extensions>
+
+    <actions>
+        <action id="LlamatikCode.AskAboutSelection"
+                class="com.llamatik.teammate.actions.AskAboutSelectionAction"
+                text="Ask Llamatik about Selection"
+                description="Ask Llamatik Code about the current selection">
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+        </action>
+        <action id="LlamatikCode.ExplainFile"
+                class="com.llamatik.teammate.actions.ExplainFileAction"
+                text="Explain this File"
+                description="Explain the current file with Llamatik Code">
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+        </action>
+        <action id="LlamatikCode.RefactorSelection"
+                class="com.llamatik.teammate.actions.RefactorSelectionAction"
+                text="Refactor Selection"
+                description="Refactor selected code with Llamatik Code">
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+        </action>
+        <action id="LlamatikCode.FixSelectedCode"
+                class="com.llamatik.teammate.actions.FixSelectedCodeAction"
+                text="Fix Selected Code"
+                description="Fix selected code with Llamatik Code">
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+        </action>
+        <action id="LlamatikCode.GenerateTests"
+                class="com.llamatik.teammate.actions.GenerateTestsAction"
+                text="Generate Tests for File"
+                description="Generate tests using Llamatik Code">
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+        </action>
+        <action id="LlamatikCode.AddDocumentation"
+                class="com.llamatik.teammate.actions.AddDocumentationAction"
+                text="Add Documentation"
+                description="Add documentation using Llamatik Code">
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+        </action>
+        <action id="LlamatikCode.EditWithPrompt"
+                class="com.llamatik.teammate.actions.EditWithPromptAction"
+                text="Edit with Prompt"
+                description="Open Llamatik Code with an edit prompt">
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+        </action>
+    </actions>
 </idea-plugin>
