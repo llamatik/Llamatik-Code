@@ -141,6 +141,7 @@ class LlamatikToolWindowPanel(
         onSuggestionSelected = { text -> prefillComposer(text) },
         onApprove = {},
         onReject = {},
+        onClear = { currentHandle?.cancel(); setGenerating(false) },
     )
 /*
     private val titleLabel = JBLabel("Llamatik Code").apply {

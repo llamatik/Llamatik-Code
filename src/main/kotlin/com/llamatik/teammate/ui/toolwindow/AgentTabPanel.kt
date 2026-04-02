@@ -1,7 +1,7 @@
 package com.llamatik.teammate.ui.toolwindow
 
+import com.intellij.icons.AllIcons
 import com.intellij.openapi.ide.CopyPasteManager
-import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBLabel
 import com.llamatik.teammate.ui.LlamatikTheme
 import com.llamatik.teammate.ui.Strings
@@ -32,6 +32,7 @@ class AgentTabPanel(
     private val onSuggestionSelected: (String) -> Unit,
     private val onApprove: () -> Unit,
     private val onReject: () -> Unit,
+    private val onClear: () -> Unit = {},
 ) : JPanel(BorderLayout()) {
 
     private val rootBackground = LlamatikTheme.background
@@ -66,7 +67,7 @@ class AgentTabPanel(
         )
     }
 
-    private val thinkToggleButton = JButton(Strings.Agent.THINKING_COLLAPSED).apply {
+    private val thinkToggleButton = JButton(Strings.Agent.THINKING_EXPANDED).apply {
         isFocusPainted = false
         isContentAreaFilled = false
         isBorderPainted = false
@@ -90,7 +91,7 @@ class AgentTabPanel(
             BorderFactory.createLineBorder(panelStroke, 1, true),
             JBUI.Borders.empty(),
         )
-        isVisible = false
+        isVisible = true
         preferredSize = Dimension(0, 120)
         viewport.background = cardBackground
     }
@@ -134,6 +135,19 @@ class AgentTabPanel(
         border = JBUI.Borders.empty(4, 0)
     }
 
+    private val clearButton = JButton(AllIcons.Actions.GC).apply {
+        toolTipText = Strings.Chat.CLEAR
+        isFocusPainted = false
+        isContentAreaFilled = true
+        isOpaque = true
+        background = LlamatikTheme.surface
+        preferredSize = java.awt.Dimension(32, 32)
+        border = JBUI.Borders.compound(
+            BorderFactory.createLineBorder(LlamatikTheme.outline, 1, true),
+            JBUI.Borders.empty(3, 5),
+        )
+    }
+
     private val streamBuffer = StringBuilder()
     private var streamingBlocked = false
 
@@ -157,6 +171,11 @@ class AgentTabPanel(
         }
 
         backButton.addActionListener {
+            cardLayout.show(cardPanel, CARD_WELCOME)
+        }
+
+        clearButton.addActionListener {
+            onClear()
             cardLayout.show(cardPanel, CARD_WELCOME)
         }
     }
@@ -284,18 +303,33 @@ class AgentTabPanel(
         }
 
     private fun buildResponseCard(): JPanel {
-        val copyButton = JButton(Strings.App.COPY).apply {
+        val copyButton = JButton(AllIcons.Actions.Copy).apply {
+            toolTipText = Strings.App.COPY
             isFocusPainted = false
+            isContentAreaFilled = true
+            isOpaque = true
+            background = LlamatikTheme.surface
+            preferredSize = java.awt.Dimension(32, 32)
+            border = JBUI.Borders.compound(
+                BorderFactory.createLineBorder(LlamatikTheme.outline, 1, true),
+                JBUI.Borders.empty(3, 5),
+            )
             addActionListener {
                 CopyPasteManager.getInstance().setContents(StringSelection(responseTextArea.text))
             }
+        }
+
+        val rightButtons = JPanel(FlowLayout(FlowLayout.RIGHT, 4, 0)).apply {
+            isOpaque = false
+            add(clearButton)
+            add(copyButton)
         }
 
         val topBar = JPanel(BorderLayout()).apply {
             background = rootBackground
             border = JBUI.Borders.empty(12, 16, 8, 16)
             add(backButton, BorderLayout.WEST)
-            add(copyButton, BorderLayout.EAST)
+            add(rightButtons, BorderLayout.EAST)
         }
 
         val headerStack = JPanel().apply {
@@ -338,8 +372,8 @@ class AgentTabPanel(
         responseTextArea.text = ""
         thinkTextArea.text = ""
         thinkSection.isVisible = false
-        thinkScrollPane.isVisible = false
-        thinkToggleButton.text = Strings.Agent.THINKING_COLLAPSED
+        thinkScrollPane.isVisible = true
+        thinkToggleButton.text = Strings.Agent.THINKING_EXPANDED
         responseActionBar.removeAll()
         statusPill.text = Strings.Agent.STATUS_ANALYZING
         statusPill.isVisible = true
@@ -401,8 +435,8 @@ class AgentTabPanel(
         if (thinkTextArea.text.isBlank()) {
             thinkSection.isVisible = false
         } else {
-            thinkScrollPane.isVisible = false
-            thinkToggleButton.text = Strings.Agent.THINKING_COLLAPSED
+            thinkScrollPane.isVisible = true
+            thinkToggleButton.text = Strings.Agent.THINKING_EXPANDED
             thinkSection.revalidate()
         }
 
