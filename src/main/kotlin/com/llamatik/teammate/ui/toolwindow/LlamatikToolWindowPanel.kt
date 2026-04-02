@@ -5,7 +5,6 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.wm.ToolWindow
-import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTextArea
@@ -29,7 +28,11 @@ import java.awt.CardLayout
 import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.Font
+import java.awt.Graphics
+import java.awt.Graphics2D
 import java.awt.GridLayout
+import java.awt.RenderingHints
+import java.awt.geom.RoundRectangle2D
 import java.awt.event.InputEvent
 import java.awt.event.KeyEvent
 import javax.swing.AbstractAction
@@ -487,16 +490,26 @@ class LlamatikToolWindowPanel(
     }
 
     private fun buildModeToggle(label: String): JToggleButton =
-        JToggleButton("<html><span style='color:${LlamatikTheme.htmlOnSurface};'>$label</span></html>").apply {
+        object : JToggleButton() {
+            override fun paintComponent(g: Graphics) {
+                val g2 = g.create() as Graphics2D
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+                g2.color = if (isSelected) selectedToggleBackground else unselectedToggleBackground
+                g2.fill(RoundRectangle2D.Float(0f, 0f, width.toFloat(), height.toFloat(), 20f, 20f))
+                g2.dispose()
+                super.paintComponent(g)
+            }
+        }.apply {
+            text = "<html><span style='color:${LlamatikTheme.htmlOnSurface};'>$label</span></html>"
             isFocusPainted = false
-            isContentAreaFilled = true
-            isOpaque = true
+            isContentAreaFilled = false
+            isOpaque = false
             border = JBUI.Borders.empty(7, 14)
             background = unselectedToggleBackground
             addChangeListener {
-                background = if (isSelected) selectedToggleBackground else unselectedToggleBackground
                 val labelColor = if (isSelected) LlamatikTheme.htmlOnPrimary else LlamatikTheme.htmlOnSurface
                 text = "<html><span style='color:$labelColor;'>$label</span></html>"
+                repaint()
             }
         }
 

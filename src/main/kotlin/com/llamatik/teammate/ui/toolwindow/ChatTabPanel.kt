@@ -1,8 +1,10 @@
 package com.llamatik.teammate.ui.toolwindow
 
+import com.intellij.icons.AllIcons
 import com.intellij.openapi.project.Project
 import com.intellij.ui.components.JBLabel
 import com.llamatik.teammate.ui.LlamatikTheme
+import javax.swing.Icon
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTabbedPane
 import com.intellij.util.ui.JBUI
@@ -56,6 +58,7 @@ class ChatTabPanel(
         background = rootBackground
         foreground = LlamatikTheme.onSurface
         setUI(object : javax.swing.plaf.basic.BasicTabbedPaneUI() {
+            private val arc = 10
             override fun installDefaults() {
                 super.installDefaults()
                 highlight = rootBackground
@@ -65,26 +68,52 @@ class ChatTabPanel(
                 focus = LlamatikTheme.primary
             }
             override fun paintTabBorder(g: java.awt.Graphics, tabPlacement: Int, tabIndex: Int, x: Int, y: Int, w: Int, h: Int, isSelected: Boolean) {
-                if (isSelected) {
-                    g.color = LlamatikTheme.primary
-                    g.fillRect(x, y + h - 2, w, 2)
-                }
+                val g2 = g.create() as java.awt.Graphics2D
+                g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON)
+                g2.color = if (isSelected) LlamatikTheme.primary else LlamatikTheme.outline
+                // top-left, top-right rounded; bottom straight
+                val path = java.awt.geom.Path2D.Float()
+                path.moveTo((x + arc).toFloat(), y.toFloat())
+                path.quadTo(x.toFloat(), y.toFloat(), x.toFloat(), (y + arc).toFloat())
+                path.lineTo(x.toFloat(), (y + h).toFloat())
+                path.lineTo((x + w).toFloat(), (y + h).toFloat())
+                path.lineTo((x + w).toFloat(), (y + arc).toFloat())
+                path.quadTo((x + w).toFloat(), y.toFloat(), (x + w - arc).toFloat(), y.toFloat())
+                path.closePath()
+                g2.draw(path)
+                g2.dispose()
             }
             override fun paintTabBackground(g: java.awt.Graphics, tabPlacement: Int, tabIndex: Int, x: Int, y: Int, w: Int, h: Int, isSelected: Boolean) {
-                g.color = if (isSelected) LlamatikTheme.surface else rootBackground
-                g.fillRect(x, y, w, h)
+                val g2 = g.create() as java.awt.Graphics2D
+                g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON)
+                g2.color = if (isSelected) LlamatikTheme.surface else rootBackground
+                val path = java.awt.geom.Path2D.Float()
+                path.moveTo((x + arc).toFloat(), y.toFloat())
+                path.quadTo(x.toFloat(), y.toFloat(), x.toFloat(), (y + arc).toFloat())
+                path.lineTo(x.toFloat(), (y + h).toFloat())
+                path.lineTo((x + w).toFloat(), (y + h).toFloat())
+                path.lineTo((x + w).toFloat(), (y + arc).toFloat())
+                path.quadTo((x + w).toFloat(), y.toFloat(), (x + w - arc).toFloat(), y.toFloat())
+                path.closePath()
+                g2.fill(path)
+                g2.dispose()
             }
             override fun paintFocusIndicator(g: java.awt.Graphics, tabPlacement: Int, rects: Array<java.awt.Rectangle>, tabIndex: Int, iconRect: java.awt.Rectangle, textRect: java.awt.Rectangle, isSelected: Boolean) {
                 // suppress focus ring
             }
             override fun paintContentBorder(g: java.awt.Graphics, tabPlacement: Int, selectedIndex: Int) {
-                // suppress default content border
+                val g2 = g.create() as java.awt.Graphics2D
+                g2.color = LlamatikTheme.primary
+                val insets = tabAreaInsets
+                val tabAreaHeight = calculateTabAreaHeight(tabPlacement, runCount, maxTabHeight)
+                g2.fillRect(0, insets.top + tabAreaHeight, tabPane.width, 2)
+                g2.dispose()
             }
         })
     }
 
-    private val newChatButton = toolbarButton(Strings.Chat.NEW_CHAT)
-    private val clearButton = toolbarButton(Strings.Chat.CLEAR)
+    private val newChatButton = toolbarButton(AllIcons.General.Add, Strings.Chat.NEW_CHAT)
+    private val clearButton = toolbarButton(AllIcons.Actions.GC, Strings.Chat.CLEAR)
 
     init {
         background = rootBackground
@@ -303,8 +332,9 @@ class ChatTabPanel(
             addActionListener { onSuggestionSelected(text) }
         }
 
-    private fun toolbarButton(text: String): JButton =
-        JButton("<html><span style='color:${LlamatikTheme.htmlOnSurface};'>$text</span></html>").apply {
+    private fun toolbarButton(icon: Icon, tooltip: String): JButton =
+        JButton(icon).apply {
+            toolTipText = tooltip
             isFocusPainted = false
             isContentAreaFilled = true
             isOpaque = true

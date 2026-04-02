@@ -8,9 +8,12 @@ import com.llamatik.teammate.ui.Strings
 import com.intellij.util.ui.JBUI
 import com.llamatik.teammate.model.ChatRole
 import java.awt.BorderLayout
+import java.awt.Color
 import java.awt.FlowLayout
+import java.awt.Graphics
+import java.awt.Graphics2D
+import java.awt.RenderingHints
 import java.awt.datatransfer.StringSelection
-import javax.swing.BorderFactory
 import javax.swing.BoxLayout
 import javax.swing.JButton
 import javax.swing.JLabel
@@ -33,7 +36,7 @@ class ChatMessagePanel(
 
     private val textArea = JBTextArea(initialContent).apply {
         isEditable = false
-        isOpaque = true
+        isOpaque = false
         lineWrap = true
         wrapStyleWord = true
         foreground = LlamatikTheme.onSurface
@@ -73,17 +76,21 @@ class ChatMessagePanel(
 
         header.add(actions, BorderLayout.EAST)
 
-        val bubble = JPanel(BorderLayout()).apply {
-            isOpaque = true
-            background = if (role == ChatRole.USER) userBubble else assistantBubble
-            border = JBUI.Borders.compound(
-                BorderFactory.createLineBorder(
-                    if (role == ChatRole.USER) userStroke else bubbleStroke,
-                    1,
-                    true,
-                ),
-                JBUI.Borders.empty(),
-            )
+        val bubbleColor = if (role == ChatRole.USER) userBubble else assistantBubble
+        val strokeColor = if (role == ChatRole.USER) userStroke else bubbleStroke
+        val bubble = object : JPanel(BorderLayout()) {
+            override fun paintComponent(g: Graphics) {
+                val g2 = g.create() as Graphics2D
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+                g2.color = bubbleColor
+                g2.fillRoundRect(0, 0, width, height, 16, 16)
+                g2.color = strokeColor
+                g2.drawRoundRect(0, 0, width - 1, height - 1, 16, 16)
+                g2.dispose()
+            }
+        }.apply {
+            isOpaque = false
+            border = JBUI.Borders.empty(1)
             add(textArea, BorderLayout.CENTER)
         }
 
