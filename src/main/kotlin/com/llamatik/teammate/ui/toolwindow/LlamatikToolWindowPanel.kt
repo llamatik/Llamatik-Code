@@ -143,6 +143,9 @@ class LlamatikToolWindowPanel(
     }
     */
 
+    private val selectedToggleBackground = JBColor(Color(0xFFB74D.toInt()), Color(0xFFB74D.toInt()))
+    private val unselectedToggleBackground = JBColor(Color(0x1F1F1F), Color(0x1F1F1F))
+
     private val agentToggle = buildModeToggle("Agent")
     private val askToggle = buildModeToggle("Ask")
 
@@ -157,6 +160,7 @@ class LlamatikToolWindowPanel(
         add(contentPanel, BorderLayout.CENTER)
         add(buildComposer(), BorderLayout.SOUTH)
 
+        agentToggle.isSelected = true
         bindActions()
         applyMode(SurfaceMode.AGENT)
         syncState()
@@ -298,18 +302,18 @@ class LlamatikToolWindowPanel(
 
     private fun applyMode(mode: SurfaceMode) {
         currentMode = mode
+        agentToggle.isSelected = mode == SurfaceMode.AGENT
+        askToggle.isSelected = mode == SurfaceMode.ASK
 
         when (mode) {
             SurfaceMode.AGENT -> {
                 contentLayout.show(contentPanel, SurfaceMode.AGENT.name)
                 inputArea.toolTipText = "Describe a task for the agent to inspect, plan, and execute"
-                //titleLabel.text = "Llamatik Code"
             }
             SurfaceMode.ASK -> {
                 contentLayout.show(contentPanel, SurfaceMode.ASK.name)
                 chatTabPanel.setEntryMode(ChatTabPanel.EntryMode.ASK)
                 inputArea.toolTipText = "Ask a focused question about the current file or project"
-                //titleLabel.text = "Llamatik Code"
             }
         }
     }
@@ -485,13 +489,18 @@ class LlamatikToolWindowPanel(
         }
     }
 
-    private fun buildModeToggle(text: String): JToggleButton =
-        JToggleButton("<html><span style='color:#EDEDED;'>$text</span></html>").apply {
+    private fun buildModeToggle(label: String): JToggleButton =
+        JToggleButton("<html><span style='color:#EDEDED;'>$label</span></html>").apply {
             isFocusPainted = false
             isContentAreaFilled = true
             isOpaque = true
             border = JBUI.Borders.empty(7, 14)
-            background = subtleBackground
+            background = unselectedToggleBackground
+            addChangeListener {
+                background = if (isSelected) selectedToggleBackground else unselectedToggleBackground
+                val labelColor = if (isSelected) "#1A1A1A" else "#EDEDED"
+                text = "<html><span style='color:$labelColor;'>$label</span></html>"
+            }
         }
 
     private fun buildFooterPill(text: String): JButton =

@@ -237,6 +237,11 @@ class ChatTabPanel(
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
             background = rootBackground
             border = JBUI.Borders.empty(26, 20, 20, 20)
+            heroTitle.alignmentX = LEFT_ALIGNMENT
+            heroSubtitle.alignmentX = LEFT_ALIGNMENT
+            infoCard.alignmentX = LEFT_ALIGNMENT
+            promptsTitle.alignmentX = LEFT_ALIGNMENT
+            promptsGrid.alignmentX = LEFT_ALIGNMENT
             add(heroTitle)
             add(heroSubtitle)
             add(infoCard)

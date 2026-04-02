@@ -209,6 +209,12 @@ class AgentTabPanel(
             promptGrid.add(buildPromptCard(suggestion))
         }
 
+        title.alignmentX = LEFT_ALIGNMENT
+        subtitle.alignmentX = LEFT_ALIGNMENT
+        activityCard.alignmentX = LEFT_ALIGNMENT
+        promptTitle.alignmentX = LEFT_ALIGNMENT
+        promptGrid.alignmentX = LEFT_ALIGNMENT
+
         val content = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
             background = rootBackground
