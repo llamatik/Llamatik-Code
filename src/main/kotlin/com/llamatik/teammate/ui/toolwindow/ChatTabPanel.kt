@@ -1,7 +1,6 @@
 package com.llamatik.teammate.ui.toolwindow
 
 import com.intellij.openapi.project.Project
-import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBLabel
 import com.llamatik.teammate.ui.LlamatikTheme
 import com.intellij.ui.components.JBScrollPane
@@ -55,6 +54,33 @@ class ChatTabPanel(
     val tabs = JBTabbedPane().apply {
         isOpaque = true
         background = rootBackground
+        foreground = LlamatikTheme.onSurface
+        setUI(object : javax.swing.plaf.basic.BasicTabbedPaneUI() {
+            override fun installDefaults() {
+                super.installDefaults()
+                highlight = rootBackground
+                lightHighlight = rootBackground
+                shadow = LlamatikTheme.outline
+                darkShadow = LlamatikTheme.outline
+                focus = LlamatikTheme.primary
+            }
+            override fun paintTabBorder(g: java.awt.Graphics, tabPlacement: Int, tabIndex: Int, x: Int, y: Int, w: Int, h: Int, isSelected: Boolean) {
+                if (isSelected) {
+                    g.color = LlamatikTheme.primary
+                    g.fillRect(x, y + h - 2, w, 2)
+                }
+            }
+            override fun paintTabBackground(g: java.awt.Graphics, tabPlacement: Int, tabIndex: Int, x: Int, y: Int, w: Int, h: Int, isSelected: Boolean) {
+                g.color = if (isSelected) LlamatikTheme.surface else rootBackground
+                g.fillRect(x, y, w, h)
+            }
+            override fun paintFocusIndicator(g: java.awt.Graphics, tabPlacement: Int, rects: Array<java.awt.Rectangle>, tabIndex: Int, iconRect: java.awt.Rectangle, textRect: java.awt.Rectangle, isSelected: Boolean) {
+                // suppress focus ring
+            }
+            override fun paintContentBorder(g: java.awt.Graphics, tabPlacement: Int, selectedIndex: Int) {
+                // suppress default content border
+            }
+        })
     }
 
     private val newChatButton = toolbarButton(Strings.Chat.NEW_CHAT)
