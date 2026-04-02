@@ -26,12 +26,6 @@ import javax.swing.JPanel
 private const val CARD_WELCOME = "WELCOME"
 private const val CARD_MESSAGES = "MESSAGES"
 
-/**
- * Chat mode tab panel.
- *
- * Shows a Gemini-style greeting + suggestion cards when the session is empty,
- * and the message thread once a conversation has started.
- */
 class ChatTabPanel(
     private val project: Project,
     val sessionController: ChatSessionController,
@@ -41,38 +35,72 @@ class ChatTabPanel(
     private val onSuggestionSelected: (String) -> Unit,
 ) : JPanel(BorderLayout()) {
 
-    companion object {
-        val SUGGESTIONS = listOf(
-            "Walk me through what the highlighted code does" to "Walk me through what the highlighted code does",
-            "Look for potential issues and edge cases" to "Look for potential issues and edge cases",
-            "Propose cleaner ways to structure this code" to "Propose cleaner ways to structure this code",
-            "Generate unit tests for the current file" to "Generate unit tests for the current file",
-        )
+    enum class EntryMode {
+        CHAT,
+        ASK,
     }
 
-    val tabs = JBTabbedPane()
-    private val newChatButton = JButton("+ New Chat")
-    private val clearButton = JButton("Clear")
+    private val rootBackground = JBColor(Color(0x111318), Color(0x111318))
+    private val cardBackground = JBColor(Color(0x171A21), Color(0x171A21))
+    private val heroAccent = JBColor(Color(0x5C6CFF), Color(0x5C6CFF))
+    private val heroSecondary = JBColor(Color(0x9C7CFF), Color(0x9C7CFF))
+    private val mutedText = JBColor(Color(0xA0A6B2), Color(0xA0A6B2))
+
+    private var entryMode = EntryMode.CHAT
+
+    private val chatSuggestions = listOf(
+        "Find and resolve build errors in my project",
+        "Add documentation to my current file",
+        "Extract all hardcoded strings from this class and move them into strings.xml",
+        "Fix the warnings and errors in the editor",
+    )
+
+    private val askSuggestions = listOf(
+        "Explain this file and summarize its responsibilities",
+        "What could break in this implementation?",
+        "How should I refactor this class safely?",
+        "Which tests are missing here?",
+    )
+
+    val tabs = JBTabbedPane().apply {
+        background = rootBackground
+        foreground = JBColor.WHITE
+    }
+
+    private val newChatButton = toolbarButton("+ New Chat")
+    private val clearButton = toolbarButton("Clear")
 
     init {
+        background = rootBackground
         border = JBUI.Borders.empty()
-        val topBar = JPanel(FlowLayout(FlowLayout.LEFT, 4, 4)).apply {
-            isOpaque = false
+
+        val topBar = JPanel(FlowLayout(FlowLayout.LEFT, 6, 8)).apply {
+            background = rootBackground
+            border = JBUI.Borders.empty(0, 12, 0, 12)
             add(newChatButton)
             add(clearButton)
         }
+
         add(topBar, BorderLayout.NORTH)
         add(tabs, BorderLayout.CENTER)
+
         bindActions()
+        rebuildTabs()
+    }
+
+    fun setEntryMode(mode: EntryMode) {
+        entryMode = mode
         rebuildTabs()
     }
 
     private fun bindActions() {
         newChatButton.addActionListener {
-            val s = sessionController.addSession()
+            val newSession = sessionController.addSession()
             rebuildTabs()
-            tabs.selectedIndex = sessionController.sessions.indexOfFirst { it.id == s.id }
+            val index = sessionController.sessions.indexOfFirst { it.id == newSession.id }
+            if (index >= 0) tabs.selectedIndex = index
         }
+
         clearButton.addActionListener {
             val idx = tabs.selectedIndex.coerceAtLeast(0)
             sessionController.sessions.getOrNull(idx)?.let {
@@ -80,6 +108,7 @@ class ChatTabPanel(
                 rebuildTabs()
             }
         }
+
         tabs.addChangeListener {
             val idx = tabs.selectedIndex
             if (idx in 0 until sessionController.sessions.size) {
@@ -90,126 +119,190 @@ class ChatTabPanel(
     }
 
     fun rebuildTabs() {
-        val prevIndex = tabs.selectedIndex
+        val previousSelectedId = sessionController.selectedSessionId
         tabs.removeAll()
 
         sessionController.sessions.forEach { session ->
-            val isEmpty = session.messages.isEmpty()
-
-            // Card layout: welcome view ↔ message thread
             val cardLayout = CardLayout()
-            val cardContainer = JPanel(cardLayout)
-
-            // Welcome card
-            cardContainer.add(buildWelcomeCard(), CARD_WELCOME)
-
-            // Messages card
-            val msgList = JPanel().apply {
-                layout = BoxLayout(this, BoxLayout.Y_AXIS)
-                border = JBUI.Borders.emptyBottom(8)
+            val cardPanel = JPanel(cardLayout).apply {
+                background = rootBackground
             }
+
+            val welcomeCard = buildWelcomeCard()
+            val messagesList = JPanel().apply {
+                layout = BoxLayout(this, BoxLayout.Y_AXIS)
+                background = rootBackground
+                border = JBUI.Borders.empty(12, 12, 12, 12)
+            }
+
             session.messages.forEach { message ->
                 val proposal = message.editProposalId?.let { pendingEdits[it] }
-                msgList.add(ChatMessagePanel(
-                    project = project,
-                    roleLabel = message.role.name.lowercase().replaceFirstChar { it.uppercase() },
-                    initialContent = message.content,
-                    onApplyEdit = proposal?.let { { onApplyEdit(it) } },
-                    onViewDiff = proposal?.let { { diffService.showDiff(it) } },
-                ))
+                messagesList.add(
+                    ChatMessagePanel(
+                        project = project,
+                        role = message.role,
+                        roleLabel = message.role.name.lowercase().replaceFirstChar { it.uppercase() },
+                        initialContent = message.content,
+                        onApplyEdit = proposal?.let { { onApplyEdit(it) } },
+                        onViewDiff = proposal?.let { { diffService.showDiff(it) } },
+                    ),
+                )
             }
-            cardContainer.add(JBScrollPane(msgList).apply { border = JBUI.Borders.empty() }, CARD_MESSAGES)
 
-            cardLayout.show(cardContainer, if (isEmpty) CARD_WELCOME else CARD_MESSAGES)
-            tabs.addTab(session.title, cardContainer)
-
-            val tabIdx = tabs.tabCount - 1
-            val tabLabel = JPanel(FlowLayout(FlowLayout.LEFT, 4, 0)).apply {
-                isOpaque = false
-                add(JLabel(session.title))
-                add(JButton("×").apply {
-                    isBorderPainted = false
-                    isContentAreaFilled = false
-                    isFocusPainted = false
-                    toolTipText = "Close"
-                    font = font.deriveFont(font.size2D - 1f)
-                    addActionListener { closeTab(session.id) }
-                })
+            val messagesScroll = JBScrollPane(messagesList).apply {
+                border = JBUI.Borders.empty()
+                viewport.background = rootBackground
+                background = rootBackground
             }
-            tabs.setTabComponentAt(tabIdx, tabLabel)
+
+            cardPanel.add(welcomeCard, CARD_WELCOME)
+            cardPanel.add(messagesScroll, CARD_MESSAGES)
+
+            cardLayout.show(cardPanel, if (session.messages.isEmpty()) CARD_WELCOME else CARD_MESSAGES)
+
+            tabs.addTab(session.title, cardPanel)
+
+            val tabIndex = tabs.tabCount - 1
+            tabs.setTabComponentAt(tabIndex, buildTabHeader(session.title) {
+                closeTab(session.id)
+            })
         }
 
-        val target = sessionController.sessions
-            .indexOfFirst { it.id == sessionController.selectedSessionId }
-            .takeIf { it >= 0 } ?: prevIndex.coerceAtLeast(0)
-        if (tabs.tabCount > 0) tabs.selectedIndex = target.coerceAtMost(tabs.tabCount - 1)
+        val restoredIndex = sessionController.sessions.indexOfFirst { it.id == previousSelectedId }
+        if (tabs.tabCount > 0) {
+            tabs.selectedIndex = if (restoredIndex >= 0) restoredIndex else 0
+        }
     }
 
     private fun buildWelcomeCard(): JPanel {
-        val panel = JPanel(BorderLayout()).apply { isOpaque = false }
-        panel.border = JBUI.Borders.empty(28, 24, 16, 24)
+        val greetingName = System.getProperty("user.name", "there").replaceFirstChar { it.uppercase() }
+        val modeTitle = if (entryMode == EntryMode.ASK) "Ask" else "Hi, $greetingName"
+        val modeSubtitle = if (entryMode == EntryMode.ASK) {
+            "Ask a focused question about your current file or project"
+        } else {
+            "What can I help you build today?"
+        }
 
-        val greeting = JBLabel(
-            "<html><span style='font-size:18pt; font-weight:bold; color:#5B8AF0;'>Hi, ${System.getProperty("user.name", "there")}</span></html>",
+        val heroTitle = JBLabel(
+            "<html><span style='font-size:22pt; font-weight:700; color:#5C6CFF;'>$modeTitle</span></html>",
         ).apply {
             border = JBUI.Borders.emptyBottom(4)
-            alignmentX = LEFT_ALIGNMENT
         }
 
-        val subtitle = JBLabel("What can I help you build today?").apply {
-            font = font.deriveFont(Font.PLAIN, font.size2D + 3f)
-            border = JBUI.Borders.emptyBottom(24)
-            alignmentX = LEFT_ALIGNMENT
+        val heroSubtitle = JBLabel(modeSubtitle).apply {
+            foreground = JBColor.WHITE
+            font = font.deriveFont(Font.BOLD, font.size2D + 5f)
+            border = JBUI.Borders.emptyBottom(28)
         }
 
-        val header = JPanel().apply {
+        val infoCard = JPanel(BorderLayout(0, 8)).apply {
+            isOpaque = true
+            background = JBColor(Color(0x1D2E5D), Color(0x1D2E5D))
+            border = JBUI.Borders.compound(
+                BorderFactory.createLineBorder(JBColor(Color(0x3B5DB8), Color(0x3B5DB8)), 1, true),
+                JBUI.Borders.empty(14, 16),
+            )
+        }
+
+        val infoTitle = JBLabel(
+            if (entryMode == EntryMode.ASK) {
+                "Use Ask for quick, scoped questions"
+            } else {
+                "Use a Llamatik model for private local assistance"
+            },
+        ).apply {
+            foreground = JBColor.WHITE
+            font = font.deriveFont(Font.BOLD, font.size2D + 1f)
+            border = JBUI.Borders.emptyBottom(4)
+        }
+
+        val infoBody = JBLabel(
+            "<html>${if (entryMode == EntryMode.ASK) "Ask keeps the same workflow, but presents a lighter question-first surface." else "Stream responses locally, keep your workflow private, and move into Agent mode when you want assisted multi-step execution."}</html>",
+        ).apply {
+            foreground = JBColor(Color(0xD8E1FF), Color(0xD8E1FF))
+        }
+
+        infoCard.add(infoTitle, BorderLayout.NORTH)
+        infoCard.add(infoBody, BorderLayout.CENTER)
+
+        val promptsTitle = JBLabel("Prompts to try").apply {
+            foreground = JBColor.WHITE
+            font = font.deriveFont(Font.BOLD, font.size2D + 1f)
+            border = JBUI.Borders.empty(26, 0, 10, 0)
+        }
+
+        val promptsGrid = JPanel(GridLayout(0, 1, 0, 8)).apply {
+            isOpaque = false
+        }
+
+        (if (entryMode == EntryMode.ASK) askSuggestions else chatSuggestions).forEach { suggestion ->
+            promptsGrid.add(promptChip(suggestion))
+        }
+
+        val content = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
-            isOpaque = false
-            add(greeting)
-            add(subtitle)
+            background = rootBackground
+            border = JBUI.Borders.empty(26, 20, 20, 20)
+            add(heroTitle)
+            add(heroSubtitle)
+            add(infoCard)
+            add(promptsTitle)
+            add(promptsGrid)
         }
 
-        val suggestionsTitle = JBLabel("Prompts to try").apply {
-            font = font.deriveFont(Font.BOLD, font.size2D)
-            border = JBUI.Borders.emptyBottom(10)
-            alignmentX = LEFT_ALIGNMENT
+        return JPanel(BorderLayout()).apply {
+            background = rootBackground
+            add(content, BorderLayout.NORTH)
         }
-
-        val grid = JPanel(GridLayout(0, 1, 0, 8)).apply { isOpaque = false }
-        SUGGESTIONS.forEach { (short, desc) ->
-            grid.add(suggestionCard(desc) { onSuggestionSelected(short) })
-        }
-
-        val body = JPanel(BorderLayout()).apply {
-            isOpaque = false
-            add(suggestionsTitle, BorderLayout.NORTH)
-            add(grid, BorderLayout.CENTER)
-        }
-
-        val outer = JPanel().apply {
-            layout = BoxLayout(this, BoxLayout.Y_AXIS)
-            isOpaque = false
-            add(header)
-            add(body)
-        }
-
-        panel.add(outer, BorderLayout.NORTH)
-        return panel
     }
 
-    private fun suggestionCard(text: String, action: () -> Unit): JButton {
-        return JButton("<html><span style='font-weight:normal;'>$text</span></html>").apply {
+    private fun buildTabHeader(title: String, onClose: () -> Unit): JPanel =
+        JPanel(FlowLayout(FlowLayout.LEFT, 6, 0)).apply {
+            isOpaque = false
+            add(JLabel(title).apply { foreground = JBColor.WHITE })
+            add(JButton("×").apply {
+                isBorderPainted = false
+                isContentAreaFilled = false
+                isFocusPainted = false
+                foreground = mutedText
+                toolTipText = "Close"
+                addActionListener { onClose() }
+            })
+        }
+
+    private fun promptChip(text: String): JButton =
+        JButton("<html><span style='color:#FFFFFF;'>$text</span></html>").apply {
             horizontalAlignment = JButton.LEFT
+            isFocusPainted = false
+            isContentAreaFilled = true
+            isOpaque = true
+            background = cardBackground
             border = JBUI.Borders.compound(
-                BorderFactory.createLineBorder(JBColor.border(), 1, true),
+                BorderFactory.createLineBorder(
+                    JBColor(
+                        if (entryMode == EntryMode.ASK) heroSecondary else heroAccent,
+                        if (entryMode == EntryMode.ASK) heroSecondary else heroAccent,
+                    ),
+                    1,
+                    true,
+                ),
                 JBUI.Borders.empty(10, 14),
             )
-            isContentAreaFilled = false
-            isFocusPainted = false
-            maximumSize = Dimension(Int.MAX_VALUE, preferredSize.height)
-            addActionListener { action() }
+            preferredSize = Dimension(preferredSize.width, 38)
+            addActionListener { onSuggestionSelected(text) }
         }
-    }
+
+    private fun toolbarButton(text: String): JButton =
+        JButton("<html><span style='color:#FFFFFF;'>$text</span></html>").apply {
+            isFocusPainted = false
+            isContentAreaFilled = true
+            isOpaque = true
+            background = cardBackground
+            border = JBUI.Borders.compound(
+                BorderFactory.createLineBorder(JBColor(Color(0x303644), Color(0x303644)), 1, true),
+                JBUI.Borders.empty(6, 10),
+            )
+        }
 
     private fun closeTab(sessionId: String) {
         sessionController.removeSession(sessionId)
@@ -221,27 +314,21 @@ class ChatTabPanel(
             sessionController.sessions.first()
         }
 
-    fun activeScrollPane(): JBScrollPane? {
-        val idx = tabs.selectedIndex
-        if (idx < 0 || idx >= tabs.tabCount) return null
-        val card = tabs.getComponentAt(idx) as? JPanel ?: return null
-        // Find the JBScrollPane inside the MESSAGES card
-        return card.components.filterIsInstance<JBScrollPane>().firstOrNull()
-    }
-
     fun appendStreamingPanel(streamPanel: ChatMessagePanel) {
-        val idx = tabs.selectedIndex
-        if (idx < 0 || idx >= tabs.tabCount) return
-        val card = tabs.getComponentAt(idx) as? JPanel ?: return
+        val selectedIndex = tabs.selectedIndex
+        if (selectedIndex < 0 || selectedIndex >= tabs.tabCount) return
 
-        // Switch to messages card
-        (card.layout as? CardLayout)?.show(card, CARD_MESSAGES)
+        val cardPanel = tabs.getComponentAt(selectedIndex) as? JPanel ?: return
+        (cardPanel.layout as? CardLayout)?.show(cardPanel, CARD_MESSAGES)
 
-        val scroll = card.components.filterIsInstance<JBScrollPane>().firstOrNull() ?: return
-        val container = scroll.viewport.view as? JPanel ?: return
-        container.add(streamPanel)
-        container.revalidate()
-        // Scroll to bottom
-        scroll.verticalScrollBar.value = scroll.verticalScrollBar.maximum
+        val scrollPane = cardPanel.components.filterIsInstance<JBScrollPane>().firstOrNull() ?: return
+        val content = scrollPane.viewport.view as? JPanel ?: return
+
+        content.add(streamPanel)
+        content.revalidate()
+        content.repaint()
+
+        val bar = scrollPane.verticalScrollBar
+        bar.value = bar.maximum
     }
 }
