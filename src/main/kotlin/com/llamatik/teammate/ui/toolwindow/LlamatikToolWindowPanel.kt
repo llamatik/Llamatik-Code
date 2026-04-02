@@ -1,6 +1,8 @@
 package com.llamatik.teammate.ui.toolwindow
 
+import com.intellij.icons.AllIcons
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.options.ShowSettingsUtil
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
@@ -18,6 +20,7 @@ import com.llamatik.teammate.model.ChatRole
 import com.llamatik.teammate.model.EditProposal
 import com.llamatik.teammate.model.PluginReadinessState
 import com.llamatik.teammate.settings.LlamatikAppSettings
+import com.llamatik.teammate.settings.LlamatikSettingsConfigurable
 import com.llamatik.teammate.tools.ToolCallParser
 import com.llamatik.teammate.ui.LlamatikTheme
 import com.llamatik.teammate.ui.Strings
@@ -32,6 +35,7 @@ import java.awt.Graphics
 import java.awt.Graphics2D
 import java.awt.GridLayout
 import java.awt.RenderingHints
+import java.awt.Shape
 import java.awt.geom.RoundRectangle2D
 import java.awt.event.InputEvent
 import java.awt.event.KeyEvent
@@ -105,19 +109,19 @@ class LlamatikToolWindowPanel(
         toolTipText = Strings.Composer.INPUT_TOOLTIP_DEFAULT
     }
 
-    private val sendButton = JButton("➤").apply {
+    private val sendButton = JButton(AllIcons.Actions.Execute).apply {
         toolTipText = Strings.Composer.SEND_TOOLTIP
         preferredSize = Dimension(38, 32)
     }
-    private val stopButton = JButton("■").apply {
+    private val stopButton = JButton(AllIcons.Actions.Suspend).apply {
         isEnabled = false
         toolTipText = Strings.Composer.STOP_TOOLTIP
         preferredSize = Dimension(38, 32)
     }
 
-    private val contextButton = buildFooterPill(Strings.Composer.CONTEXT_PILL)
-    private val profileButton = buildFooterPill(Strings.Composer.PROFILE_PILL)
-    private val settingsButton = buildFooterPill(Strings.Composer.SETTINGS_PILL)
+    //private val contextButton = buildFooterPill(Strings.Composer.CONTEXT_PILL)
+    //private val profileButton = buildFooterPill(Strings.Composer.PROFILE_PILL)
+    private val settingsButton = buildFooterPill(AllIcons.General.Settings, Strings.Settings.PAGE_NAME)
     private val disclaimerLabel = JBLabel(Strings.App.DISCLAIMER).apply {
         foreground = LlamatikTheme.onSurfaceVariant
         font = font.deriveFont(Font.PLAIN, font.size2D - 1f)
@@ -232,22 +236,40 @@ class LlamatikToolWindowPanel(
     }
 
     private fun buildComposer(): JPanel {
+        val arc = 16
+
         val inputScroll = JBScrollPane(inputArea).apply {
             border = JBUI.Borders.empty()
             viewport.border = null
-            isOpaque = true
-            background = rootBackground
-            viewport.isOpaque = true
-            viewport.background = rootBackground
+            isOpaque = false
+            background = cardBackground
+            viewport.isOpaque = false
+            viewport.background = cardBackground
             preferredSize = Dimension(100, 86)
         }
 
-        val composerShell = JPanel(BorderLayout(0, 8)).apply {
-            background = cardBackground
-            border = JBUI.Borders.compound(
-                BorderFactory.createLineBorder(accentBorder, 1, true),
-                JBUI.Borders.empty(10, 10, 8, 10),
-            )
+        inputArea.isOpaque = false
+        inputArea.background = cardBackground
+
+        val composerShell = object : JPanel(BorderLayout(0, 8)) {
+            private val shape: Shape get() = RoundRectangle2D.Float(0f, 0f, width.toFloat(), height.toFloat(), arc.toFloat(), arc.toFloat())
+            override fun paintComponent(g: Graphics) {
+                val g2 = g.create() as Graphics2D
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+                g2.color = cardBackground
+                g2.fill(shape)
+                g2.dispose()
+            }
+            override fun paintBorder(g: Graphics) {
+                val g2 = g.create() as Graphics2D
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+                g2.color = accentBorder
+                g2.draw(RoundRectangle2D.Float(0.5f, 0.5f, width - 1f, height - 1f, arc.toFloat(), arc.toFloat()))
+                g2.dispose()
+            }
+        }.apply {
+            isOpaque = false
+            border = JBUI.Borders.empty(10, 10, 8, 10)
             add(inputScroll, BorderLayout.CENTER)
             add(buildComposerFooter(), BorderLayout.SOUTH)
         }
@@ -263,12 +285,12 @@ class LlamatikToolWindowPanel(
     private fun buildComposerFooter(): JPanel {
         val left = JPanel(FlowLayout(FlowLayout.LEFT, 8, 0)).apply {
             isOpaque = false
-            add(contextButton)
+            //add(contextButton)
         }
 
         val rightControls = JPanel(FlowLayout(FlowLayout.RIGHT, 8, 0)).apply {
             isOpaque = false
-            add(profileButton)
+            //add(profileButton)
             add(settingsButton)
             add(stopButton)
             add(sendButton)
@@ -521,6 +543,24 @@ class LlamatikToolWindowPanel(
                 BorderFactory.createLineBorder(LlamatikTheme.outline, 1, true),
                 JBUI.Borders.empty(5, 10),
             )
+        }
+
+    private fun buildFooterPill(icon: javax.swing.Icon, tooltip: String): JButton =
+        JButton(icon).apply {
+            toolTipText = tooltip
+            isFocusPainted = false
+            isContentAreaFilled = false
+            preferredSize = Dimension(38, 32)
+            border = JBUI.Borders.compound(
+                BorderFactory.createLineBorder(LlamatikTheme.outline, 1, true),
+                JBUI.Borders.empty(5, 10),
+            )
+            addActionListener {
+                ShowSettingsUtil.getInstance().showSettingsDialog(
+                    project,
+                    LlamatikSettingsConfigurable::class.java,
+                )
+            }
         }
 
     private fun headerIconButton(text: String): JButton =
