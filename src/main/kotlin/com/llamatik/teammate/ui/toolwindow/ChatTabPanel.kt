@@ -101,7 +101,7 @@ class ChatTabPanel(
 
         tabs.addChangeListener {
             val idx = tabs.selectedIndex
-            if (idx in 0 until sessionController.sessions.size) {
+            if (idx in sessionController.sessions.indices) {
                 sessionController.selectedSessionId = sessionController.sessions[idx].id
                 sessionController.persist()
             }
@@ -210,7 +210,7 @@ class ChatTabPanel(
         infoCard.add(infoBody, BorderLayout.CENTER)
 
         val promptsTitle = JBLabel(Strings.Chat.PROMPTS_TITLE).apply {
-            foreground = JBColor.WHITE
+            foreground = LlamatikTheme.onSurface
             font = font.deriveFont(Font.BOLD, font.size2D + 1f)
             border = JBUI.Borders.empty(26, 0, 10, 0)
         }

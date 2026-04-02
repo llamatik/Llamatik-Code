@@ -59,7 +59,7 @@ class AgentTabPanel(
 
     private val statusPill = JBLabel("").apply {
         isVisible = false
-        foreground = JBColor.WHITE
+        foreground = LlamatikTheme.onSurface
         border = JBUI.Borders.compound(
             BorderFactory.createLineBorder(panelStroke, 1, true),
             JBUI.Borders.empty(4, 10),
@@ -109,7 +109,7 @@ class AgentTabPanel(
         lineWrap = true
         wrapStyleWord = true
         background = cardBackground
-        foreground = JBColor.WHITE
+        foreground = LlamatikTheme.onSurface
         border = JBUI.Borders.empty(12, 14)
         font = font.deriveFont(Font.PLAIN, font.size2D + 1f)
     }
@@ -233,7 +233,7 @@ class AgentTabPanel(
             background = rootBackground
             border = JBUI.Borders.empty(12, 16, 0, 16)
             add(JBLabel(Strings.Agent.TASK_HEADER).apply {
-                foreground = JBColor.WHITE
+                foreground = LlamatikTheme.onSurface
                 font = font.deriveFont(Font.BOLD, font.size2D + 2f)
             }, BorderLayout.WEST)
         }
@@ -274,7 +274,7 @@ class AgentTabPanel(
                         JBUI.Borders.empty(22),
                     )
                     add(JLabel(message).apply {
-                        foreground = JBColor.WHITE
+                        foreground = LlamatikTheme.onSurface
                         horizontalAlignment = JLabel.CENTER
                     }, BorderLayout.CENTER)
                 },
@@ -436,7 +436,7 @@ class AgentTabPanel(
         }
 
         taskCard.add(JBLabel("<html><b>Task</b><br/>${taskState.prompt}</html>").apply {
-            foreground = JBColor.WHITE
+            foreground = LlamatikTheme.onSurface
             border = JBUI.Borders.emptyBottom(12)
             alignmentX = LEFT_ALIGNMENT
         })

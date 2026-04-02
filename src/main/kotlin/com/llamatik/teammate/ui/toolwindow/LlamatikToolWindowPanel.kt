@@ -138,7 +138,7 @@ class LlamatikToolWindowPanel(
 /*
     private val titleLabel = JBLabel("Llamatik Code").apply {
         font = font.deriveFont(Font.BOLD, font.size2D + 1f)
-        foreground = JBColor.WHITE
+        foreground = LlamatikTheme.onSurface
     }
     */
 
@@ -168,7 +168,7 @@ class LlamatikToolWindowPanel(
     fun focusInputWithPrefill(text: String) = prefillComposer(text)
 
     private fun buildTopSection(): JPanel {
-        trialBannerLabel.foreground = JBColor.WHITE
+        trialBannerLabel.foreground = LlamatikTheme.onSurface
         trialDismissBtn.addActionListener {
             settings.data().trialWarningDismissed = true
             trialBannerPanel.isVisible = false
