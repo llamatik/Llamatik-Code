@@ -59,10 +59,38 @@ class AgentTabPanel(
     private val rejectButton = JButton("Reject")
 
     // Response card components
-    private val statusLabel = JBLabel("Analysing…").apply {
-        font = font.deriveFont(Font.ITALIC)
+    private val thinkToggleButton = JButton("▶ Thinking").apply {
+        isContentAreaFilled = false
+        isFocusPainted = false
+        isBorderPainted = false
+        font = font.deriveFont(Font.ITALIC, font.size2D - 1f)
         foreground = JBColor(Color(0x888888), Color(0x888888))
-        border = JBUI.Borders.empty(0, 0, 8, 0)
+        horizontalAlignment = JButton.LEFT
+    }
+    private val thinkTextArea = com.intellij.ui.components.JBTextArea("").apply {
+        isEditable = false
+        lineWrap = true
+        wrapStyleWord = true
+        border = JBUI.Borders.empty(6)
+        background = JBColor(Color(0xEEEEEE), Color(0x2B2D30))
+        foreground = JBColor(Color(0x666666), Color(0x999999))
+        font = font.deriveFont(Font.ITALIC)
+    }
+    private val thinkScrollPane = JBScrollPane(thinkTextArea).apply {
+        border = BorderFactory.createLineBorder(JBColor.border(), 1, true)
+        isVisible = false
+        preferredSize = java.awt.Dimension(0, 100)
+    }
+    private val thinkSection = JPanel(BorderLayout()).apply {
+        isOpaque = false
+        isVisible = false
+        border = JBUI.Borders.emptyBottom(8)
+    }
+    private val statusLabel = JBLabel("").apply {
+        border = JBUI.Borders.emptyBottom(4)
+        font = font.deriveFont(Font.ITALIC, font.size2D - 1f)
+        foreground = JBColor(Color(0x888888), Color(0x888888))
+        isVisible = false
     }
     private val responseTextArea = com.intellij.ui.components.JBTextArea("").apply {
         isEditable = false
@@ -180,6 +208,16 @@ class AgentTabPanel(
             cardLayout.show(cardPanel, CARD_WELCOME)
         }
 
+        thinkToggleButton.addActionListener {
+            val expanded = thinkScrollPane.isVisible
+            thinkScrollPane.isVisible = !expanded
+            thinkToggleButton.text = if (expanded) "▶ Thinking" else "▼ Thinking"
+            thinkSection.revalidate()
+        }
+
+        thinkSection.add(thinkToggleButton, BorderLayout.NORTH)
+        thinkSection.add(thinkScrollPane, BorderLayout.CENTER)
+
         val copyBtn = JButton("Copy").apply {
             addActionListener {
                 CopyPasteManager.getInstance().setContents(StringSelection(responseTextArea.text))
@@ -193,10 +231,17 @@ class AgentTabPanel(
             add(copyBtn, BorderLayout.EAST)
         }
 
+        val northArea = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            isOpaque = false
+            add(statusLabel)
+            add(thinkSection)
+        }
+
         val content = JPanel(BorderLayout()).apply {
             isOpaque = false
             border = JBUI.Borders.empty(0, 12, 8, 12)
-            add(statusLabel, BorderLayout.NORTH)
+            add(northArea, BorderLayout.NORTH)
             add(responseScrollPane, BorderLayout.CENTER)
             add(responseActionBar, BorderLayout.SOUTH)
         }
@@ -212,9 +257,15 @@ class AgentTabPanel(
     /** Called when generation starts. Shows the response card with a status indicator. */
     fun startResponse(prompt: String) {
         responseTextArea.text = ""
+        thinkTextArea.text = ""
+        thinkSection.isVisible = false
+        thinkScrollPane.isVisible = false
+        thinkToggleButton.text = "▶ Thinking"
         responseActionBar.removeAll()
         statusLabel.text = "Analysing…"
         statusLabel.isVisible = true
+        streamBuffer.clear()
+        streamingBlocked = false
         cardLayout.show(cardPanel, CARD_RESPONSE)
         cardPanel.revalidate()
     }
@@ -222,13 +273,65 @@ class AgentTabPanel(
     /** Called to update the status message during generation (e.g. "Calling tools…"). */
     fun setStatus(message: String) {
         statusLabel.text = message
+        statusLabel.isVisible = true
     }
 
-    /** Called when generation completes. Shows the clean answer text. */
+    /** Appends a token from the model's thinking block (shown collapsed by default). */
+    fun appendThinkingToken(token: String) {
+        thinkTextArea.append(token)
+        if (!thinkSection.isVisible) {
+            thinkSection.isVisible = true
+        }
+    }
+
+    // Buffer to detect XML markup during streaming and avoid showing raw tags
+    private val streamBuffer = StringBuilder()
+    private var streamingBlocked = false
+
+    /** Appends a token from the model's answer (streamed live into the main text area). */
+    fun appendAnswerToken(token: String) {
+        if (streamingBlocked) return
+        streamBuffer.append(token)
+        val buf = streamBuffer.toString()
+        // Detect start of known XML markup tags — stop streaming, clean text comes via showAnswer()
+        val toolIdx = buf.indexOf("<tool_call")
+        val editIdx = buf.indexOf("<edit_proposal")
+        val markupStart = when {
+            toolIdx >= 0 && editIdx >= 0 -> minOf(toolIdx, editIdx)
+            toolIdx >= 0 -> toolIdx
+            editIdx >= 0 -> editIdx
+            else -> -1
+        }
+        if (markupStart >= 0) {
+            val safe = buf.substring(0, markupStart).trimEnd()
+            if (safe.isNotEmpty()) {
+                statusLabel.isVisible = false
+                responseTextArea.append(safe)
+                responseTextArea.caretPosition = responseTextArea.document.length
+            }
+            streamingBlocked = true
+            return
+        }
+        // No markup yet — display what we have
+        statusLabel.isVisible = false
+        responseTextArea.append(token)
+        responseTextArea.caretPosition = responseTextArea.document.length
+    }
+
+    /** Called when generation completes. Replaces streamed text with the clean final text. */
     fun showAnswer(text: String, onApply: (() -> Unit)? = null, onViewDiff: (() -> Unit)? = null) {
         statusLabel.isVisible = false
+        // Always replace with clean text — streamed content may contain raw XML markup
         responseTextArea.text = text
         responseTextArea.caretPosition = 0
+        // Hide thinking section entirely if empty, otherwise collapse it
+        if (thinkTextArea.text.isBlank()) {
+            thinkSection.isVisible = false
+        } else {
+            thinkScrollPane.isVisible = false
+            thinkToggleButton.text = "▶ Thinking"
+            thinkSection.revalidate()
+        }
         responseActionBar.removeAll()
         if (onViewDiff != null) {
             responseActionBar.add(JButton("View Diff").apply { addActionListener { onViewDiff() } })
@@ -237,7 +340,6 @@ class AgentTabPanel(
             responseActionBar.add(JButton("Apply Edit").apply { addActionListener { onApply() } })
         }
         responseActionBar.revalidate()
-        responseScrollPane.verticalScrollBar.value = 0
         cardPanel.revalidate()
         cardPanel.repaint()
     }

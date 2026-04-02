@@ -34,6 +34,7 @@ class AgentOrchestrator(private val project: Project) {
         session: ChatSession,
         userPrompt: String,
         onToken: (String) -> Unit,
+        onThinkingToken: ((String) -> Unit)? = null,
         onFinished: (ChatMessage, EditProposal?) -> Unit,
         onError: (String) -> Unit,
     ): GenerationHandle {
@@ -42,8 +43,7 @@ class AgentOrchestrator(private val project: Project) {
         // Tracks whichever backend call is currently active so cancel() always reaches the live handle.
         val activeHandle = AtomicReference<GenerationHandle>()
 
-        // Suppress <think>…</think> tokens from reaching the UI during streaming.
-        // We track whether we are currently inside a think block using a simple string buffer.
+        // Route <think>…</think> tokens to onThinkingToken; answer tokens to onToken.
         val tokenBuffer = StringBuilder()
         val inThink = AtomicBoolean(false)
         fun filteredToken(token: String) {
@@ -51,7 +51,7 @@ class AgentOrchestrator(private val project: Project) {
             val buf = tokenBuffer.toString()
             // Detect opening tag
             if (!inThink.get() && buf.contains("<think>")) {
-                // Emit everything before <think>
+                // Emit everything before <think> as answer text
                 val before = buf.substringBefore("<think>")
                 if (before.isNotEmpty()) onToken(before)
                 inThink.set(true)
@@ -61,24 +61,34 @@ class AgentOrchestrator(private val project: Project) {
                 // Re-check for closing tag
                 val remaining = tokenBuffer.toString()
                 if (remaining.contains("</think>")) {
+                    val thinkContent = remaining.substringBefore("</think>")
+                    if (thinkContent.isNotEmpty()) onThinkingToken?.invoke(thinkContent)
                     inThink.set(false)
                     val after = remaining.substringAfter("</think>")
                     tokenBuffer.clear()
                     if (after.isNotEmpty()) onToken(after)
+                } else if (remaining.isNotEmpty()) {
+                    onThinkingToken?.invoke(remaining)
+                    tokenBuffer.clear()
                 }
                 return
             }
             if (inThink.get()) {
                 if (buf.contains("</think>")) {
+                    val thinkContent = buf.substringBefore("</think>")
+                    if (thinkContent.isNotEmpty()) onThinkingToken?.invoke(thinkContent)
                     inThink.set(false)
                     val after = buf.substringAfter("</think>")
                     tokenBuffer.clear()
                     if (after.isNotEmpty()) onToken(after)
+                } else {
+                    // Still inside think block — forward to thinking callback
+                    onThinkingToken?.invoke(buf)
+                    tokenBuffer.clear()
                 }
-                // else stay buffered, discard
                 return
             }
-            // Not in think block — emit and clear buffer
+            // Not in think block — emit as answer token and clear buffer
             tokenBuffer.clear()
             onToken(token)
         }

@@ -217,10 +217,16 @@ class LlamatikToolWindowPanel(
                 session = chatTabPanel.currentSession(),
                 userPrompt = prompt,
                 onToken = { token ->
-                    if (token.startsWith("\u0000STATUS:")) {
-                        val status = token.removePrefix("\u0000STATUS:")
-                        SwingUtilities.invokeLater { agentTabPanel.setStatus(status) }
+                    SwingUtilities.invokeLater {
+                        if (token.startsWith("\u0000STATUS:")) {
+                            agentTabPanel.setStatus(token.removePrefix("\u0000STATUS:"))
+                        } else {
+                            agentTabPanel.appendAnswerToken(token)
+                        }
                     }
+                },
+                onThinkingToken = { token ->
+                    SwingUtilities.invokeLater { agentTabPanel.appendThinkingToken(token) }
                 },
                 onFinished = { msg, proposal ->
                     ApplicationManager.getApplication().invokeLater {
