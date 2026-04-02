@@ -2,6 +2,7 @@ package com.llamatik.teammate.llamatik
 
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.thisLogger
+import com.llamatik.library.platform.GenStream
 import com.llamatik.teammate.backend.AssistantBackend
 import com.llamatik.teammate.backend.GenerationCallbacks
 import com.llamatik.teammate.backend.GenerationHandle
@@ -9,8 +10,8 @@ import com.llamatik.teammate.backend.GenerationRequest
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.Executors
-import java.util.concurrent.Future
 import java.util.concurrent.atomic.AtomicBoolean
+
 
 @Service(Service.Level.APP)
 class LlamatikBackendService : AssistantBackend {
@@ -49,18 +50,58 @@ class LlamatikBackendService : AssistantBackend {
             return NoOpHandle(cancelled)
         }
 
-        val future: Future<String> = executor.submit<String> {
-            ensureModel(request.config.modelIdOrPath)
-            val prompt = buildPrompt(request)
-            com.llamatik.library.platform.LlamaBridge.generate(prompt)
-        }
-
         executor.submit {
             try {
-                val response = future.get()
-                if (cancelled.get()) return@submit
-                streamFallback(response, callbacks, cancelled)
-                if (!cancelled.get()) callbacks.onCompleted(response)
+                ensureModel(request.config.modelIdOrPath)
+
+                val prompt = PluginPromptRenderer.render(
+                    system = request.systemPrompt,
+                    messages = request.messages,
+                )
+                val stopSequences = PluginPromptRenderer.STOP_SEQUENCES
+
+                val acc = StringBuilder()
+                var done = false
+                var tokenCount = 0
+
+                val guard = object : GenStream {
+                    override fun onDelta(text: String) {
+                        if (done || cancelled.get()) return
+                        acc.append(text)
+                        tokenCount++
+
+                        if (shouldStop(acc, stopSequences)) {
+                            done = true
+                            val final = trimAtStop(acc.toString(), stopSequences)
+                            callbacks.onCompleted(final)
+                            return
+                        }
+
+                        if (tokenCount >= request.config.maxTokens) {
+                            done = true
+                            callbacks.onCompleted(acc.toString())
+                            return
+                        }
+
+                        callbacks.onToken(text)
+                    }
+
+                    override fun onComplete() {
+                        if (!done && !cancelled.get()) {
+                            done = true
+                            callbacks.onCompleted(acc.toString())
+                        }
+                    }
+
+                    override fun onError(message: String) {
+                        if (!done && !cancelled.get()) {
+                            done = true
+                            callbacks.onError(message, null)
+                        }
+                    }
+                }
+
+                com.llamatik.library.platform.LlamaBridge.generateStream(prompt, guard)
             } catch (t: Throwable) {
                 if (!cancelled.get()) {
                     logger.warn("Generation failed", t)
@@ -72,11 +113,26 @@ class LlamatikBackendService : AssistantBackend {
         return object : GenerationHandle {
             override fun cancel() {
                 cancelled.set(true)
-                future.cancel(true)
+                com.llamatik.library.platform.LlamaBridge.nativeCancelGenerate()
             }
 
             override val isCancelled: Boolean get() = cancelled.get()
         }
+    }
+
+    private fun shouldStop(sb: StringBuilder, stops: List<String>): Boolean {
+        if (stops.isEmpty()) return false
+        val tail = sb.takeLast(minOf(64, sb.length))
+        return stops.any { tail.endsWith(it) }
+    }
+
+    private fun trimAtStop(text: String, stops: List<String>): String {
+        var out = text
+        for (s in stops) {
+            val idx = out.lastIndexOf(s)
+            if (idx >= 0) { out = out.substring(0, idx); break }
+        }
+        return out
     }
 
     private fun ensureModel(modelPath: String) {
@@ -112,40 +168,6 @@ class LlamatikBackendService : AssistantBackend {
         return path.toAbsolutePath().normalize().toString()
     }
 
-    private fun buildPrompt(request: GenerationRequest): String {
-        return buildString {
-            // System prompt
-            if (request.systemPrompt.isNotBlank()) {
-                append("<|im_start|>system\n")
-                append(request.systemPrompt.trim())
-                append("<|im_end|>\n")
-            }
-            // Conversation turns
-            for (msg in request.messages) {
-                val role = when (msg.role) {
-                    com.llamatik.teammate.model.ChatRole.SYSTEM -> "system"
-                    com.llamatik.teammate.model.ChatRole.USER -> "user"
-                    com.llamatik.teammate.model.ChatRole.ASSISTANT -> "assistant"
-                    com.llamatik.teammate.model.ChatRole.TOOL -> "tool"
-                }
-                append("<|im_start|>$role\n")
-                append(msg.content.trim())
-                append("<|im_end|>\n")
-            }
-            // Prompt the model to reply
-            append("<|im_start|>assistant\n")
-        }
-    }
-
-    private fun streamFallback(text: String, callbacks: GenerationCallbacks, cancelled: AtomicBoolean) {
-        var index = 0
-        while (index < text.length && !cancelled.get()) {
-            val next = minOf(text.length, index + 24)
-            callbacks.onToken(text.substring(index, next))
-            index = next
-            Thread.sleep(10)
-        }
-    }
 
     private fun friendlyError(t: Throwable): String {
         val cause = generateSequence(t) { it.cause }.firstOrNull { it is UnsatisfiedLinkError }
