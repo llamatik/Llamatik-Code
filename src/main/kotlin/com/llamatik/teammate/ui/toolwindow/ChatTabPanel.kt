@@ -90,7 +90,7 @@ class ChatTabPanel(
         background = rootBackground
         border = JBUI.Borders.empty()
 
-        val topBar = JPanel(FlowLayout(FlowLayout.LEFT, 6, 8)).apply {
+        val topBar = JPanel(FlowLayout(FlowLayout.RIGHT, 3, 4)).apply {
             background = rootBackground
             border = JBUI.Borders.empty(0, 12)
             add(newChatButton)
@@ -311,7 +311,7 @@ class ChatTabPanel(
             background = cardBackground
             border = JBUI.Borders.compound(
                 BorderFactory.createLineBorder(LlamatikTheme.outline, 1, true),
-                JBUI.Borders.empty(6, 10),
+                JBUI.Borders.empty(3, 5),
             )
         }
 
