@@ -25,18 +25,18 @@ class ChatMessagePanel(
     private val onViewDiff: (() -> Unit)? = null,
 ) : JPanel(BorderLayout()) {
 
-    private val rootBackground = JBColor(Color(0x111318), Color(0x111318))
-    private val assistantBubble = JBColor(Color(0x1A1E27), Color(0x1A1E27))
-    private val userBubble = JBColor(Color(0x202B57), Color(0x202B57))
-    private val bubbleStroke = JBColor(Color(0x2F3645), Color(0x2F3645))
-    private val userStroke = JBColor(Color(0x5C6CFF), Color(0x5C6CFF))
-    private val mutedText = JBColor(Color(0xA0A6B2), Color(0xA0A6B2))
+    private val rootBackground = JBColor(Color(0x0F0F10), Color(0x0F0F10))
+    private val assistantBubble = JBColor(Color(0x1C1C1F), Color(0x1C1C1F))
+    private val userBubble = JBColor(Color(0x2A2116), Color(0x2A2116))
+    private val bubbleStroke = JBColor(Color(0x35353A), Color(0x35353A))
+    private val userStroke = JBColor(Color(0xFFB74D.toInt()), Color(0xFFB74D.toInt()))
 
     private val textArea = JBTextArea(initialContent).apply {
         isEditable = false
+        isOpaque = true
         lineWrap = true
         wrapStyleWord = true
-        foreground = JBColor.WHITE
+        foreground = JBColor(Color(0xEDEDED.toInt()), Color(0xEDEDED.toInt()))
         background = if (role == ChatRole.USER) userBubble else assistantBubble
         border = JBUI.Borders.empty(10, 12)
         font = font.deriveFont(font.size2D + 1f)
@@ -49,15 +49,14 @@ class ChatMessagePanel(
     init {
         isOpaque = true
         background = rootBackground
-        border = JBUI.Borders.empty(0, 0, 10, 0)
+        border = JBUI.Borders.emptyBottom(10)
 
         val header = JPanel(BorderLayout()).apply {
             isOpaque = false
             border = JBUI.Borders.emptyBottom(6)
         }
 
-        header.add(JLabel(roleLabel).apply {
-            foreground = mutedText
+        header.add(JLabel("<html><span style='color:#D6D6D6;'>$roleLabel</span></html>").apply {
             font = font.deriveFont(font.size2D - 1f)
         }, BorderLayout.WEST)
 
@@ -75,6 +74,7 @@ class ChatMessagePanel(
         header.add(actions, BorderLayout.EAST)
 
         val bubble = JPanel(BorderLayout()).apply {
+            isOpaque = true
             background = if (role == ChatRole.USER) userBubble else assistantBubble
             border = JBUI.Borders.compound(
                 BorderFactory.createLineBorder(
@@ -125,10 +125,9 @@ class ChatMessagePanel(
     }
 
     private fun actionButton(text: String, onClick: () -> Unit): JButton =
-        JButton(text).apply {
+        JButton("<html><span style='color:#D6D6D6;'>$text</span></html>").apply {
             isFocusPainted = false
             isContentAreaFilled = false
-            foreground = mutedText
             border = JBUI.Borders.empty(2, 6)
             addActionListener { onClick() }
         }

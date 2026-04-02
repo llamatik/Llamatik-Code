@@ -63,8 +63,8 @@ class ChatTabPanel(
     )
 
     val tabs = JBTabbedPane().apply {
+        isOpaque = true
         background = rootBackground
-        foreground = JBColor.WHITE
     }
 
     private val newChatButton = toolbarButton("+ New Chat")
@@ -258,12 +258,11 @@ class ChatTabPanel(
     private fun buildTabHeader(title: String, onClose: () -> Unit): JPanel =
         JPanel(FlowLayout(FlowLayout.LEFT, 6, 0)).apply {
             isOpaque = false
-            add(JLabel(title).apply { foreground = JBColor.WHITE })
-            add(JButton("×").apply {
+            add(JLabel("<html><span style='color:#EDEDED;'>$title</span></html>"))
+            add(JButton("<html><span style='color:#D6D6D6;'>×</span></html>").apply {
                 isBorderPainted = false
                 isContentAreaFilled = false
                 isFocusPainted = false
-                foreground = mutedText
                 toolTipText = "Close"
                 addActionListener { onClose() }
             })
