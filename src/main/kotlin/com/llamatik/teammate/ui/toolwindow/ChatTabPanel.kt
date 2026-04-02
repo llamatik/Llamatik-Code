@@ -9,6 +9,7 @@ import com.intellij.ui.components.JBTabbedPane
 import com.intellij.util.ui.JBUI
 import com.llamatik.teammate.diff.DiffPreviewService
 import com.llamatik.teammate.model.EditProposal
+import com.llamatik.teammate.ui.Strings
 import com.llamatik.teammate.ui.chat.ChatMessagePanel
 import com.llamatik.teammate.ui.chat.ChatSessionController
 import java.awt.BorderLayout
@@ -48,27 +49,16 @@ class ChatTabPanel(
 
     private var entryMode = EntryMode.CHAT
 
-    private val chatSuggestions = listOf(
-        "Find and resolve build errors in my project",
-        "Add documentation to my current file",
-        "Extract all hardcoded strings from this class and move them into strings.xml",
-        "Fix the warnings and errors in the editor",
-    )
-
-    private val askSuggestions = listOf(
-        "Explain this file and summarize its responsibilities",
-        "What could break in this implementation?",
-        "How should I refactor this class safely?",
-        "Which tests are missing here?",
-    )
+    private val chatSuggestions = Strings.Chat.CHAT_SUGGESTIONS
+    private val askSuggestions = Strings.Chat.ASK_SUGGESTIONS
 
     val tabs = JBTabbedPane().apply {
         isOpaque = true
         background = rootBackground
     }
 
-    private val newChatButton = toolbarButton("+ New Chat")
-    private val clearButton = toolbarButton("Clear")
+    private val newChatButton = toolbarButton(Strings.Chat.NEW_CHAT)
+    private val clearButton = toolbarButton(Strings.Chat.CLEAR)
 
     init {
         background = rootBackground
@@ -176,11 +166,11 @@ class ChatTabPanel(
 
     private fun buildWelcomeCard(): JPanel {
         val greetingName = System.getProperty("user.name", "there").replaceFirstChar { it.uppercase() }
-        val modeTitle = if (entryMode == EntryMode.ASK) "Ask" else "Hi, $greetingName"
+        val modeTitle = if (entryMode == EntryMode.ASK) Strings.Chat.ASK_HERO_TITLE else "Hi, $greetingName"
         val modeSubtitle = if (entryMode == EntryMode.ASK) {
-            "Ask a focused question about your current file or project"
+            Strings.Chat.ASK_SUBTITLE
         } else {
-            "What can I help you build today?"
+            Strings.Chat.CHAT_SUBTITLE
         }
 
         val heroTitle = JBLabel(
@@ -206,20 +196,20 @@ class ChatTabPanel(
         }
 
         val infoTitle = JBLabel(
-            "<html><span style='color:${LlamatikTheme.htmlOnSurface};'>${if (entryMode == EntryMode.ASK) "Use Ask for quick, scoped questions" else "Use a Llamatik model for private local assistance"}</span></html>",
+            "<html><span style='color:${LlamatikTheme.htmlOnSurface};'>${if (entryMode == EntryMode.ASK) Strings.Chat.ASK_INFO_TITLE else Strings.Chat.CHAT_INFO_TITLE}</span></html>",
         ).apply {
             font = font.deriveFont(Font.BOLD, font.size2D + 1f)
             border = JBUI.Borders.emptyBottom(4)
         }
 
         val infoBody = JBLabel(
-            "<html><span style='color:${LlamatikTheme.htmlOnSurfaceVariant};'>${if (entryMode == EntryMode.ASK) "Ask keeps the same workflow, but presents a lighter question-first surface." else "Stream responses locally, keep your workflow private, and move into Agent mode when you want assisted multi-step execution."}</span></html>",
+            "<html><span style='color:${LlamatikTheme.htmlOnSurfaceVariant};'>${if (entryMode == EntryMode.ASK) Strings.Chat.ASK_INFO_BODY else Strings.Chat.CHAT_INFO_BODY}</span></html>",
         )
 
         infoCard.add(infoTitle, BorderLayout.NORTH)
         infoCard.add(infoBody, BorderLayout.CENTER)
 
-        val promptsTitle = JBLabel("Prompts to try").apply {
+        val promptsTitle = JBLabel(Strings.Chat.PROMPTS_TITLE).apply {
             foreground = JBColor.WHITE
             font = font.deriveFont(Font.BOLD, font.size2D + 1f)
             border = JBUI.Borders.empty(26, 0, 10, 0)
@@ -259,11 +249,11 @@ class ChatTabPanel(
         JPanel(FlowLayout(FlowLayout.LEFT, 6, 0)).apply {
             isOpaque = false
             add(JLabel("<html><span style='color:${LlamatikTheme.htmlOnSurface};'>$title</span></html>"))
-            add(JButton("<html><span style='color:${LlamatikTheme.htmlOnSurfaceVariant};'>×</span></html>").apply {
+            add(JButton("<html><span style='color:${LlamatikTheme.htmlOnSurfaceVariant};'>${Strings.Chat.TAB_CLOSE_ICON}</span></html>").apply {
                 isBorderPainted = false
                 isContentAreaFilled = false
                 isFocusPainted = false
-                toolTipText = "Close"
+                toolTipText = Strings.Chat.TAB_CLOSE_TOOLTIP
                 addActionListener { onClose() }
             })
         }

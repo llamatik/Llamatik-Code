@@ -5,6 +5,7 @@ import com.intellij.openapi.project.Project
 import com.llamatik.teammate.model.ChatMessage
 import com.llamatik.teammate.model.ChatSession
 import com.llamatik.teammate.persistence.ChatSessionStore
+import com.llamatik.teammate.ui.Strings
 
 class ChatSessionController(private val project: Project) {
     private val store = project.service<ChatSessionStore>()
@@ -14,7 +15,7 @@ class ChatSessionController(private val project: Project) {
     fun selectedSession(): ChatSession = sessions.first { it.id == selectedSessionId } 
 
     fun addSession(): ChatSession {
-        val session = ChatSession(title = "Chat ${sessions.size + 1}")
+        val session = ChatSession(title = Strings.Session.numberedTitle(sessions.size + 1))
         sessions += session
         selectedSessionId = session.id
         persist()
@@ -23,7 +24,7 @@ class ChatSessionController(private val project: Project) {
 
     fun removeSession(id: String) {
         sessions.removeIf { it.id == id }
-        if (sessions.isEmpty()) sessions += ChatSession(title = "Chat 1")
+        if (sessions.isEmpty()) sessions += ChatSession(title = Strings.Session.INITIAL_TITLE)
         if (selectedSessionId == id) selectedSessionId = sessions.first().id
         persist()
     }

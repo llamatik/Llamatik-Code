@@ -8,17 +8,18 @@ import com.intellij.openapi.components.Service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.llamatik.teammate.model.EditProposal
+import com.llamatik.teammate.ui.Strings
 
 @Service(Service.Level.PROJECT)
 class DiffPreviewService(private val project: Project) {
     fun showDiff(proposal: EditProposal) {
         val factory = DiffContentFactory.getInstance()
         val request = SimpleDiffRequest(
-            "Llamatik Code Diff",
+            Strings.Diff.WINDOW_TITLE,
             factory.create(project, proposal.oldContent),
             factory.create(project, proposal.newContent),
-            "Original",
-            "Proposed",
+            Strings.Diff.SIDE_ORIGINAL,
+            Strings.Diff.SIDE_PROPOSED,
         )
         DiffManager.getInstance().showDiff(project, request)
     }
@@ -29,8 +30,8 @@ class DiffPreviewService(private val project: Project) {
         if (java.nio.file.Files.isDirectory(target)) {
             com.intellij.openapi.ui.Messages.showErrorDialog(
                 project,
-                "Cannot apply edit: '${proposal.filePath}' is a directory, not a file.",
-                "Invalid Edit Proposal",
+                Strings.Diff.errorNotFile(proposal.filePath),
+                Strings.Diff.ERROR_TITLE,
             )
             return
         }

@@ -4,6 +4,7 @@ import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.openapi.project.Project
 import com.intellij.ui.components.JBTextArea
 import com.llamatik.teammate.ui.LlamatikTheme
+import com.llamatik.teammate.ui.Strings
 import com.intellij.util.ui.JBUI
 import com.llamatik.teammate.model.ChatRole
 import java.awt.BorderLayout
@@ -59,15 +60,15 @@ class ChatMessagePanel(
             font = font.deriveFont(font.size2D - 1f)
         }, BorderLayout.WEST)
 
-        actions.add(actionButton("Copy") {
+        actions.add(actionButton(Strings.App.COPY) {
             CopyPasteManager.getInstance().setContents(StringSelection(textArea.text))
         })
 
         if (onViewDiff != null) {
-            actions.add(actionButton("View Diff") { onViewDiff.invoke() })
+            actions.add(actionButton(Strings.App.VIEW_DIFF) { onViewDiff.invoke() })
         }
         if (onApplyEdit != null) {
-            actions.add(actionButton("Apply Edit") { onApplyEdit.invoke() })
+            actions.add(actionButton(Strings.App.APPLY_EDIT) { onApplyEdit.invoke() })
         }
 
         header.add(actions, BorderLayout.EAST)
@@ -117,8 +118,8 @@ class ChatMessagePanel(
     }
 
     fun attachEditProposal(onApply: () -> Unit, onViewDiff: () -> Unit) {
-        actions.add(actionButton("View Diff") { onViewDiff() })
-        actions.add(actionButton("Apply Edit") { onApply() })
+        actions.add(actionButton(Strings.App.VIEW_DIFF) { onViewDiff() })
+        actions.add(actionButton(Strings.App.APPLY_EDIT) { onApply() })
         actions.revalidate()
         actions.repaint()
     }

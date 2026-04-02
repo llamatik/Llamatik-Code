@@ -7,6 +7,7 @@ import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
+import com.llamatik.teammate.ui.Strings
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.deleteIfExists
@@ -46,19 +47,19 @@ class DownloadedModelService {
     fun downloadPredefined(project: Project?, modelId: String, onFinished: (String) -> Unit) {
         val descriptor = service<LlamatikAppSettings>().predefinedModels().firstOrNull { it.id == modelId }
         val message = buildString {
-            appendLine("This plugin currently supports local GGUF files only.")
+            appendLine(Strings.ModelSetup.INTRO)
             appendLine()
-            appendLine("Recommended model: ${descriptor?.displayName ?: modelId}")
-            appendLine("Source: ${descriptor?.source ?: "Manual local download"}")
+            appendLine(Strings.ModelSetup.recommendedModel(descriptor?.displayName ?: modelId))
+            appendLine(Strings.ModelSetup.source(descriptor?.source ?: Strings.ModelSetup.SOURCE_MANUAL))
             appendLine()
             appendLine(descriptor?.description ?: "Download the model manually, then select the .gguf file in Settings.")
             appendLine()
-            appendLine("Next steps:")
-            appendLine("1. Download the GGUF model manually from your preferred source (e.g. Hugging Face).")
-            appendLine("2. In Settings → Llamatik Code, browse to the .gguf file and click Register.")
+            appendLine(Strings.ModelSetup.NEXT_STEPS)
+            appendLine(Strings.ModelSetup.STEP1)
+            appendLine(Strings.ModelSetup.STEP2)
         }
         ApplicationManager.getApplication().invokeLater {
-            Messages.showInfoMessage(project, message, "How to add a local model")
+            Messages.showInfoMessage(project, message, Strings.ModelSetup.DIALOG_TITLE)
             onFinished("")
         }
     }

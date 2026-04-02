@@ -11,6 +11,7 @@ import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTextArea
 import com.intellij.ui.components.JBTextField
 import com.intellij.util.ui.FormBuilder
+import com.llamatik.teammate.ui.Strings
 import com.llamatik.teammate.ui.models.ModelLibraryPanel
 import java.awt.BorderLayout
 import java.awt.Dimension
@@ -30,8 +31,8 @@ class LlamatikSettingsConfigurable : Configurable {
     private val modelPathField = JBTextField()
 
     // Behaviour
-    private val loadModelOnStartupCheck = JBCheckBox("Load model on startup")
-    private val agentAutoApproveCheck = JBCheckBox("Agent: auto-approve file edits without confirmation")
+    private val loadModelOnStartupCheck = JBCheckBox(Strings.Settings.LOAD_ON_STARTUP)
+    private val agentAutoApproveCheck = JBCheckBox(Strings.Settings.AUTO_APPROVE)
 
     // Context / indexing
     private val ignoredDirectoriesArea = JBTextArea(3, 40)
@@ -41,14 +42,14 @@ class LlamatikSettingsConfigurable : Configurable {
     private val downloadedListModel = DefaultListModel<String>()
     private val downloadedList = JBList(downloadedListModel)
 
-    override fun getDisplayName(): String = "Llamatik Code"
+    override fun getDisplayName(): String = Strings.Settings.PAGE_NAME
 
     override fun createComponent(): JComponent {
-        val browseModelButton = JButton("Browse…").apply {
+        val browseModelButton = JButton(Strings.Settings.BROWSE).apply {
             addActionListener {
                 val chooser = JFileChooser().apply {
                     fileSelectionMode = JFileChooser.FILES_ONLY
-                    dialogTitle = "Select local .gguf model file"
+                    dialogTitle = Strings.Settings.FILE_CHOOSER_TITLE
                 }
                 if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
                     modelPathField.text = chooser.selectedFile.absolutePath
@@ -56,48 +57,48 @@ class LlamatikSettingsConfigurable : Configurable {
             }
         }
 
-        val registerLocalButton = JButton("Register").apply {
-            toolTipText = "Register the path above as a known model"
+        val registerLocalButton = JButton(Strings.Settings.REGISTER).apply {
+            toolTipText = Strings.Settings.REGISTER_TOOLTIP
             addActionListener {
                 val path = modelPathField.text.trim()
                 if (path.isBlank()) {
-                    Messages.showErrorDialog("Enter a model path first.", "No Path")
+                    Messages.showErrorDialog(Strings.Settings.ERROR_NO_PATH_MSG, Strings.Settings.ERROR_NO_PATH_TITLE)
                     return@addActionListener
                 }
                 val err = validateLocalModelPath(path)
                 if (err != null) {
-                    Messages.showErrorDialog(err, "Invalid Model Path")
+                    Messages.showErrorDialog(err, Strings.Settings.ERROR_INVALID_PATH_TITLE)
                     return@addActionListener
                 }
                 downloadedModelService.registerLocalModel(path)
                 reloadDownloadedModels()
-                Messages.showInfoMessage("Model registered successfully.", "Llamatik Code")
+                Messages.showInfoMessage(Strings.Settings.SUCCESS_REGISTERED_MSG, Strings.App.NAME)
             }
         }
 
-        val useSelectedButton = JButton("Use selected").apply {
-            toolTipText = "Set the selected model as active model path"
+        val useSelectedButton = JButton(Strings.Settings.USE_SELECTED).apply {
+            toolTipText = Strings.Settings.USE_SELECTED_TOOLTIP
             addActionListener {
                 val selected = downloadedList.selectedValue
                 if (selected == null) {
-                    Messages.showInfoMessage("Select a model from the list first.", "No Selection")
+                    Messages.showInfoMessage(Strings.Settings.ERROR_NO_SELECTION_MSG, Strings.Settings.ERROR_NO_SELECTION_TITLE)
                     return@addActionListener
                 }
                 modelPathField.text = selected
             }
         }
 
-        val deleteSelectedButton = JButton("Delete selected").apply {
-            toolTipText = "Remove the selected model from the registry"
+        val deleteSelectedButton = JButton(Strings.Settings.DELETE_SELECTED).apply {
+            toolTipText = Strings.Settings.DELETE_SELECTED_TOOLTIP
             addActionListener {
                 val selected = downloadedList.selectedValue
                 if (selected == null) {
-                    Messages.showInfoMessage("Select a model from the list first.", "No Selection")
+                    Messages.showInfoMessage(Strings.Settings.ERROR_NO_SELECTION_MSG, Strings.Settings.ERROR_NO_SELECTION_TITLE)
                     return@addActionListener
                 }
                 val confirm = Messages.showYesNoDialog(
-                    "Remove \"$selected\" from the registry? The file will not be deleted from disk.",
-                    "Confirm Remove",
+                    Strings.Settings.confirmDeleteMsg(selected),
+                    Strings.Settings.CONFIRM_DELETE_TITLE,
                     null,
                 )
                 if (confirm == Messages.YES) {
@@ -107,11 +108,11 @@ class LlamatikSettingsConfigurable : Configurable {
             }
         }
 
-        val openModelLibraryButton = JButton("Browse model catalog…").apply {
+        val openModelLibraryButton = JButton(Strings.Settings.BROWSE_CATALOG).apply {
             addActionListener {
                 val dialog = object : DialogWrapper(null, true) {
                     init {
-                        title = "Llamatik Code — Model Library"
+                        title = Strings.Settings.MODEL_LIBRARY_TITLE
                         init()
                     }
                     override fun createCenterPanel(): JComponent =
@@ -124,13 +125,13 @@ class LlamatikSettingsConfigurable : Configurable {
             }
         }
 
-        val resetOnboardingButton = JButton("Reset onboarding").apply {
-            toolTipText = "Shows the welcome dialog again next time the tool window is opened"
+        val resetOnboardingButton = JButton(Strings.Settings.RESET_ONBOARDING).apply {
+            toolTipText = Strings.Settings.RESET_ONBOARDING_TOOLTIP
             addActionListener {
                 settings.data().onboardingCompleted = false
                 Messages.showInfoMessage(
-                    "Onboarding will appear the next time you open the Llamatik Code panel.",
-                    "Onboarding Reset",
+                    Strings.Settings.ONBOARDING_RESET_MSG,
+                    Strings.Settings.ONBOARDING_RESET_TITLE,
                 )
             }
         }
@@ -156,19 +157,19 @@ class LlamatikSettingsConfigurable : Configurable {
 
         return FormBuilder.createFormBuilder()
             .addSeparator()
-            .addLabeledComponent(JBLabel("<html><b>Active model path</b></html>"), modelPathPanel)
-            .addTooltip("Path to the .gguf model file used for inference")
+            .addLabeledComponent(JBLabel(Strings.Settings.SECTION_ACTIVE_MODEL), modelPathPanel)
+            .addTooltip(Strings.Settings.MODEL_PATH_TOOLTIP)
             .addSeparator()
-            .addLabeledComponent(JBLabel("<html><b>Registered models</b></html>"), registeredModelsPanel)
+            .addLabeledComponent(JBLabel(Strings.Settings.SECTION_REGISTERED_MODELS), registeredModelsPanel)
             .addComponent(openModelLibraryButton)
             .addSeparator()
-            .addLabeledComponent(JBLabel("<html><b>Behaviour</b></html>"), loadModelOnStartupCheck)
+            .addLabeledComponent(JBLabel(Strings.Settings.SECTION_BEHAVIOUR), loadModelOnStartupCheck)
             .addComponent(agentAutoApproveCheck)
             .addSeparator()
-            .addLabeledComponent(JBLabel("<html><b>Context</b></html>"),
-                JBLabel("Ignored directories (comma-separated):"))
+            .addLabeledComponent(JBLabel(Strings.Settings.SECTION_CONTEXT),
+                JBLabel(Strings.Settings.FIELD_IGNORED_DIRS))
             .addComponent(JBScrollPane(ignoredDirectoriesArea))
-            .addLabeledComponent(JBLabel("Project rules / instructions:"), JBScrollPane(projectRulesArea))
+            .addLabeledComponent(JBLabel(Strings.Settings.FIELD_INSTRUCTIONS), JBScrollPane(projectRulesArea))
             .addSeparator()
             .addComponent(resetOnboardingButton)
             .addComponentFillVertically(JPanel(), 0)
@@ -216,10 +217,10 @@ class LlamatikSettingsConfigurable : Configurable {
 
     private fun validateLocalModelPath(path: String): String? {
         val nioPath = runCatching { Path.of(path) }.getOrNull()
-            ?: return "Not a valid file path."
-        if (!Files.exists(nioPath)) return "File does not exist: $path"
-        if (!Files.isRegularFile(nioPath)) return "Path is not a file: $path"
-        if (!path.lowercase().endsWith(".gguf")) return "File must end with .gguf"
+            ?: return Strings.Settings.VALIDATION_NOT_VALID
+        if (!Files.exists(nioPath)) return Strings.Settings.validationNotExists(path)
+        if (!Files.isRegularFile(nioPath)) return Strings.Settings.validationNotFile(path)
+        if (!path.lowercase().endsWith(".gguf")) return Strings.Settings.VALIDATION_NOT_GGUF
         return null
     }
 }

@@ -2,6 +2,7 @@ package com.llamatik.teammate.ui.toolwindow
 
 import com.intellij.ui.JBColor
 import com.intellij.util.ui.JBUI
+import com.llamatik.teammate.ui.Strings
 import java.awt.BorderLayout
 import java.awt.Color
 import javax.swing.JButton
@@ -10,7 +11,7 @@ import javax.swing.JPanel
 
 class ErrorBannerPanel : JPanel(BorderLayout(8, 0)) {
     private val messageLabel = JLabel()
-    private val dismissButton = JButton("Dismiss")
+    private val dismissButton = JButton(Strings.App.DISMISS)
     private var onRetry: (() -> Unit)? = null
 
     init {
@@ -18,7 +19,7 @@ class ErrorBannerPanel : JPanel(BorderLayout(8, 0)) {
         border = JBUI.Borders.empty(6, 12)
         add(messageLabel, BorderLayout.CENTER)
         val actions = JPanel().apply { isOpaque = false }
-        val retryButton = JButton("Retry")
+        val retryButton = JButton(Strings.App.RETRY)
         retryButton.addActionListener { onRetry?.invoke() }
         actions.add(retryButton)
         actions.add(dismissButton)

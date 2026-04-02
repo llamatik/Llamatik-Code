@@ -4,6 +4,7 @@ import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.llamatik.teammate.model.TrialState
 import com.llamatik.teammate.settings.LlamatikAppSettings
+import com.llamatik.teammate.ui.Strings
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
@@ -23,7 +24,7 @@ class TrialService {
 
     fun isTrialActive(): Boolean = ChronoUnit.DAYS.between(trialStart, Instant.now()) < TRIAL_DAYS
 
-    fun statusLabel(): String = if (isTrialActive()) "Trial active" else "Trial expired"
+    fun statusLabel(): String = if (isTrialActive()) Strings.Trial.STATUS_ACTIVE else Strings.Trial.STATUS_EXPIRED
 
     fun daysRemaining(): Int = maxOf(0, (TRIAL_DAYS - ChronoUnit.DAYS.between(trialStart, Instant.now())).toInt())
 

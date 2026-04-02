@@ -21,6 +21,7 @@ import com.llamatik.teammate.model.PluginReadinessState
 import com.llamatik.teammate.settings.LlamatikAppSettings
 import com.llamatik.teammate.tools.ToolCallParser
 import com.llamatik.teammate.ui.LlamatikTheme
+import com.llamatik.teammate.ui.Strings
 import com.llamatik.teammate.ui.chat.ChatMessagePanel
 import com.llamatik.teammate.ui.chat.ChatSessionController
 import java.awt.BorderLayout
@@ -80,7 +81,7 @@ class LlamatikToolWindowPanel(
         isVisible = false
     }
     private val trialBannerLabel = JBLabel()
-    private val trialDismissBtn = JButton("Dismiss")
+    private val trialDismissBtn = JButton(Strings.App.DISMISS)
 
     private val errorBanner = ErrorBannerPanel()
 
@@ -98,23 +99,23 @@ class LlamatikToolWindowPanel(
         caretColor = LlamatikTheme.onSurface
         border = JBUI.Borders.empty(10, 12)
         font = font.deriveFont(Font.PLAIN, font.size2D + 1f)
-        toolTipText = "Ask AI, use @filename to attach source files, use @prompt to recall saved prompts"
+        toolTipText = Strings.Composer.INPUT_TOOLTIP_DEFAULT
     }
 
     private val sendButton = JButton("➤").apply {
-        toolTipText = "Send"
+        toolTipText = Strings.Composer.SEND_TOOLTIP
         preferredSize = Dimension(38, 32)
     }
     private val stopButton = JButton("■").apply {
         isEnabled = false
-        toolTipText = "Stop generation"
+        toolTipText = Strings.Composer.STOP_TOOLTIP
         preferredSize = Dimension(38, 32)
     }
 
-    private val contextButton = buildFooterPill("Context (1)")
-    private val profileButton = buildFooterPill("Default")
-    private val settingsButton = buildFooterPill("⚙")
-    private val disclaimerLabel = JBLabel("AI can make mistakes, so double-check it").apply {
+    private val contextButton = buildFooterPill(Strings.Composer.CONTEXT_PILL)
+    private val profileButton = buildFooterPill(Strings.Composer.PROFILE_PILL)
+    private val settingsButton = buildFooterPill(Strings.Composer.SETTINGS_PILL)
+    private val disclaimerLabel = JBLabel(Strings.App.DISCLAIMER).apply {
         foreground = LlamatikTheme.onSurfaceVariant
         font = font.deriveFont(Font.PLAIN, font.size2D - 1f)
         horizontalAlignment = SwingConstants.CENTER
@@ -144,8 +145,8 @@ class LlamatikToolWindowPanel(
     private val selectedToggleBackground = LlamatikTheme.primary
     private val unselectedToggleBackground = LlamatikTheme.surfaceVariant
 
-    private val agentToggle = buildModeToggle("Agent")
-    private val askToggle = buildModeToggle("Ask")
+    private val agentToggle = buildModeToggle(Strings.Mode.AGENT)
+    private val askToggle = buildModeToggle(Strings.Mode.ASK)
 
     init {
         background = rootBackground
@@ -306,12 +307,12 @@ class LlamatikToolWindowPanel(
         when (mode) {
             SurfaceMode.AGENT -> {
                 contentLayout.show(contentPanel, SurfaceMode.AGENT.name)
-                inputArea.toolTipText = "Describe a task for the agent to inspect, plan, and execute"
+                inputArea.toolTipText = Strings.Composer.INPUT_TOOLTIP_AGENT
             }
             SurfaceMode.ASK -> {
                 contentLayout.show(contentPanel, SurfaceMode.ASK.name)
                 chatTabPanel.setEntryMode(ChatTabPanel.EntryMode.ASK)
-                inputArea.toolTipText = "Ask a focused question about the current file or project"
+                inputArea.toolTipText = Strings.Composer.INPUT_TOOLTIP_ASK
             }
         }
     }
@@ -330,8 +331,8 @@ class LlamatikToolWindowPanel(
         if (state == PluginReadinessState.NO_MODEL) {
             Messages.showInfoMessage(
                 project,
-                "No model is configured. Go to Settings → Llamatik Code and set a model path.",
-                "No model loaded",
+                Strings.App.NO_MODEL_CONFIGURED_MSG,
+                Strings.App.NO_MODEL_CONFIGURED_TITLE,
             )
             return
         }
@@ -340,8 +341,8 @@ class LlamatikToolWindowPanel(
         if (isAgentMode && !trialService.isAgentAllowed()) {
             Messages.showErrorDialog(
                 project,
-                "Trial expired — Agent requires a subscription.",
-                "Llamatik Code",
+                Strings.App.TRIAL_EXPIRED_MSG,
+                Strings.App.NAME,
             )
             return
         }
@@ -453,15 +454,13 @@ class LlamatikToolWindowPanel(
         sendButton.isEnabled = composerEnabled
 
         if (!composerEnabled) {
-            val tip = "Configure a model in Settings → Llamatik Code to start"
-            inputArea.toolTipText = tip
-            sendButton.toolTipText = tip
+            inputArea.toolTipText = Strings.Composer.INPUT_TOOLTIP_NO_MODEL
+            sendButton.toolTipText = Strings.Composer.INPUT_TOOLTIP_NO_MODEL
         }
 
         val trialState = trialService.trialState()
         if (trialState.isInWarningPeriod && !trialState.warningDismissed) {
-            trialBannerLabel.text =
-                "${trialState.daysRemaining} days left in trial. Agent features will be disabled after expiry."
+            trialBannerLabel.text = Strings.App.trialDaysLeft(trialState.daysRemaining)
             trialBannerPanel.isVisible = true
         } else {
             trialBannerPanel.isVisible = false
@@ -478,8 +477,8 @@ class LlamatikToolWindowPanel(
         diffService.showDiff(proposal)
         val ok = Messages.showYesNoDialog(
             project,
-            "Apply proposed changes to ${proposal.filePath}?",
-            "Apply Llamatik Edit",
+            Strings.EditDialog.applyMsg(proposal.filePath),
+            Strings.EditDialog.APPLY_TITLE,
             null,
         )
         if (ok == Messages.YES) {

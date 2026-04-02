@@ -8,6 +8,7 @@ import com.intellij.util.ui.JBUI
 import com.llamatik.teammate.infrastructure.HardwareDetector
 import com.llamatik.teammate.model.ExtendedModelDescriptor
 import com.llamatik.teammate.model.ModelStatus
+import com.llamatik.teammate.ui.Strings
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.FlowLayout
@@ -73,15 +74,15 @@ class ModelCardPanel(
 
     private fun buildStatusBadge(status: ModelStatus): JBLabel {
         val (text, color) = when (status) {
-            ModelStatus.NOT_DOWNLOADED -> "Not downloaded" to JBColor.GRAY
-            ModelStatus.DOWNLOADING -> "Downloading…" to JBColor(Color(0x007AFF), Color(0x4DA3FF))
-            ModelStatus.PAUSED -> "Paused" to JBColor(Color(0xFF9500), Color(0xFFAA00))
-            ModelStatus.FAILED -> "Failed" to JBColor.RED
-            ModelStatus.DOWNLOADED -> "Downloaded" to JBColor(Color(0x34C759), Color(0x30D158))
-            ModelStatus.LOADING -> "Loading…" to JBColor(Color(0x007AFF), Color(0x4DA3FF))
-            ModelStatus.LOADED -> "Loaded" to JBColor(Color(0x34C759), Color(0x30D158))
-            ModelStatus.UNLOADED -> "Unloaded" to JBColor.GRAY
-            ModelStatus.CORRUPTED -> "Corrupted" to JBColor.RED
+            ModelStatus.NOT_DOWNLOADED -> Strings.ModelCard.STATUS_NOT_DOWNLOADED to JBColor.GRAY
+            ModelStatus.DOWNLOADING -> Strings.ModelCard.STATUS_DOWNLOADING to JBColor(Color(0x007AFF), Color(0x4DA3FF))
+            ModelStatus.PAUSED -> Strings.ModelCard.STATUS_PAUSED to JBColor(Color(0xFF9500), Color(0xFFAA00))
+            ModelStatus.FAILED -> Strings.ModelCard.STATUS_FAILED to JBColor.RED
+            ModelStatus.DOWNLOADED -> Strings.ModelCard.STATUS_DOWNLOADED to JBColor(Color(0x34C759), Color(0x30D158))
+            ModelStatus.LOADING -> Strings.ModelCard.STATUS_LOADING to JBColor(Color(0x007AFF), Color(0x4DA3FF))
+            ModelStatus.LOADED -> Strings.ModelCard.STATUS_LOADED to JBColor(Color(0x34C759), Color(0x30D158))
+            ModelStatus.UNLOADED -> Strings.ModelCard.STATUS_UNLOADED to JBColor.GRAY
+            ModelStatus.CORRUPTED -> Strings.ModelCard.STATUS_CORRUPTED to JBColor.RED
         }
         return JBLabel(text).apply {
             foreground = color
@@ -91,44 +92,43 @@ class ModelCardPanel(
 
     private fun buildActionsPanel(): JPanel {
         val panel = JPanel(FlowLayout(FlowLayout.RIGHT, 4, 0)).apply { isOpaque = false }
-        val placeholder = "Coming in next release"
 
         when (descriptor.status) {
             ModelStatus.NOT_DOWNLOADED, ModelStatus.FAILED, ModelStatus.CORRUPTED -> {
-                panel.add(JButton("Download").apply {
+                panel.add(JButton(Strings.ModelCard.ACTION_DOWNLOAD).apply {
                     addActionListener {
                         onActionRequested(ModelCardAction.DOWNLOAD, descriptor)
-                        Messages.showInfoMessage(project, placeholder, "Llamatik Code")
+                        Messages.showInfoMessage(project, Strings.ModelCard.COMING_SOON, Strings.App.NAME)
                     }
                 })
             }
             ModelStatus.DOWNLOADED, ModelStatus.UNLOADED -> {
-                panel.add(JButton("Load").apply {
+                panel.add(JButton(Strings.ModelCard.ACTION_LOAD).apply {
                     addActionListener {
                         onActionRequested(ModelCardAction.LOAD, descriptor)
-                        Messages.showInfoMessage(project, placeholder, "Llamatik Code")
+                        Messages.showInfoMessage(project, Strings.ModelCard.COMING_SOON, Strings.App.NAME)
                     }
                 })
-                panel.add(JButton("Delete").apply {
+                panel.add(JButton(Strings.ModelCard.ACTION_DELETE).apply {
                     addActionListener {
                         onActionRequested(ModelCardAction.DELETE, descriptor)
-                        Messages.showInfoMessage(project, placeholder, "Llamatik Code")
+                        Messages.showInfoMessage(project, Strings.ModelCard.COMING_SOON, Strings.App.NAME)
                     }
                 })
             }
             ModelStatus.LOADED -> {
-                panel.add(JButton("Unload").apply {
+                panel.add(JButton(Strings.ModelCard.ACTION_UNLOAD).apply {
                     addActionListener {
                         onActionRequested(ModelCardAction.UNLOAD, descriptor)
-                        Messages.showInfoMessage(project, placeholder, "Llamatik Code")
+                        Messages.showInfoMessage(project, Strings.ModelCard.COMING_SOON, Strings.App.NAME)
                     }
                 })
             }
             ModelStatus.DOWNLOADING, ModelStatus.PAUSED, ModelStatus.LOADING -> {
-                panel.add(JButton("Set as default").apply {
+                panel.add(JButton(Strings.ModelCard.ACTION_SET_DEFAULT).apply {
                     addActionListener {
                         onActionRequested(ModelCardAction.SET_DEFAULT, descriptor)
-                        Messages.showInfoMessage(project, placeholder, "Llamatik Code")
+                        Messages.showInfoMessage(project, Strings.ModelCard.COMING_SOON, Strings.App.NAME)
                     }
                 })
             }
@@ -138,9 +138,9 @@ class ModelCardPanel(
     }
 
     private fun hwRecommendationText(rec: String): String = when (rec) {
-        "recommended" -> "Your system meets the recommended requirements."
-        "may_run_slowly" -> "Your system meets minimum requirements but may run slowly."
-        else -> "Insufficient system resources for this model."
+        "recommended" -> Strings.ModelCard.HW_OK
+        "may_run_slowly" -> Strings.ModelCard.HW_SLOW
+        else -> Strings.ModelCard.HW_INSUFFICIENT
     }
 
     private fun hwRecommendationColor(rec: String): java.awt.Color = when (rec) {

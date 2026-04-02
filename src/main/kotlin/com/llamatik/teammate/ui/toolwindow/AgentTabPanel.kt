@@ -4,6 +4,7 @@ import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBLabel
 import com.llamatik.teammate.ui.LlamatikTheme
+import com.llamatik.teammate.ui.Strings
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTextArea
 import com.intellij.util.ui.JBUI
@@ -45,12 +46,7 @@ class AgentTabPanel(
         background = rootBackground
     }
 
-    private val suggestions = listOf(
-        "Find and resolve build errors in my project",
-        "Suggest cleaner structure and apply changes with approval",
-        "Analyze the current file and propose a safer refactor",
-        "Generate tests, show the diff, and let me approve",
-    )
+    private val suggestions = Strings.Agent.SUGGESTIONS
 
     private val phaseList = JPanel().apply {
         layout = BoxLayout(this, BoxLayout.Y_AXIS)
@@ -58,8 +54,8 @@ class AgentTabPanel(
         border = JBUI.Borders.empty(16)
     }
 
-    private val approveButton = JButton("Approve all changes")
-    private val rejectButton = JButton("Reject")
+    private val approveButton = JButton(Strings.Agent.APPROVE)
+    private val rejectButton = JButton(Strings.Agent.REJECT)
 
     private val statusPill = JBLabel("").apply {
         isVisible = false
@@ -70,7 +66,7 @@ class AgentTabPanel(
         )
     }
 
-    private val thinkToggleButton = JButton("▶ Thinking").apply {
+    private val thinkToggleButton = JButton(Strings.Agent.THINKING_COLLAPSED).apply {
         isFocusPainted = false
         isContentAreaFilled = false
         isBorderPainted = false
@@ -131,7 +127,7 @@ class AgentTabPanel(
         border = JBUI.Borders.emptyTop(10)
     }
 
-    private val backButton = JButton("← Back").apply {
+    private val backButton = JButton(Strings.Agent.BACK).apply {
         isFocusPainted = false
         isContentAreaFilled = false
         foreground = mutedText
@@ -156,7 +152,7 @@ class AgentTabPanel(
         thinkToggleButton.addActionListener {
             val expanding = !thinkScrollPane.isVisible
             thinkScrollPane.isVisible = expanding
-            thinkToggleButton.text = if (expanding) "▼ Thinking" else "▶ Thinking"
+            thinkToggleButton.text = if (expanding) Strings.Agent.THINKING_EXPANDED else Strings.Agent.THINKING_COLLAPSED
             thinkSection.revalidate()
         }
 
@@ -166,9 +162,9 @@ class AgentTabPanel(
     }
 
     private fun buildWelcomeCard(): JPanel {
-        val title = JBLabel("<html><span style='font-size:22pt; font-weight:700; color:${LlamatikTheme.htmlPrimary};'>Agent</span></html>")
+        val title = JBLabel("<html><span style='font-size:22pt; font-weight:700; color:${LlamatikTheme.htmlPrimary};'>${Strings.Agent.HERO_TITLE}</span></html>")
         val subtitle = JBLabel(
-            "<html><span style='color:${LlamatikTheme.htmlOnSurface};'>I can inspect the codebase, plan a fix, and apply changes with approval.</span></html>",
+            "<html><span style='color:${LlamatikTheme.htmlOnSurface};'>${Strings.Agent.HERO_SUBTITLE}</span></html>",
         ).apply {
             font = font.deriveFont(Font.BOLD, font.size2D + 4f)
             border = JBUI.Borders.emptyBottom(24)
@@ -184,19 +180,19 @@ class AgentTabPanel(
         }
 
         val activityTitle = JBLabel(
-            "<html><span style='color:${LlamatikTheme.htmlOnSurface};'>Agent workflow</span></html>",
+            "<html><span style='color:${LlamatikTheme.htmlOnSurface};'>${Strings.Agent.WORKFLOW_TITLE}</span></html>",
         ).apply {
             font = font.deriveFont(Font.BOLD, font.size2D + 1f)
         }
         val activityBody = JBLabel(
-            "<html><span style='color:${LlamatikTheme.htmlOnSurfaceVariant};'>Analyze files, call tools, stream progress, preview diffs, and wait for your approval before applying edits.</span></html>",
+            "<html><span style='color:${LlamatikTheme.htmlOnSurfaceVariant};'>${Strings.Agent.WORKFLOW_BODY}</span></html>",
         )
 
         activityCard.add(activityTitle, BorderLayout.NORTH)
         activityCard.add(activityBody, BorderLayout.CENTER)
 
         val promptTitle = JBLabel(
-            "<html><span style='color:${LlamatikTheme.htmlOnSurface};'>Prompts to try</span></html>",
+            "<html><span style='color:${LlamatikTheme.htmlOnSurface};'>${Strings.Agent.PROMPTS_TITLE}</span></html>",
         ).apply {
             font = font.deriveFont(Font.BOLD, font.size2D + 1f)
             border = JBUI.Borders.empty(24, 0, 10, 0)
@@ -236,7 +232,7 @@ class AgentTabPanel(
         val header = JPanel(BorderLayout()).apply {
             background = rootBackground
             border = JBUI.Borders.empty(12, 16, 0, 16)
-            add(JBLabel("Agent task").apply {
+            add(JBLabel(Strings.Agent.TASK_HEADER).apply {
                 foreground = JBColor.WHITE
                 font = font.deriveFont(Font.BOLD, font.size2D + 2f)
             }, BorderLayout.WEST)
@@ -288,7 +284,7 @@ class AgentTabPanel(
         }
 
     private fun buildResponseCard(): JPanel {
-        val copyButton = JButton("Copy").apply {
+        val copyButton = JButton(Strings.App.COPY).apply {
             isFocusPainted = false
             addActionListener {
                 CopyPasteManager.getInstance().setContents(StringSelection(responseTextArea.text))
@@ -343,9 +339,9 @@ class AgentTabPanel(
         thinkTextArea.text = ""
         thinkSection.isVisible = false
         thinkScrollPane.isVisible = false
-        thinkToggleButton.text = "▶ Thinking"
+        thinkToggleButton.text = Strings.Agent.THINKING_COLLAPSED
         responseActionBar.removeAll()
-        statusPill.text = "Analyzing…"
+        statusPill.text = Strings.Agent.STATUS_ANALYZING
         statusPill.isVisible = true
         streamBuffer.clear()
         streamingBlocked = false
@@ -406,16 +402,16 @@ class AgentTabPanel(
             thinkSection.isVisible = false
         } else {
             thinkScrollPane.isVisible = false
-            thinkToggleButton.text = "▶ Thinking"
+            thinkToggleButton.text = Strings.Agent.THINKING_COLLAPSED
             thinkSection.revalidate()
         }
 
         responseActionBar.removeAll()
         if (onViewDiff != null) {
-            responseActionBar.add(JButton("View Diff").apply { addActionListener { onViewDiff() } })
+            responseActionBar.add(JButton(Strings.App.VIEW_DIFF).apply { addActionListener { onViewDiff() } })
         }
         if (onApply != null) {
-            responseActionBar.add(JButton("Apply Edit").apply { addActionListener { onApply() } })
+            responseActionBar.add(JButton(Strings.App.APPLY_EDIT).apply { addActionListener { onApply() } })
         }
         responseActionBar.revalidate()
         responseActionBar.repaint()
@@ -471,9 +467,9 @@ class AgentTabPanel(
 
     fun showReadinessOverlay(state: PluginReadinessState, trialExpired: Boolean) {
         val message = when {
-            trialExpired -> "Trial expired — Agent requires a subscription."
-            state == PluginReadinessState.NO_MODEL -> "Configure a model to use Agent mode."
-            state == PluginReadinessState.LOADING_MODEL -> "Loading model…"
+            trialExpired -> Strings.Agent.OVERLAY_TRIAL_EXPIRED
+            state == PluginReadinessState.NO_MODEL -> Strings.Agent.OVERLAY_NO_MODEL
+            state == PluginReadinessState.LOADING_MODEL -> Strings.Agent.OVERLAY_LOADING_MODEL
             else -> return
         }
 

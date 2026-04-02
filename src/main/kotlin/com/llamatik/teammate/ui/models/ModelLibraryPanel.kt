@@ -7,6 +7,7 @@ import com.intellij.util.ui.JBUI
 import com.llamatik.teammate.model.ExtendedModelDescriptor
 import com.llamatik.teammate.model.ModelTier
 import com.llamatik.teammate.models.BuiltInModelCatalog
+import com.llamatik.teammate.ui.Strings
 import java.awt.BorderLayout
 import java.awt.Font
 import javax.swing.BoxLayout
@@ -61,8 +62,8 @@ class ModelLibraryPanel(private val project: Project?) : JPanel(BorderLayout()) 
     }
 
     private fun tierTitle(tier: ModelTier): String = when (tier) {
-        ModelTier.TIER_1 -> "Tier 1 — Lightweight (up to 5 GB)"
-        ModelTier.TIER_2 -> "Tier 2 — Balanced (5–15 GB)"
-        ModelTier.TIER_3 -> "Tier 3 — High-performance (15 GB+)"
+        ModelTier.TIER_1 -> Strings.ModelCard.TIER_1
+        ModelTier.TIER_2 -> Strings.ModelCard.TIER_2
+        ModelTier.TIER_3 -> Strings.ModelCard.TIER_3
     }
 }

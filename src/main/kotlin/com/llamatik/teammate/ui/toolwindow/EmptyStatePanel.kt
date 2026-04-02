@@ -3,6 +3,7 @@ package com.llamatik.teammate.ui.toolwindow
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBLabel
 import com.intellij.util.ui.JBUI
+import com.llamatik.teammate.ui.Strings
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Dimension
@@ -32,16 +33,14 @@ class EmptyStatePanel(
             isOpaque = false
         }
 
-        val title = JBLabel("No model loaded").apply {
+        val title = JBLabel(Strings.EmptyState.TITLE).apply {
             font = font.deriveFont(Font.BOLD, font.size2D + 6f)
             alignmentX = CENTER_ALIGNMENT
             border = JBUI.Borders.emptyBottom(8)
         }
 
         val subtitle = JBLabel(
-            "<html><div style='text-align:center; width:280px;'>" +
-                "Your code never leaves your machine — all AI runs locally on-device." +
-                "</div></html>",
+            "<html><div style='text-align:center; width:280px;'>${Strings.EmptyState.SUBTITLE}</div></html>",
         ).apply {
             alignmentX = CENTER_ALIGNMENT
             border = JBUI.Borders.emptyBottom(28)
@@ -58,18 +57,18 @@ class EmptyStatePanel(
         val grid = JPanel(GridLayout(3, 1, 0, 8)).apply { isOpaque = false }
 
         grid.add(actionCard(
-            label = "Download recommended model",
-            description = "Qwen3-14B-Q4_K_M · 9 GB · requires 16 GB RAM",
+            label = Strings.EmptyState.DOWNLOAD_RECOMMENDED,
+            description = Strings.EmptyState.DOWNLOAD_DESC,
             action = onDownloadRecommended,
         ))
         grid.add(actionCard(
-            label = "Browse model library",
-            description = "Pick from lightweight to high-performance models",
+            label = Strings.EmptyState.BROWSE_LIBRARY,
+            description = Strings.EmptyState.BROWSE_DESC,
             action = onOpenModelLibrary,
         ))
         grid.add(actionCard(
-            label = "Load model from file",
-            description = "Point to an existing .gguf file on your disk",
+            label = Strings.EmptyState.LOAD_FROM_FILE,
+            description = Strings.EmptyState.LOAD_FROM_FILE_DESC,
             action = onLoadFromFile,
         ))
 

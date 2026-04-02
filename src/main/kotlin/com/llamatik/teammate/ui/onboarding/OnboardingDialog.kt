@@ -4,6 +4,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.ui.components.JBLabel
 import com.intellij.util.ui.JBUI
+import com.llamatik.teammate.ui.Strings
 import com.llamatik.teammate.ui.models.LoadModelFromFileAction
 import com.llamatik.teammate.ui.models.ModelLibraryPanel
 import java.awt.BorderLayout
@@ -35,7 +36,7 @@ class OnboardingDialog(private val project: Project) : DialogWrapper(project, tr
     private var currentStep = STEP_WELCOME
 
     init {
-        title = "Welcome to Llamatik Code"
+        title = Strings.Onboarding.DIALOG_TITLE
         isModal = true
         init()
     }
@@ -55,28 +56,20 @@ class OnboardingDialog(private val project: Project) : DialogWrapper(project, tr
     private fun buildWelcomeStep(): JPanel = JPanel(BorderLayout(8, 16)).apply {
         border = JBUI.Borders.empty(24, 32)
 
-        val title = JBLabel("Local-first AI coding assistant").apply {
+        val title = JBLabel(Strings.Onboarding.STEP1_HEADING).apply {
             font = font.deriveFont(Font.BOLD, font.size2D + 6f)
             border = JBUI.Borders.emptyBottom(12)
         }
 
         val body = JBLabel(
             "<html>" +
-                "<p style='width:420px;'>" +
-                "Llamatik Code runs <b>entirely on your device</b>. No code, prompts, or results ever " +
-                "leave your machine — no internet connection required after initial setup." +
-                "</p>" +
-                "<p style='width:420px; margin-top:10px;'>" +
-                "Powered by local GGUF models via the Llamatik runtime library. " +
-                "You choose which model to use — from lightweight quick helpers to large reasoning models." +
-                "</p>" +
-                "<p style='width:420px; margin-top:10px;'>" +
-                "<b>Privacy guarantee:</b> Your code stays on your hardware, always." +
-                "</p>" +
+                "<p style='width:420px;'>${Strings.Onboarding.STEP1_BODY1}</p>" +
+                "<p style='width:420px; margin-top:10px;'>${Strings.Onboarding.STEP1_BODY2}</p>" +
+                "<p style='width:420px; margin-top:10px;'>${Strings.Onboarding.STEP1_BODY3}</p>" +
                 "</html>",
         )
 
-        val nextButton = JButton("Next: Choose a model").apply {
+        val nextButton = JButton(Strings.Onboarding.STEP1_NEXT).apply {
             addActionListener { goToStep(STEP_MODEL) }
         }
 
@@ -92,31 +85,31 @@ class OnboardingDialog(private val project: Project) : DialogWrapper(project, tr
     private fun buildModelStep(): JPanel = JPanel(BorderLayout(8, 16)).apply {
         border = JBUI.Borders.empty(24, 32)
 
-        val title = JBLabel("Set up your model").apply {
+        val title = JBLabel(Strings.Onboarding.STEP2_HEADING).apply {
             font = font.deriveFont(Font.BOLD, font.size2D + 4f)
             border = JBUI.Borders.emptyBottom(8)
         }
 
         val recommendation = JBLabel(
             "<html>" +
-                "<p><b>Recommended:</b> Qwen3-14B-Q4_K_M</p>" +
-                "<p>~9 GB disk &nbsp;|&nbsp; 16 GB RAM recommended</p>" +
-                "<p>Excellent reasoning, great for complex refactoring and architecture tasks.</p>" +
+                "<p>${Strings.Onboarding.STEP2_RECOMMENDED_LABEL}</p>" +
+                "<p>${Strings.Onboarding.STEP2_RECOMMENDED_DETAILS}</p>" +
+                "<p>${Strings.Onboarding.STEP2_RECOMMENDED_DESC}</p>" +
                 "</html>",
         ).apply { border = JBUI.Borders.emptyBottom(12) }
 
-        val downloadRecommendedBtn = JButton("Download recommended model (Qwen3-14B)").apply {
+        val downloadRecommendedBtn = JButton(Strings.Onboarding.STEP2_DOWNLOAD_RECOMMENDED).apply {
             addActionListener {
                 goToStep(STEP_CONFIRM)
             }
         }
 
-        val chooseAnotherBtn = JButton("Choose another model…")
+        val chooseAnotherBtn = JButton(Strings.Onboarding.STEP2_CHOOSE_ANOTHER)
         chooseAnotherBtn.addActionListener {
             showModelLibraryInline(chooseAnotherBtn.parent as JPanel)
         }
 
-        val loadFromFileBtn = JButton("Load model from file (.gguf)").apply {
+        val loadFromFileBtn = JButton(Strings.Onboarding.STEP2_LOAD_FROM_FILE).apply {
             addActionListener {
                 LoadModelFromFileAction.show(project) {
                     OnboardingLauncher.markCompleted()
@@ -125,7 +118,7 @@ class OnboardingDialog(private val project: Project) : DialogWrapper(project, tr
             }
         }
 
-        val skipBtn = JButton("Skip for now").apply {
+        val skipBtn = JButton(Strings.Onboarding.STEP2_SKIP).apply {
             addActionListener {
                 OnboardingLauncher.markCompleted()
                 close(CANCEL_EXIT_CODE)
@@ -143,7 +136,7 @@ class OnboardingDialog(private val project: Project) : DialogWrapper(project, tr
             add(skipBtn)
         }
 
-        val backBtn = JButton("Back").apply {
+        val backBtn = JButton(Strings.Onboarding.STEP2_BACK).apply {
             addActionListener { goToStep(STEP_WELCOME) }
         }
         val navRow = JPanel(FlowLayout(FlowLayout.LEFT)).apply { add(backBtn) }
@@ -159,23 +152,16 @@ class OnboardingDialog(private val project: Project) : DialogWrapper(project, tr
     private fun buildConfirmStep(): JPanel = JPanel(BorderLayout(8, 16)).apply {
         border = JBUI.Borders.empty(24, 32)
 
-        val title = JBLabel("You're all set!").apply {
+        val title = JBLabel(Strings.Onboarding.STEP3_HEADING).apply {
             font = font.deriveFont(Font.BOLD, font.size2D + 4f)
             border = JBUI.Borders.emptyBottom(12)
         }
 
         val body = JBLabel(
-            "<html>" +
-                "<p style='width:420px;'>" +
-                "Your model selection has been noted. Automatic downloads will be available in a future release.<br><br>" +
-                "For now, download your chosen GGUF model manually and register it via " +
-                "<b>Settings &gt; Llamatik Code &gt; Model path</b>, or use the <b>Load model from file</b> " +
-                "option in the tool window." +
-                "</p>" +
-                "</html>",
+            "<html><p style='width:420px;'>${Strings.Onboarding.STEP3_BODY}</p></html>",
         )
 
-        val finishBtn = JButton("Finish").apply {
+        val finishBtn = JButton(Strings.Onboarding.STEP3_FINISH).apply {
             addActionListener {
                 OnboardingLauncher.markCompleted()
                 close(OK_EXIT_CODE)
@@ -197,7 +183,7 @@ class OnboardingDialog(private val project: Project) : DialogWrapper(project, tr
         // Show model library in a simple popup or replace content. Here we show a dialog.
         val dialog = object : DialogWrapper(project, true) {
             init {
-                title = "Model Library"
+                title = Strings.Onboarding.MODEL_LIBRARY_TITLE
                 init()
             }
 

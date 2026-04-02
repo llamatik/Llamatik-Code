@@ -3,6 +3,7 @@ package com.llamatik.teammate.ui.toolwindow
 import com.intellij.ui.AnimatedIcon
 import com.intellij.ui.components.JBLabel
 import com.intellij.util.ui.JBUI
+import com.llamatik.teammate.ui.Strings
 import java.awt.BorderLayout
 import java.awt.Font
 import javax.swing.BoxLayout
@@ -23,12 +24,12 @@ class LoadingStatePanel : JPanel(BorderLayout()) {
             border = JBUI.Borders.emptyBottom(12)
         }
 
-        val loadingLabel = JBLabel("Loading model…").apply {
+        val loadingLabel = JBLabel(Strings.LoadingState.TITLE).apply {
             font = font.deriveFont(Font.BOLD, font.size2D + 2f)
             alignmentX = CENTER_ALIGNMENT
         }
 
-        val hintLabel = JBLabel("This may take a moment depending on model size.").apply {
+        val hintLabel = JBLabel(Strings.LoadingState.HINT).apply {
             alignmentX = CENTER_ALIGNMENT
             border = JBUI.Borders.emptyTop(8)
         }
