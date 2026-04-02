@@ -112,7 +112,7 @@ class AgentTabPanel(
     }
 
     init {
-        border = JBUI.Borders.empty(0)
+        border = JBUI.Borders.empty()
 
         cardPanel.add(buildWelcomeCard(), CARD_WELCOME)
         cardPanel.add(buildTaskCard(), CARD_TASK)

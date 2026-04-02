@@ -43,10 +43,10 @@ class ChatTabPanel(
 
     companion object {
         val SUGGESTIONS = listOf(
-            "Explain selected code" to "Walk me through what the highlighted code does",
-            "Find bug in current file" to "Look for potential issues and edge cases",
-            "Suggest refactor" to "Propose cleaner ways to structure this code",
-            "Write tests" to "Generate unit tests for the current file",
+            "Walk me through what the highlighted code does" to "Walk me through what the highlighted code does",
+            "Look for potential issues and edge cases" to "Look for potential issues and edge cases",
+            "Propose cleaner ways to structure this code" to "Propose cleaner ways to structure this code",
+            "Generate unit tests for the current file" to "Generate unit tests for the current file",
         )
     }
 
@@ -55,7 +55,7 @@ class ChatTabPanel(
     private val clearButton = JButton("Clear")
 
     init {
-        border = JBUI.Borders.empty(0)
+        border = JBUI.Borders.empty()
         val topBar = JPanel(FlowLayout(FlowLayout.LEFT, 4, 4)).apply {
             isOpaque = false
             add(newChatButton)
@@ -106,7 +106,7 @@ class ChatTabPanel(
             // Messages card
             val msgList = JPanel().apply {
                 layout = BoxLayout(this, BoxLayout.Y_AXIS)
-                border = JBUI.Borders.empty(0, 0, 8, 0)
+                border = JBUI.Borders.emptyBottom(8)
             }
             session.messages.forEach { message ->
                 val proposal = message.editProposalId?.let { pendingEdits[it] }
