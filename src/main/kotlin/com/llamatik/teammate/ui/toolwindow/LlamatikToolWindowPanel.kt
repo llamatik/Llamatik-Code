@@ -67,11 +67,11 @@ class LlamatikToolWindowPanel(
     private var currentHandle: GenerationHandle? = null
     private var currentMode = SurfaceMode.AGENT
 
-    private val rootBackground = JBColor(Color(0x111318), Color(0x111318))
-    private val cardBackground = JBColor(Color(0x171A21), Color(0x171A21))
-    private val subtleBackground = JBColor(Color(0x1E2330), Color(0x1E2330))
-    private val accentBorder = JBColor(Color(0x5C6CFF), Color(0x5C6CFF))
-    private val mutedText = JBColor(Color(0x9AA0AA), Color(0x9AA0AA))
+    private val rootBackground = JBColor(Color(0x0F0F10), Color(0x0F0F10))
+    private val cardBackground = JBColor(Color(0x1C1C1F), Color(0x1C1C1F))
+    private val subtleBackground = JBColor(Color(0x1F1F1F), Color(0x1F1F1F))
+    private val accentBorder = JBColor(Color(0xFFB74D.toInt()), Color(0xFFB74D.toInt()))
+    private val mutedText = JBColor(Color(0xD6D6D6.toInt()), Color(0xD6D6D6.toInt()))
 
     private val trialBannerPanel = JPanel(BorderLayout(8, 0)).apply {
         background = JBColor(Color(0x3C2C00), Color(0x3C2C00))
@@ -486,7 +486,7 @@ class LlamatikToolWindowPanel(
     }
 
     private fun buildModeToggle(text: String): JToggleButton =
-        JToggleButton("<html><span style='color:#FFFFFF;'>$text</span></html>").apply {
+        JToggleButton("<html><span style='color:#EDEDED;'>$text</span></html>").apply {
             isFocusPainted = false
             isContentAreaFilled = true
             isOpaque = true
@@ -495,21 +495,19 @@ class LlamatikToolWindowPanel(
         }
 
     private fun buildFooterPill(text: String): JButton =
-        JButton(text).apply {
+        JButton("<html><span style='color:#D6D6D6;'>$text</span></html>").apply {
             isFocusPainted = false
             isContentAreaFilled = false
-            foreground = mutedText
             border = JBUI.Borders.compound(
-                BorderFactory.createLineBorder(JBColor(Color(0x303644), Color(0x303644)), 1, true),
+                BorderFactory.createLineBorder(JBColor(Color(0x35353A), Color(0x35353A)), 1, true),
                 JBUI.Borders.empty(5, 10),
             )
         }
 
     private fun headerIconButton(text: String): JButton =
-        JButton(text).apply {
+        JButton("<html><span style='color:#D6D6D6;'>$text</span></html>").apply {
             isFocusPainted = false
             isContentAreaFilled = false
-            foreground = mutedText
             border = JBUI.Borders.empty(2, 6)
         }
 }

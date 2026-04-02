@@ -40,11 +40,11 @@ class ChatTabPanel(
         ASK,
     }
 
-    private val rootBackground = JBColor(Color(0x111318), Color(0x111318))
-    private val cardBackground = JBColor(Color(0x171A21), Color(0x171A21))
-    private val heroAccent = JBColor(Color(0x5C6CFF), Color(0x5C6CFF))
-    private val heroSecondary = JBColor(Color(0x9C7CFF), Color(0x9C7CFF))
-    private val mutedText = JBColor(Color(0xA0A6B2), Color(0xA0A6B2))
+    private val rootBackground = JBColor(Color(0x0F0F10), Color(0x0F0F10))
+    private val cardBackground = JBColor(Color(0x1C1C1F), Color(0x1C1C1F))
+    private val heroAccent = JBColor(Color(0xFFB74D.toInt()), Color(0xFFB74D.toInt()))
+    private val heroSecondary = JBColor(Color(0xD97706), Color(0xD97706))
+    private val mutedText = JBColor(Color(0xD6D6D6.toInt()), Color(0xD6D6D6.toInt()))
 
     private var entryMode = EntryMode.CHAT
 
@@ -184,43 +184,37 @@ class ChatTabPanel(
         }
 
         val heroTitle = JBLabel(
-            "<html><span style='font-size:22pt; font-weight:700; color:#5C6CFF;'>$modeTitle</span></html>",
+            "<html><span style='font-size:22pt; font-weight:700; color:#FFB74D;'>$modeTitle</span></html>",
         ).apply {
             border = JBUI.Borders.emptyBottom(4)
         }
 
-        val heroSubtitle = JBLabel(modeSubtitle).apply {
-            foreground = JBColor.WHITE
+        val heroSubtitle = JBLabel(
+            "<html><span style='color:#EDEDED;'>$modeSubtitle</span></html>",
+        ).apply {
             font = font.deriveFont(Font.BOLD, font.size2D + 5f)
             border = JBUI.Borders.emptyBottom(28)
         }
 
         val infoCard = JPanel(BorderLayout(0, 8)).apply {
             isOpaque = true
-            background = JBColor(Color(0x1D2E5D), Color(0x1D2E5D))
+            background = JBColor(Color(0x262626), Color(0x262626))
             border = JBUI.Borders.compound(
-                BorderFactory.createLineBorder(JBColor(Color(0x3B5DB8), Color(0x3B5DB8)), 1, true),
+                BorderFactory.createLineBorder(JBColor(Color(0xFFB74D.toInt()), Color(0xFFB74D.toInt())), 1, true),
                 JBUI.Borders.empty(14, 16),
             )
         }
 
         val infoTitle = JBLabel(
-            if (entryMode == EntryMode.ASK) {
-                "Use Ask for quick, scoped questions"
-            } else {
-                "Use a Llamatik model for private local assistance"
-            },
+            "<html><span style='color:#EDEDED;'>${if (entryMode == EntryMode.ASK) "Use Ask for quick, scoped questions" else "Use a Llamatik model for private local assistance"}</span></html>",
         ).apply {
-            foreground = JBColor.WHITE
             font = font.deriveFont(Font.BOLD, font.size2D + 1f)
             border = JBUI.Borders.emptyBottom(4)
         }
 
         val infoBody = JBLabel(
-            "<html>${if (entryMode == EntryMode.ASK) "Ask keeps the same workflow, but presents a lighter question-first surface." else "Stream responses locally, keep your workflow private, and move into Agent mode when you want assisted multi-step execution."}</html>",
-        ).apply {
-            foreground = JBColor(Color(0xD8E1FF), Color(0xD8E1FF))
-        }
+            "<html><span style='color:#D6D6D6;'>${if (entryMode == EntryMode.ASK) "Ask keeps the same workflow, but presents a lighter question-first surface." else "Stream responses locally, keep your workflow private, and move into Agent mode when you want assisted multi-step execution."}</span></html>",
+        )
 
         infoCard.add(infoTitle, BorderLayout.NORTH)
         infoCard.add(infoBody, BorderLayout.CENTER)
@@ -271,7 +265,7 @@ class ChatTabPanel(
         }
 
     private fun promptChip(text: String): JButton =
-        JButton("<html><span style='color:#FFFFFF;'>$text</span></html>").apply {
+        JButton("<html><span style='color:#EDEDED;'>$text</span></html>").apply {
             horizontalAlignment = JButton.LEFT
             isFocusPainted = false
             isContentAreaFilled = true
@@ -293,13 +287,13 @@ class ChatTabPanel(
         }
 
     private fun toolbarButton(text: String): JButton =
-        JButton("<html><span style='color:#FFFFFF;'>$text</span></html>").apply {
+        JButton("<html><span style='color:#EDEDED;'>$text</span></html>").apply {
             isFocusPainted = false
             isContentAreaFilled = true
             isOpaque = true
             background = cardBackground
             border = JBUI.Borders.compound(
-                BorderFactory.createLineBorder(JBColor(Color(0x303644), Color(0x303644)), 1, true),
+                BorderFactory.createLineBorder(JBColor(Color(0x35353A), Color(0x35353A)), 1, true),
                 JBUI.Borders.empty(6, 10),
             )
         }

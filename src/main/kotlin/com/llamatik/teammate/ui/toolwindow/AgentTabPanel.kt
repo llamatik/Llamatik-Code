@@ -33,12 +33,12 @@ class AgentTabPanel(
     private val onReject: () -> Unit,
 ) : JPanel(BorderLayout()) {
 
-    private val rootBackground = JBColor(Color(0x111318), Color(0x111318))
-    private val cardBackground = JBColor(Color(0x171A21), Color(0x171A21))
-    private val panelStroke = JBColor(Color(0x2A3040), Color(0x2A3040))
-    private val accent = JBColor(Color(0x5C6CFF), Color(0x5C6CFF))
-    private val mutedText = JBColor(Color(0x9CA3AF), Color(0x9CA3AF))
-    private val success = JBColor(Color(0x3DDC97), Color(0x3DDC97))
+    private val rootBackground = JBColor(Color(0x0F0F10), Color(0x0F0F10))
+    private val cardBackground = JBColor(Color(0x1C1C1F), Color(0x1C1C1F))
+    private val panelStroke = JBColor(Color(0x35353A), Color(0x35353A))
+    private val accent = JBColor(Color(0xFFB74D.toInt()), Color(0xFFB74D.toInt()))
+    private val mutedText = JBColor(Color(0xD6D6D6.toInt()), Color(0xD6D6D6.toInt()))
+    private val success = JBColor(Color(0x388E3C), Color(0x388E3C))
 
     private val cardLayout = java.awt.CardLayout()
     private val cardPanel = JPanel(cardLayout).apply {
@@ -166,9 +166,10 @@ class AgentTabPanel(
     }
 
     private fun buildWelcomeCard(): JPanel {
-        val title = JBLabel("<html><span style='font-size:22pt; font-weight:700; color:#5C6CFF;'>Agent</span></html>")
-        val subtitle = JBLabel("I can inspect the codebase, plan a fix, and apply changes with approval.").apply {
-            foreground = JBColor.WHITE
+        val title = JBLabel("<html><span style='font-size:22pt; font-weight:700; color:#FFB74D;'>Agent</span></html>")
+        val subtitle = JBLabel(
+            "<html><span style='color:#EDEDED;'>I can inspect the codebase, plan a fix, and apply changes with approval.</span></html>",
+        ).apply {
             font = font.deriveFont(Font.BOLD, font.size2D + 4f)
             border = JBUI.Borders.emptyBottom(24)
         }
@@ -177,26 +178,26 @@ class AgentTabPanel(
             isOpaque = true
             background = cardBackground
             border = JBUI.Borders.compound(
-                BorderFactory.createLineBorder(panelStroke, 1, true),
+                BorderFactory.createLineBorder(accent, 1, true),
                 JBUI.Borders.empty(14, 16),
             )
         }
 
-        val activityTitle = JBLabel("Agent workflow").apply {
-            foreground = JBColor.WHITE
+        val activityTitle = JBLabel(
+            "<html><span style='color:#EDEDED;'>Agent workflow</span></html>",
+        ).apply {
             font = font.deriveFont(Font.BOLD, font.size2D + 1f)
         }
         val activityBody = JBLabel(
-            "<html>Analyze files, call tools, stream progress, preview diffs, and wait for your approval before applying edits.</html>",
-        ).apply {
-            foreground = mutedText
-        }
+            "<html><span style='color:#D6D6D6;'>Analyze files, call tools, stream progress, preview diffs, and wait for your approval before applying edits.</span></html>",
+        )
 
         activityCard.add(activityTitle, BorderLayout.NORTH)
         activityCard.add(activityBody, BorderLayout.CENTER)
 
-        val promptTitle = JBLabel("Prompts to try").apply {
-            foreground = JBColor.WHITE
+        val promptTitle = JBLabel(
+            "<html><span style='color:#EDEDED;'>Prompts to try</span></html>",
+        ).apply {
             font = font.deriveFont(Font.BOLD, font.size2D + 1f)
             border = JBUI.Borders.empty(24, 0, 10, 0)
         }
@@ -318,7 +319,7 @@ class AgentTabPanel(
     }
 
     private fun buildPromptCard(text: String): JButton =
-        JButton("<html><span style='color:#FFFFFF;'>$text</span></html>").apply {
+        JButton("<html><span style='color:#EDEDED;'>$text</span></html>").apply {
             horizontalAlignment = JButton.LEFT
             isFocusPainted = false
             isContentAreaFilled = true
