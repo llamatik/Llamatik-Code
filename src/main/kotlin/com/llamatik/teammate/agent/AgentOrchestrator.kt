@@ -248,9 +248,11 @@ class AgentOrchestrator(private val project: Project) {
 
     private fun extractEditProposal(text: String): EditProposal? {
         val match = editRegex.find(text) ?: return null
-        val path = match.groupValues[1]
+        val path = match.groupValues[1].trim()
         val summary = match.groupValues[2]
         val newContent = match.groupValues[3]
+        // Reject paths that don't look like files (no extension = likely a directory)
+        if (!path.contains('.')) return null
         val oldContent = runCatching { contextService.readFile(path) }.getOrDefault("")
         return EditProposal(filePath = path, oldContent = oldContent, newContent = newContent, summary = summary)
     }

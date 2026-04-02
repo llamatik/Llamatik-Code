@@ -26,10 +26,18 @@ class DiffPreviewService(private val project: Project) {
     fun applyProposal(proposal: EditProposal) {
         val basePath = project.basePath ?: error("Project root not found")
         val target = java.nio.file.Path.of(basePath, proposal.filePath)
+        if (java.nio.file.Files.isDirectory(target)) {
+            com.intellij.openapi.ui.Messages.showErrorDialog(
+                project,
+                "Cannot apply edit: '${proposal.filePath}' is a directory, not a file.",
+                "Invalid Edit Proposal",
+            )
+            return
+        }
         ApplicationManager.getApplication().runWriteAction {
             target.parent?.let { java.nio.file.Files.createDirectories(it) }
             java.nio.file.Files.writeString(target, proposal.newContent)
+            LocalFileSystem.getInstance().refreshAndFindFileByNioFile(target)?.refresh(false, false)
         }
-        LocalFileSystem.getInstance().refreshAndFindFileByNioFile(target)?.refresh(false, false)
     }
 }
