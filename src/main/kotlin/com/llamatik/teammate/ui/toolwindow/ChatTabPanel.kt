@@ -3,6 +3,7 @@ package com.llamatik.teammate.ui.toolwindow
 import com.intellij.openapi.project.Project
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBLabel
+import com.llamatik.teammate.ui.LlamatikTheme
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTabbedPane
 import com.intellij.util.ui.JBUI
@@ -12,7 +13,6 @@ import com.llamatik.teammate.ui.chat.ChatMessagePanel
 import com.llamatik.teammate.ui.chat.ChatSessionController
 import java.awt.BorderLayout
 import java.awt.CardLayout
-import java.awt.Color
 import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.Font
@@ -40,11 +40,11 @@ class ChatTabPanel(
         ASK,
     }
 
-    private val rootBackground = JBColor(Color(0x0F0F10), Color(0x0F0F10))
-    private val cardBackground = JBColor(Color(0x1C1C1F), Color(0x1C1C1F))
-    private val heroAccent = JBColor(Color(0xFFB74D.toInt()), Color(0xFFB74D.toInt()))
-    private val heroSecondary = JBColor(Color(0xD97706), Color(0xD97706))
-    private val mutedText = JBColor(Color(0xD6D6D6.toInt()), Color(0xD6D6D6.toInt()))
+    private val rootBackground = LlamatikTheme.background
+    private val cardBackground = LlamatikTheme.surface
+    private val heroAccent = LlamatikTheme.primary
+    private val heroSecondary = LlamatikTheme.secondary
+    private val mutedText = LlamatikTheme.onSurfaceVariant
 
     private var entryMode = EntryMode.CHAT
 
@@ -184,13 +184,13 @@ class ChatTabPanel(
         }
 
         val heroTitle = JBLabel(
-            "<html><span style='font-size:22pt; font-weight:700; color:#FFB74D;'>$modeTitle</span></html>",
+            "<html><span style='font-size:22pt; font-weight:700; color:${LlamatikTheme.htmlPrimary};'>$modeTitle</span></html>",
         ).apply {
             border = JBUI.Borders.emptyBottom(4)
         }
 
         val heroSubtitle = JBLabel(
-            "<html><span style='color:#EDEDED;'>$modeSubtitle</span></html>",
+            "<html><span style='color:${LlamatikTheme.htmlOnSurface};'>$modeSubtitle</span></html>",
         ).apply {
             font = font.deriveFont(Font.BOLD, font.size2D + 5f)
             border = JBUI.Borders.emptyBottom(28)
@@ -198,22 +198,22 @@ class ChatTabPanel(
 
         val infoCard = JPanel(BorderLayout(0, 8)).apply {
             isOpaque = true
-            background = JBColor(Color(0x262626), Color(0x262626))
+            background = LlamatikTheme.tertiaryContainer
             border = JBUI.Borders.compound(
-                BorderFactory.createLineBorder(JBColor(Color(0xFFB74D.toInt()), Color(0xFFB74D.toInt())), 1, true),
+                BorderFactory.createLineBorder(LlamatikTheme.primary, 1, true),
                 JBUI.Borders.empty(14, 16),
             )
         }
 
         val infoTitle = JBLabel(
-            "<html><span style='color:#EDEDED;'>${if (entryMode == EntryMode.ASK) "Use Ask for quick, scoped questions" else "Use a Llamatik model for private local assistance"}</span></html>",
+            "<html><span style='color:${LlamatikTheme.htmlOnSurface};'>${if (entryMode == EntryMode.ASK) "Use Ask for quick, scoped questions" else "Use a Llamatik model for private local assistance"}</span></html>",
         ).apply {
             font = font.deriveFont(Font.BOLD, font.size2D + 1f)
             border = JBUI.Borders.emptyBottom(4)
         }
 
         val infoBody = JBLabel(
-            "<html><span style='color:#D6D6D6;'>${if (entryMode == EntryMode.ASK) "Ask keeps the same workflow, but presents a lighter question-first surface." else "Stream responses locally, keep your workflow private, and move into Agent mode when you want assisted multi-step execution."}</span></html>",
+            "<html><span style='color:${LlamatikTheme.htmlOnSurfaceVariant};'>${if (entryMode == EntryMode.ASK) "Ask keeps the same workflow, but presents a lighter question-first surface." else "Stream responses locally, keep your workflow private, and move into Agent mode when you want assisted multi-step execution."}</span></html>",
         )
 
         infoCard.add(infoTitle, BorderLayout.NORTH)
@@ -258,8 +258,8 @@ class ChatTabPanel(
     private fun buildTabHeader(title: String, onClose: () -> Unit): JPanel =
         JPanel(FlowLayout(FlowLayout.LEFT, 6, 0)).apply {
             isOpaque = false
-            add(JLabel("<html><span style='color:#EDEDED;'>$title</span></html>"))
-            add(JButton("<html><span style='color:#D6D6D6;'>×</span></html>").apply {
+            add(JLabel("<html><span style='color:${LlamatikTheme.htmlOnSurface};'>$title</span></html>"))
+            add(JButton("<html><span style='color:${LlamatikTheme.htmlOnSurfaceVariant};'>×</span></html>").apply {
                 isBorderPainted = false
                 isContentAreaFilled = false
                 isFocusPainted = false
@@ -269,7 +269,7 @@ class ChatTabPanel(
         }
 
     private fun promptChip(text: String): JButton =
-        JButton("<html><span style='color:#EDEDED;'>$text</span></html>").apply {
+        JButton("<html><span style='color:${LlamatikTheme.htmlOnSurface};'>$text</span></html>").apply {
             horizontalAlignment = JButton.LEFT
             isFocusPainted = false
             isContentAreaFilled = true
@@ -277,10 +277,7 @@ class ChatTabPanel(
             background = cardBackground
             border = JBUI.Borders.compound(
                 BorderFactory.createLineBorder(
-                    JBColor(
-                        if (entryMode == EntryMode.ASK) heroSecondary else heroAccent,
-                        if (entryMode == EntryMode.ASK) heroSecondary else heroAccent,
-                    ),
+                    if (entryMode == EntryMode.ASK) heroSecondary else heroAccent,
                     1,
                     true,
                 ),
@@ -291,13 +288,13 @@ class ChatTabPanel(
         }
 
     private fun toolbarButton(text: String): JButton =
-        JButton("<html><span style='color:#EDEDED;'>$text</span></html>").apply {
+        JButton("<html><span style='color:${LlamatikTheme.htmlOnSurface};'>$text</span></html>").apply {
             isFocusPainted = false
             isContentAreaFilled = true
             isOpaque = true
             background = cardBackground
             border = JBUI.Borders.compound(
-                BorderFactory.createLineBorder(JBColor(Color(0x35353A), Color(0x35353A)), 1, true),
+                BorderFactory.createLineBorder(LlamatikTheme.outline, 1, true),
                 JBUI.Borders.empty(6, 10),
             )
         }

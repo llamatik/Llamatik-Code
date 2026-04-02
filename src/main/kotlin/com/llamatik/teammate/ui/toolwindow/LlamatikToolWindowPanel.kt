@@ -20,11 +20,11 @@ import com.llamatik.teammate.model.EditProposal
 import com.llamatik.teammate.model.PluginReadinessState
 import com.llamatik.teammate.settings.LlamatikAppSettings
 import com.llamatik.teammate.tools.ToolCallParser
+import com.llamatik.teammate.ui.LlamatikTheme
 import com.llamatik.teammate.ui.chat.ChatMessagePanel
 import com.llamatik.teammate.ui.chat.ChatSessionController
 import java.awt.BorderLayout
 import java.awt.CardLayout
-import java.awt.Color
 import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.Font
@@ -67,16 +67,14 @@ class LlamatikToolWindowPanel(
     private var currentHandle: GenerationHandle? = null
     private var currentMode = SurfaceMode.AGENT
 
-    private val rootBackground = JBColor(Color(0x0F0F10), Color(0x0F0F10))
-    private val cardBackground = JBColor(Color(0x1C1C1F), Color(0x1C1C1F))
-    private val subtleBackground = JBColor(Color(0x1F1F1F), Color(0x1F1F1F))
-    private val accentBorder = JBColor(Color(0xFFB74D.toInt()), Color(0xFFB74D.toInt()))
-    private val mutedText = JBColor(Color(0xD6D6D6.toInt()), Color(0xD6D6D6.toInt()))
+    private val rootBackground = LlamatikTheme.background
+    private val cardBackground = LlamatikTheme.surface
+    private val accentBorder = LlamatikTheme.primary
 
     private val trialBannerPanel = JPanel(BorderLayout(8, 0)).apply {
-        background = JBColor(Color(0x3C2C00), Color(0x3C2C00))
+        background = LlamatikTheme.warningBackground
         border = JBUI.Borders.compound(
-            BorderFactory.createLineBorder(JBColor(Color(0x7A5A00), Color(0x7A5A00)), 1, true),
+            BorderFactory.createLineBorder(LlamatikTheme.warningBorder, 1, true),
             JBUI.Borders.empty(8, 12),
         )
         isVisible = false
@@ -95,9 +93,9 @@ class LlamatikToolWindowPanel(
         lineWrap = true
         wrapStyleWord = true
         isOpaque = true
-        foreground = JBColor.WHITE
+        foreground = LlamatikTheme.onSurface
         background = rootBackground
-        caretColor = JBColor.WHITE
+        caretColor = LlamatikTheme.onSurface
         border = JBUI.Borders.empty(10, 12)
         font = font.deriveFont(Font.PLAIN, font.size2D + 1f)
         toolTipText = "Ask AI, use @filename to attach source files, use @prompt to recall saved prompts"
@@ -117,7 +115,7 @@ class LlamatikToolWindowPanel(
     private val profileButton = buildFooterPill("Default")
     private val settingsButton = buildFooterPill("⚙")
     private val disclaimerLabel = JBLabel("AI can make mistakes, so double-check it").apply {
-        foreground = mutedText
+        foreground = LlamatikTheme.onSurfaceVariant
         font = font.deriveFont(Font.PLAIN, font.size2D - 1f)
         horizontalAlignment = SwingConstants.CENTER
     }
@@ -143,8 +141,8 @@ class LlamatikToolWindowPanel(
     }
     */
 
-    private val selectedToggleBackground = JBColor(Color(0xFFB74D.toInt()), Color(0xFFB74D.toInt()))
-    private val unselectedToggleBackground = JBColor(Color(0x1F1F1F), Color(0x1F1F1F))
+    private val selectedToggleBackground = LlamatikTheme.primary
+    private val unselectedToggleBackground = LlamatikTheme.surfaceVariant
 
     private val agentToggle = buildModeToggle("Agent")
     private val askToggle = buildModeToggle("Ask")
@@ -215,7 +213,7 @@ class LlamatikToolWindowPanel(
 
         val header = JPanel(BorderLayout()).apply {
             background = rootBackground
-            border = JBUI.Borders.customLine(JBColor(Color(0x222630), Color(0x222630)), 0, 0, 1, 0)
+            border = JBUI.Borders.customLine(LlamatikTheme.divider, 0, 0, 1, 0)
             add(titleRow, BorderLayout.NORTH)
             add(modeRow, BorderLayout.CENTER)
         }
@@ -490,7 +488,7 @@ class LlamatikToolWindowPanel(
     }
 
     private fun buildModeToggle(label: String): JToggleButton =
-        JToggleButton("<html><span style='color:#EDEDED;'>$label</span></html>").apply {
+        JToggleButton("<html><span style='color:${LlamatikTheme.htmlOnSurface};'>$label</span></html>").apply {
             isFocusPainted = false
             isContentAreaFilled = true
             isOpaque = true
@@ -498,23 +496,23 @@ class LlamatikToolWindowPanel(
             background = unselectedToggleBackground
             addChangeListener {
                 background = if (isSelected) selectedToggleBackground else unselectedToggleBackground
-                val labelColor = if (isSelected) "#1A1A1A" else "#EDEDED"
+                val labelColor = if (isSelected) LlamatikTheme.htmlOnPrimary else LlamatikTheme.htmlOnSurface
                 text = "<html><span style='color:$labelColor;'>$label</span></html>"
             }
         }
 
     private fun buildFooterPill(text: String): JButton =
-        JButton("<html><span style='color:#D6D6D6;'>$text</span></html>").apply {
+        JButton("<html><span style='color:${LlamatikTheme.htmlOnSurfaceVariant};'>$text</span></html>").apply {
             isFocusPainted = false
             isContentAreaFilled = false
             border = JBUI.Borders.compound(
-                BorderFactory.createLineBorder(JBColor(Color(0x35353A), Color(0x35353A)), 1, true),
+                BorderFactory.createLineBorder(LlamatikTheme.outline, 1, true),
                 JBUI.Borders.empty(5, 10),
             )
         }
 
     private fun headerIconButton(text: String): JButton =
-        JButton("<html><span style='color:#D6D6D6;'>$text</span></html>").apply {
+        JButton("<html><span style='color:${LlamatikTheme.htmlOnSurfaceVariant};'>$text</span></html>").apply {
             isFocusPainted = false
             isContentAreaFilled = false
             border = JBUI.Borders.empty(2, 6)

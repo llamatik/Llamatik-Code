@@ -3,6 +3,7 @@ package com.llamatik.teammate.ui.toolwindow
 import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBLabel
+import com.llamatik.teammate.ui.LlamatikTheme
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTextArea
 import com.intellij.util.ui.JBUI
@@ -10,7 +11,6 @@ import com.llamatik.teammate.model.AgentPhase
 import com.llamatik.teammate.model.AgentTaskState
 import com.llamatik.teammate.model.PluginReadinessState
 import java.awt.BorderLayout
-import java.awt.Color
 import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.Font
@@ -33,12 +33,12 @@ class AgentTabPanel(
     private val onReject: () -> Unit,
 ) : JPanel(BorderLayout()) {
 
-    private val rootBackground = JBColor(Color(0x0F0F10), Color(0x0F0F10))
-    private val cardBackground = JBColor(Color(0x1C1C1F), Color(0x1C1C1F))
-    private val panelStroke = JBColor(Color(0x35353A), Color(0x35353A))
-    private val accent = JBColor(Color(0xFFB74D.toInt()), Color(0xFFB74D.toInt()))
-    private val mutedText = JBColor(Color(0xD6D6D6.toInt()), Color(0xD6D6D6.toInt()))
-    private val success = JBColor(Color(0x388E3C), Color(0x388E3C))
+    private val rootBackground = LlamatikTheme.background
+    private val cardBackground = LlamatikTheme.surface
+    private val panelStroke = LlamatikTheme.outline
+    private val accent = LlamatikTheme.primary
+    private val mutedText = LlamatikTheme.onSurfaceVariant
+    private val success = LlamatikTheme.success
 
     private val cardLayout = java.awt.CardLayout()
     private val cardPanel = JPanel(cardLayout).apply {
@@ -166,9 +166,9 @@ class AgentTabPanel(
     }
 
     private fun buildWelcomeCard(): JPanel {
-        val title = JBLabel("<html><span style='font-size:22pt; font-weight:700; color:#FFB74D;'>Agent</span></html>")
+        val title = JBLabel("<html><span style='font-size:22pt; font-weight:700; color:${LlamatikTheme.htmlPrimary};'>Agent</span></html>")
         val subtitle = JBLabel(
-            "<html><span style='color:#EDEDED;'>I can inspect the codebase, plan a fix, and apply changes with approval.</span></html>",
+            "<html><span style='color:${LlamatikTheme.htmlOnSurface};'>I can inspect the codebase, plan a fix, and apply changes with approval.</span></html>",
         ).apply {
             font = font.deriveFont(Font.BOLD, font.size2D + 4f)
             border = JBUI.Borders.emptyBottom(24)
@@ -184,19 +184,19 @@ class AgentTabPanel(
         }
 
         val activityTitle = JBLabel(
-            "<html><span style='color:#EDEDED;'>Agent workflow</span></html>",
+            "<html><span style='color:${LlamatikTheme.htmlOnSurface};'>Agent workflow</span></html>",
         ).apply {
             font = font.deriveFont(Font.BOLD, font.size2D + 1f)
         }
         val activityBody = JBLabel(
-            "<html><span style='color:#D6D6D6;'>Analyze files, call tools, stream progress, preview diffs, and wait for your approval before applying edits.</span></html>",
+            "<html><span style='color:${LlamatikTheme.htmlOnSurfaceVariant};'>Analyze files, call tools, stream progress, preview diffs, and wait for your approval before applying edits.</span></html>",
         )
 
         activityCard.add(activityTitle, BorderLayout.NORTH)
         activityCard.add(activityBody, BorderLayout.CENTER)
 
         val promptTitle = JBLabel(
-            "<html><span style='color:#EDEDED;'>Prompts to try</span></html>",
+            "<html><span style='color:${LlamatikTheme.htmlOnSurface};'>Prompts to try</span></html>",
         ).apply {
             font = font.deriveFont(Font.BOLD, font.size2D + 1f)
             border = JBUI.Borders.empty(24, 0, 10, 0)
@@ -325,7 +325,7 @@ class AgentTabPanel(
     }
 
     private fun buildPromptCard(text: String): JButton =
-        JButton("<html><span style='color:#EDEDED;'>$text</span></html>").apply {
+        JButton("<html><span style='color:${LlamatikTheme.htmlOnSurface};'>$text</span></html>").apply {
             horizontalAlignment = JButton.LEFT
             isFocusPainted = false
             isContentAreaFilled = true
