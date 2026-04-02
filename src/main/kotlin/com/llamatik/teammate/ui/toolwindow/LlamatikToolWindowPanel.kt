@@ -188,19 +188,19 @@ class LlamatikToolWindowPanel(
             add(agentToggle)
             add(askToggle)
         }
-
+/*
         val rightActions = JPanel(FlowLayout(FlowLayout.RIGHT, 6, 0)).apply {
             isOpaque = false
             add(headerIconButton("+"))
             add(headerIconButton("◻"))
             add(headerIconButton("⋮"))
         }
-
+*/
         val titleRow = JPanel(BorderLayout(8, 0)).apply {
             isOpaque = false
             border = JBUI.Borders.empty(10, 12, 8, 12)
             //add(titleLabel, BorderLayout.WEST)
-            add(rightActions, BorderLayout.EAST)
+            //add(rightActions, BorderLayout.EAST)
         }
 
         val modeRow = JPanel(BorderLayout()).apply {

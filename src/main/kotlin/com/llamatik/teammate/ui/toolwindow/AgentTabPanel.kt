@@ -55,7 +55,7 @@ class AgentTabPanel(
     private val phaseList = JPanel().apply {
         layout = BoxLayout(this, BoxLayout.Y_AXIS)
         background = rootBackground
-        border = JBUI.Borders.empty(16, 16, 16, 16)
+        border = JBUI.Borders.empty(16)
     }
 
     private val approveButton = JButton("Approve all changes")
@@ -268,7 +268,7 @@ class AgentTabPanel(
                     background = cardBackground
                     border = JBUI.Borders.compound(
                         BorderFactory.createLineBorder(panelStroke, 1, true),
-                        JBUI.Borders.empty(22, 22),
+                        JBUI.Borders.empty(22),
                     )
                     add(JLabel(message).apply {
                         foreground = JBColor.WHITE
@@ -428,7 +428,7 @@ class AgentTabPanel(
             background = cardBackground
             border = JBUI.Borders.compound(
                 BorderFactory.createLineBorder(panelStroke, 1, true),
-                JBUI.Borders.empty(14, 14),
+                JBUI.Borders.empty(14),
             )
         }
 

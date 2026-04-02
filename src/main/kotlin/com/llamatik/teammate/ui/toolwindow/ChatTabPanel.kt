@@ -76,7 +76,7 @@ class ChatTabPanel(
 
         val topBar = JPanel(FlowLayout(FlowLayout.LEFT, 6, 8)).apply {
             background = rootBackground
-            border = JBUI.Borders.empty(0, 12, 0, 12)
+            border = JBUI.Borders.empty(0, 12)
             add(newChatButton)
             add(clearButton)
         }
@@ -132,7 +132,7 @@ class ChatTabPanel(
             val messagesList = JPanel().apply {
                 layout = BoxLayout(this, BoxLayout.Y_AXIS)
                 background = rootBackground
-                border = JBUI.Borders.empty(12, 12, 12, 12)
+                border = JBUI.Borders.empty(12)
             }
 
             session.messages.forEach { message ->
