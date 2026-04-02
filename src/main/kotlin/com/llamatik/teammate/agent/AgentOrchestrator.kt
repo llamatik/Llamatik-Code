@@ -42,6 +42,47 @@ class AgentOrchestrator(private val project: Project) {
         // Tracks whichever backend call is currently active so cancel() always reaches the live handle.
         val activeHandle = AtomicReference<GenerationHandle>()
 
+        // Suppress <think>…</think> tokens from reaching the UI during streaming.
+        // We track whether we are currently inside a think block using a simple string buffer.
+        val tokenBuffer = StringBuilder()
+        val inThink = AtomicBoolean(false)
+        fun filteredToken(token: String) {
+            tokenBuffer.append(token)
+            val buf = tokenBuffer.toString()
+            // Detect opening tag
+            if (!inThink.get() && buf.contains("<think>")) {
+                // Emit everything before <think>
+                val before = buf.substringBefore("<think>")
+                if (before.isNotEmpty()) onToken(before)
+                inThink.set(true)
+                tokenBuffer.clear()
+                // Keep any content after <think> in buffer in case </think> is in the same token
+                tokenBuffer.append(buf.substringAfter("<think>"))
+                // Re-check for closing tag
+                val remaining = tokenBuffer.toString()
+                if (remaining.contains("</think>")) {
+                    inThink.set(false)
+                    val after = remaining.substringAfter("</think>")
+                    tokenBuffer.clear()
+                    if (after.isNotEmpty()) onToken(after)
+                }
+                return
+            }
+            if (inThink.get()) {
+                if (buf.contains("</think>")) {
+                    inThink.set(false)
+                    val after = buf.substringAfter("</think>")
+                    tokenBuffer.clear()
+                    if (after.isNotEmpty()) onToken(after)
+                }
+                // else stay buffered, discard
+                return
+            }
+            // Not in think block — emit and clear buffer
+            tokenBuffer.clear()
+            onToken(token)
+        }
+
         val compositeHandle = object : GenerationHandle {
             override fun cancel() {
                 cancelled.set(true)
@@ -50,11 +91,18 @@ class AgentOrchestrator(private val project: Project) {
             override val isCancelled: Boolean get() = cancelled.get()
         }
 
+        // Keep total prompt well under n_batch (2048 tokens ≈ 6000 chars at ~3 chars/token).
+        // Reserve ~1500 chars for the system prompt + context hint, leaving ~4500 for history.
+        val systemPrompt = buildSystemPrompt()
+        val contextHint = buildContextHint()
+        val historyBudgetChars = 4500
+        val recentMessages = fitMessagesInBudget(session.messages, historyBudgetChars)
+
         val toolAugmentedMessages = mutableListOf<ChatMessage>()
-        toolAugmentedMessages += ChatMessage(role = ChatRole.SYSTEM, content = buildSystemPrompt())
-        toolAugmentedMessages += session.messages.takeLast(12)
-        toolAugmentedMessages += ChatMessage(role = ChatRole.USER, content = userPrompt)
-        toolAugmentedMessages += ChatMessage(role = ChatRole.SYSTEM, content = buildContextHint())
+        toolAugmentedMessages += ChatMessage(role = ChatRole.SYSTEM, content = systemPrompt)
+        toolAugmentedMessages += recentMessages
+        toolAugmentedMessages += ChatMessage(role = ChatRole.USER, content = userPrompt.take(2000))
+        toolAugmentedMessages += ChatMessage(role = ChatRole.SYSTEM, content = contextHint)
 
         val config = BackendConfig(
             modelIdOrPath = settings.modelPath.ifBlank { settings.modelIdentifier },
@@ -68,7 +116,7 @@ class AgentOrchestrator(private val project: Project) {
             GenerationRequest(systemPrompt = buildSystemPrompt(), messages = toolAugmentedMessages, config = config),
             object : GenerationCallbacks {
                 override fun onToken(token: String) {
-                    if (!cancelled.get()) onToken(token)
+                    if (!cancelled.get()) filteredToken(token)
                 }
 
                 override fun onCompleted(fullText: String) {
@@ -76,12 +124,16 @@ class AgentOrchestrator(private val project: Project) {
                     val toolCalls = ToolCallParser.parse(fullText).take(4)
                     if (toolCalls.isEmpty()) {
                         val proposal = extractEditProposal(fullText)
+                        val clean = ToolCallParser.cleanForDisplay(fullText)
                         onFinished(
-                            ChatMessage(role = ChatRole.ASSISTANT, content = fullText, editProposalId = proposal?.id),
+                            ChatMessage(role = ChatRole.ASSISTANT, content = clean, editProposalId = proposal?.id),
                             proposal,
                         )
                         return
                     }
+
+                    // Signal to the UI that tool execution is in progress
+                    if (!cancelled.get()) onToken("\u0000STATUS:Gathering project context…")
 
                     val toolMessages = toolCalls.map { call ->
                         val result = toolRegistry.execute(call, ToolExecutionContext(project))
@@ -90,12 +142,24 @@ class AgentOrchestrator(private val project: Project) {
 
                     if (cancelled.get()) return
 
-                    val secondPassMessages = toolAugmentedMessages + toolMessages + ChatMessage(
-                        role = ChatRole.SYSTEM,
-                        content = "Tool results above are authoritative. Now answer the user. " +
-                            "If proposing a file change, append an edit proposal using the exact format: " +
-                            "<edit_proposal path=\"relative/path\" summary=\"short summary\">" +
-                            "<new_content><![CDATA[...]]></new_content></edit_proposal>",
+                    if (!cancelled.get()) onToken("\u0000STATUS:Writing answer…")
+
+                    // Second pass: keep only the immediate user turn + tool results to avoid
+                    // doubling history size and exceeding n_batch.
+                    val toolResultsSummary = toolMessages.joinToString("\n") { msg ->
+                        "[${msg.toolName}]: ${msg.content.take(600)}"
+                    }
+                    val secondPassMessages = listOf(
+                        ChatMessage(role = ChatRole.SYSTEM, content = systemPrompt),
+                        ChatMessage(role = ChatRole.USER, content = userPrompt.take(2000)),
+                        ChatMessage(
+                            role = ChatRole.SYSTEM,
+                            content = "Tool results:\n${toolResultsSummary.take(2000)}\n\n" +
+                                "Answer the user concisely using these results. " +
+                                "If proposing a file change use exactly: " +
+                                "<edit_proposal path=\"rel/path\" summary=\"desc\">" +
+                                "<new_content><![CDATA[...]]></new_content></edit_proposal>",
+                        ),
                     )
 
                     val secondHandle = backend.generate(
@@ -106,14 +170,13 @@ class AgentOrchestrator(private val project: Project) {
                         ),
                         object : GenerationCallbacks {
                             override fun onToken(token: String) {
-                                if (!cancelled.get()) onToken(token)
+                                if (!cancelled.get()) filteredToken(token)
                             }
 
                             override fun onCompleted(fullText: String) {
                                 if (cancelled.get()) return
-                                val cleaned = ToolCallParser.removeToolMarkup(fullText)
-                                val proposal = extractEditProposal(cleaned)
-                                val answer = cleaned.replace(editRegex, "").trim()
+                                val proposal = extractEditProposal(fullText)
+                                val answer = ToolCallParser.cleanForDisplay(fullText)
                                 onFinished(
                                     ChatMessage(role = ChatRole.ASSISTANT, content = answer, editProposalId = proposal?.id),
                                     proposal,
@@ -142,24 +205,40 @@ class AgentOrchestrator(private val project: Project) {
 
     private fun buildContextHint(): String = buildString {
         appendLine("Project context:")
-        appendLine("- projectName=${contextService.projectName()}")
-        appendLine("- rootPath=${contextService.rootPath()}")
-        appendLine("- currentFile=${contextService.getCurrentFile() ?: ""}")
-        appendLine("- selectedText=${contextService.getSelectedText()?.take(2000) ?: ""}")
-        appendLine("- pinnedInstructions=${contextService.pinnedInstructions()}")
-        appendLine("- recentChat=${contextService.recentChatSummary()}")
+        appendLine("- project=${contextService.projectName()}")
+        appendLine("- currentFile=${contextService.getCurrentFile() ?: "none"}")
+        val selected = contextService.getSelectedText()?.take(400)
+        if (!selected.isNullOrBlank()) appendLine("- selectedText=${selected}")
+        val pinned = contextService.pinnedInstructions()
+        if (pinned.isNotBlank()) appendLine("- instructions=${pinned.take(200)}")
+    }
+
+    /**
+     * Returns the most recent messages that fit within [budgetChars] total content length,
+     * always keeping at least the last user message.
+     */
+    private fun fitMessagesInBudget(messages: List<ChatMessage>, budgetChars: Int): List<ChatMessage> {
+        if (messages.isEmpty()) return emptyList()
+        val recent = messages.takeLast(20)
+        var used = 0
+        val result = mutableListOf<ChatMessage>()
+        for (msg in recent.asReversed()) {
+            val len = msg.content.length
+            if (used + len > budgetChars && result.isNotEmpty()) break
+            result.add(0, msg)
+            used += len
+        }
+        return result
     }
 
     private fun buildSystemPrompt(): String = buildString {
-        appendLine("You are Llamatik Code, a local IntelliJ coding agent for the Llamatik Teammate plugin.")
-        appendLine("Prefer tools over assumptions. Never claim project facts unless they come from tool results or provided context.")
-        appendLine("Respect privacy, denylisted files, and local-first/offline constraints.")
-        appendLine("When you need project data, emit structured tool calls exactly like this:")
+        appendLine("You are Llamatik Code, a local IntelliJ coding agent.")
+        appendLine("IMPORTANT: Always write your final answer AFTER any </think> block. Never end your response inside a <think> block.")
+        appendLine("Use tools for project data. Emit tool calls like:")
         appendLine("<tool_call name=\"read_file\"><arg name=\"path\">src/Main.kt</arg></tool_call>")
-        appendLine("Available tools:")
-        appendLine(toolRegistry.describeTools())
-        appendLine("Before edits, briefly explain the plan. Prefer plan -> patch -> apply -> run checks.")
-        appendLine("Return concise, implementation-oriented answers. If proposing edits, include at most one file edit proposal per response.")
+        appendLine("Tools: ${toolRegistry.describeTools().take(800)}")
+        appendLine("Keep answers concise. At most one file edit proposal per response, using:")
+        append("<edit_proposal path=\"rel/path\" summary=\"desc\"><new_content><![CDATA[...]]></new_content></edit_proposal>")
     }
 
     private val editRegex = Regex(

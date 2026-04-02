@@ -1,5 +1,6 @@
 package com.llamatik.teammate.settings
 
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.progress.ProgressIndicator
@@ -43,27 +44,23 @@ class DownloadedModelService {
     }
 
     fun downloadPredefined(project: Project?, modelId: String, onFinished: (String) -> Unit) {
-        object : Task.Backgroundable(project, "Model setup instructions", false) {
-            override fun run(indicator: ProgressIndicator) {
-                indicator.text = "Preparing local model setup guidance"
-                val descriptor = service<LlamatikAppSettings>().predefinedModels().firstOrNull { it.id == modelId }
-                val message = buildString {
-                    appendLine("This plugin currently supports local GGUF files only.")
-                    appendLine()
-                    appendLine("Recommended model: ${descriptor?.displayName ?: modelId}")
-                    appendLine("Source: ${descriptor?.source ?: "Manual local download"}")
-                    appendLine()
-                    appendLine(descriptor?.description ?: "Download the model manually, then select the .gguf file in Settings.")
-                    appendLine()
-                    appendLine("Next steps:")
-                    appendLine("1. Download the GGUF model manually from your preferred source.")
-                    appendLine("2. If the model is sharded, keep all parts in the same folder and select the first .gguf file.")
-                    appendLine("3. In Settings > Tools > Llamatik Code, choose the local .gguf file path.")
-                }
-                Messages.showInfoMessage(project, message, "Local Model Required")
-                onFinished("")
-            }
-        }.queue()
+        val descriptor = service<LlamatikAppSettings>().predefinedModels().firstOrNull { it.id == modelId }
+        val message = buildString {
+            appendLine("This plugin currently supports local GGUF files only.")
+            appendLine()
+            appendLine("Recommended model: ${descriptor?.displayName ?: modelId}")
+            appendLine("Source: ${descriptor?.source ?: "Manual local download"}")
+            appendLine()
+            appendLine(descriptor?.description ?: "Download the model manually, then select the .gguf file in Settings.")
+            appendLine()
+            appendLine("Next steps:")
+            appendLine("1. Download the GGUF model manually from your preferred source (e.g. Hugging Face).")
+            appendLine("2. In Settings → Llamatik Code, browse to the .gguf file and click Register.")
+        }
+        ApplicationManager.getApplication().invokeLater {
+            Messages.showInfoMessage(project, message, "How to add a local model")
+            onFinished("")
+        }
     }
 
     private fun normalizeLocalModelPath(path: String): String? {

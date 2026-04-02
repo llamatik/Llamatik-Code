@@ -26,6 +26,7 @@ dependencies {
     }
 
     implementation("com.llamatik:library:0.18.2")
+    testImplementation("junit:junit:4.13.2")
 }
 
 intellijPlatform {

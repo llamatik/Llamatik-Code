@@ -35,6 +35,10 @@
                 serviceImplementation="com.llamatik.teammate.llamatik.LlamatikBackendService"/>
         <applicationService
                 serviceImplementation="com.llamatik.teammate.licensing.TrialService"/>
+        <applicationService
+                serviceImplementation="com.llamatik.teammate.infrastructure.ModelDownloadManager"/>
+        <applicationService
+                serviceImplementation="com.llamatik.teammate.infrastructure.ModelRuntimeTracker"/>
 
         <!-- Project-level services -->
         <projectService
@@ -47,6 +51,8 @@
                 serviceImplementation="com.llamatik.teammate.tools.ToolRegistry"/>
         <projectService
                 serviceImplementation="com.llamatik.teammate.diff.DiffPreviewService"/>
+        <projectService
+                serviceImplementation="com.llamatik.teammate.context.ProjectIndexingState"/>
 
         <!-- Settings page -->
         <applicationConfigurable
