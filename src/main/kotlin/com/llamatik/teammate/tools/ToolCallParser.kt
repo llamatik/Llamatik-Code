@@ -33,17 +33,26 @@ object ToolCallParser {
         val withoutTools = text
             .replace(toolPattern, "")
             .replace(editProposalPattern, "")
-        val withoutThink = withoutTools.replace(thinkPattern, "").trim()
+        // Remove complete <think>…</think> blocks
+        val withoutComplete = withoutTools.replace(thinkPattern, "")
+        // Remove any unclosed <think> or <edit_proposal> block that reaches end-of-string
+        val withoutThink = withoutComplete
+            .replace(Regex("<think>.*$", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)), "")
+            .replace(Regex("<edit_proposal\\b.*$", RegexOption.DOT_MATCHES_ALL), "")
+            .trim()
         if (withoutThink.isNotEmpty()) return withoutThink
         // Only thinking, no answer — extract and show the think content as a fallback.
         val thinkContent = thinkPattern.findAll(withoutTools)
             .joinToString("\n\n") { match ->
-                // Strip opening <think> and closing </think> tags (case-insensitive)
                 match.value
                     .replaceFirst(Regex("^<think>", RegexOption.IGNORE_CASE), "")
                     .replaceFirst(Regex("</think>$", RegexOption.IGNORE_CASE), "")
                     .trim()
             }
-        return thinkContent.ifEmpty { withoutTools }.trim()
+        if (thinkContent.isNotEmpty()) return thinkContent
+        // Unclosed <think> block (no </think>) — return the content inside it, never the raw tag.
+        val unclosedContent = Regex("<think>(.*)", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
+            .find(withoutComplete)?.groupValues?.get(1)?.trim() ?: ""
+        return unclosedContent.ifEmpty { withoutComplete }.trim()
     }
 }

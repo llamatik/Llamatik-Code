@@ -1,1 +1,1 @@
-rootProject.name = "LlamatikTeammate"
+rootProject.name = "LlamatikCode"

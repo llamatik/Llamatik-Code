@@ -396,14 +396,19 @@ class LlamatikToolWindowPanel(
                         agentTabPanel.appendThinkingToken(token)
                     }
                 },
-                onFinished = { msg, proposal ->
+                onFinished = { msg, proposals ->
                     ApplicationManager.getApplication().invokeLater {
-                        proposal?.let { pendingEdits[it.id] = it }
+                        proposals.forEach { pendingEdits[it.id] = it }
                         val clean = ToolCallParser.cleanForDisplay(msg.content)
                         agentTabPanel.showAnswer(
                             text = clean,
-                            onApply = proposal?.let { { applyEdit(it) } },
-                            onViewDiff = proposal?.let { { diffService.showDiff(it) } },
+                            proposals = proposals,
+                            onViewDiff = { proposal -> diffService.showDiff(proposal) },
+                            onApply = { proposal ->
+                                diffService.showDiff(proposal)
+                                diffService.applyProposal(proposal)
+                            },
+                            onRejectProposal = { /* no-op: card already updates its own state */ },
                         )
                         setGenerating(false)
                     }
@@ -438,16 +443,17 @@ class LlamatikToolWindowPanel(
                     streamPanel.appendToken(token)
                 }
             },
-            onFinished = { msg, proposal ->
+            onFinished = { msg, proposals ->
                 ApplicationManager.getApplication().invokeLater {
-                    proposal?.let { pendingEdits[it.id] = it }
+                    proposals.forEach { pendingEdits[it.id] = it }
                     val clean = ToolCallParser.cleanForDisplay(msg.content)
                     sessionController.appendMessage(session.id, msg.copy(content = clean))
                     streamPanel.setContent(clean)
-                    if (proposal != null) {
+                    val firstProposal = proposals.firstOrNull()
+                    if (firstProposal != null) {
                         streamPanel.attachEditProposal(
-                            onApply = { applyEdit(proposal) },
-                            onViewDiff = { diffService.showDiff(proposal) },
+                            onApply = { applyEdit(firstProposal) },
+                            onViewDiff = { diffService.showDiff(firstProposal) },
                         )
                     }
                     chatTabPanel.rebuildTabs()

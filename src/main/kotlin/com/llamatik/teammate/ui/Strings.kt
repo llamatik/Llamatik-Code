@@ -111,6 +111,12 @@ object Strings {
     object EditDialog {
         fun applyMsg(filePath: String) = "Apply proposed changes to $filePath?"
         const val APPLY_TITLE = "Apply Llamatik Edit"
+        const val PROPOSED_CHANGES_HEADER = "Proposed changes"
+        const val ACCEPT = "Accept"
+        const val REJECT = "Reject"
+        const val VIEW_DIFF = "Diff"
+        const val ACCEPTED_LABEL = "✓ Applied"
+        const val REJECTED_LABEL = "✕ Rejected"
     }
 
     // ── Diff viewer ───────────────────────────────────────────────────────────

@@ -10,9 +10,9 @@ import com.intellij.ui.components.JBTextArea
 import com.intellij.util.ui.JBUI
 import com.llamatik.teammate.model.AgentPhase
 import com.llamatik.teammate.model.AgentTaskState
+import com.llamatik.teammate.model.EditProposal
 import com.llamatik.teammate.model.PluginReadinessState
 import java.awt.BorderLayout
-import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.Font
 import java.awt.GridLayout
@@ -67,43 +67,6 @@ class AgentTabPanel(
         )
     }
 
-    private val thinkToggleButton = JButton(Strings.Agent.THINKING_EXPANDED).apply {
-        isFocusPainted = false
-        isContentAreaFilled = false
-        isBorderPainted = false
-        foreground = mutedText
-        horizontalAlignment = JButton.LEFT
-    }
-
-    private val thinkTextArea = JBTextArea("").apply {
-        isEditable = false
-        isOpaque = true
-        lineWrap = true
-        wrapStyleWord = true
-        background = cardBackground
-        foreground = mutedText
-        border = JBUI.Borders.empty(10, 12)
-        font = font.deriveFont(Font.ITALIC)
-    }
-
-    private val thinkScrollPane = JBScrollPane(thinkTextArea).apply {
-        border = JBUI.Borders.compound(
-            BorderFactory.createLineBorder(panelStroke, 1, true),
-            JBUI.Borders.empty(),
-        )
-        isVisible = true
-        preferredSize = Dimension(0, 120)
-        viewport.background = cardBackground
-    }
-
-    private val thinkSection = JPanel(BorderLayout(0, 6)).apply {
-        isOpaque = false
-        isVisible = false
-        border = JBUI.Borders.emptyBottom(10)
-        add(thinkToggleButton, BorderLayout.NORTH)
-        add(thinkScrollPane, BorderLayout.CENTER)
-    }
-
     private val responseTextArea = JBTextArea("").apply {
         isEditable = false
         isOpaque = true
@@ -123,9 +86,10 @@ class AgentTabPanel(
         viewport.background = cardBackground
     }
 
-    private val responseActionBar = JPanel(FlowLayout(FlowLayout.RIGHT, 8, 0)).apply {
+    private val proposalsPanel = JPanel().apply {
+        layout = BoxLayout(this, BoxLayout.Y_AXIS)
         isOpaque = false
-        border = JBUI.Borders.emptyTop(10)
+        isVisible = false
     }
 
     private val backButton = JButton(Strings.Agent.BACK).apply {
@@ -150,6 +114,11 @@ class AgentTabPanel(
 
     private val streamBuffer = StringBuilder()
     private var streamingBlocked = false
+    private val thinkBuffer = StringBuilder()
+    private var thinkingBlocked = false
+
+    // XML prefixes that must never reach the text area (shared by both paths)
+    private val blockedPrefixes = listOf("<tool_call", "<edit_proposal")
 
     init {
         background = rootBackground
@@ -162,13 +131,6 @@ class AgentTabPanel(
 
         add(cardPanel, BorderLayout.CENTER)
         cardLayout.show(cardPanel, CARD_WELCOME)
-
-        thinkToggleButton.addActionListener {
-            val expanding = !thinkScrollPane.isVisible
-            thinkScrollPane.isVisible = expanding
-            thinkToggleButton.text = if (expanding) Strings.Agent.THINKING_EXPANDED else Strings.Agent.THINKING_COLLAPSED
-            thinkSection.revalidate()
-        }
 
         backButton.addActionListener {
             cardLayout.show(cardPanel, CARD_WELCOME)
@@ -332,19 +294,17 @@ class AgentTabPanel(
             add(rightButtons, BorderLayout.EAST)
         }
 
-        val headerStack = JPanel().apply {
-            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+        val statusRow = JPanel(FlowLayout(FlowLayout.LEFT, 0, 0)).apply {
             isOpaque = false
             add(statusPill)
-            add(thinkSection)
         }
 
         val content = JPanel(BorderLayout()).apply {
             background = rootBackground
             border = JBUI.Borders.empty(0, 16, 16, 16)
-            add(headerStack, BorderLayout.NORTH)
+            add(statusRow, BorderLayout.NORTH)
             add(responseScrollPane, BorderLayout.CENTER)
-            add(responseActionBar, BorderLayout.SOUTH)
+            add(proposalsPanel, BorderLayout.SOUTH)
         }
 
         return JPanel(BorderLayout()).apply {
@@ -370,15 +330,14 @@ class AgentTabPanel(
 
     fun startResponse(prompt: String) {
         responseTextArea.text = ""
-        thinkTextArea.text = ""
-        thinkSection.isVisible = false
-        thinkScrollPane.isVisible = true
-        thinkToggleButton.text = Strings.Agent.THINKING_EXPANDED
-        responseActionBar.removeAll()
+        proposalsPanel.removeAll()
+        proposalsPanel.isVisible = false
         statusPill.text = Strings.Agent.STATUS_ANALYZING
         statusPill.isVisible = true
         streamBuffer.clear()
         streamingBlocked = false
+        thinkBuffer.clear()
+        thinkingBlocked = false
         cardLayout.show(cardPanel, CARD_RESPONSE)
         cardPanel.revalidate()
         cardPanel.repaint()
@@ -390,65 +349,210 @@ class AgentTabPanel(
     }
 
     fun appendThinkingToken(token: String) {
-        thinkTextArea.append(token)
-        if (!thinkSection.isVisible) {
-            thinkSection.isVisible = true
-        }
+        if (thinkingBlocked) return
+        statusPill.isVisible = false
+        flushToPanel(token, thinkBuffer, isThinking = true)
     }
 
     fun appendAnswerToken(token: String) {
         if (streamingBlocked) return
+        statusPill.isVisible = false
+        flushToPanel(token, streamBuffer, isThinking = false)
+    }
 
-        streamBuffer.append(token)
-        val buffer = streamBuffer.toString()
+    /**
+     * Shared token-to-panel flushing with blocking for XML markup that must never reach the UI.
+     * Thinking tokens are blocked from showing tool/proposal XML.
+     * Answer tokens are additionally blocked from showing <think> tags.
+     */
+    private fun flushToPanel(token: String, buffer: StringBuilder, isThinking: Boolean) {
+        val allBlocked = if (isThinking) blockedPrefixes
+                         else blockedPrefixes + listOf("<think>", "<think ")
 
-        val toolIdx = buffer.indexOf("<tool_call")
-        val editIdx = buffer.indexOf("<edit_proposal")
-        val markupStart = when {
-            toolIdx >= 0 && editIdx >= 0 -> minOf(toolIdx, editIdx)
-            toolIdx >= 0 -> toolIdx
-            editIdx >= 0 -> editIdx
-            else -> -1
-        }
+        buffer.append(token)
+        val buf = buffer.toString()
 
-        if (markupStart >= 0) {
-            val safe = buffer.substring(0, markupStart).trimEnd()
+        val blockAt = allBlocked.mapNotNull { p -> buf.indexOf(p).takeIf { it >= 0 } }.minOrNull()
+        if (blockAt != null) {
+            val safe = buf.substring(0, blockAt).trimEnd()
             if (safe.isNotEmpty()) {
-                statusPill.isVisible = false
                 responseTextArea.append(safe)
                 responseTextArea.caretPosition = responseTextArea.document.length
             }
-            streamingBlocked = true
+            if (isThinking) thinkingBlocked = true else streamingBlocked = true
             return
         }
 
-        statusPill.isVisible = false
-        responseTextArea.append(token)
-        responseTextArea.caretPosition = responseTextArea.document.length
+        val maxPrefixLen = allBlocked.maxOf { it.length }
+        val tail = buf.takeLast(maxPrefixLen)
+        val holdLen = (1..tail.length).reversed().firstOrNull { len ->
+            val candidate = tail.takeLast(len)
+            allBlocked.any { it.startsWith(candidate) }
+        } ?: 0
+
+        val safeEnd = buf.length - holdLen
+        if (safeEnd > 0) {
+            val safe = buf.substring(0, safeEnd)
+            buffer.clear()
+            buffer.append(buf.substring(safeEnd))
+            responseTextArea.append(safe)
+            responseTextArea.caretPosition = responseTextArea.document.length
+        }
     }
 
-    fun showAnswer(text: String, onApply: (() -> Unit)? = null, onViewDiff: (() -> Unit)? = null) {
+    fun showAnswer(
+        text: String,
+        proposals: List<EditProposal> = emptyList(),
+        onViewDiff: (EditProposal) -> Unit = {},
+        onApply: (EditProposal) -> Unit = {},
+        onRejectProposal: (EditProposal) -> Unit = {},
+    ) {
         statusPill.isVisible = false
-        responseTextArea.text = text
-        responseTextArea.caretPosition = 0
+        // Keep whatever was streamed into the panel — only fall back to the cleaned text
+        // if nothing was streamed (e.g. generation completed before any token was displayed).
+        if (responseTextArea.text.isBlank() && text.isNotBlank()) {
+            responseTextArea.text = text
+            responseTextArea.caretPosition = 0
+        }
 
-        if (thinkTextArea.text.isBlank()) {
-            thinkSection.isVisible = false
+        proposalsPanel.removeAll()
+        if (proposals.isNotEmpty()) {
+            val header = JBLabel(Strings.EditDialog.PROPOSED_CHANGES_HEADER).apply {
+                foreground = LlamatikTheme.onSurface
+                font = font.deriveFont(Font.BOLD, font.size2D + 1f)
+                border = JBUI.Borders.empty(12, 0, 8, 0)
+                alignmentX = LEFT_ALIGNMENT
+            }
+            proposalsPanel.add(header)
+            proposals.forEach { proposal ->
+                proposalsPanel.add(buildProposalCard(proposal, onViewDiff, onApply, onRejectProposal))
+                proposalsPanel.add(javax.swing.Box.createVerticalStrut(6).also {
+                    (it as javax.swing.JComponent).alignmentX = LEFT_ALIGNMENT
+                })
+            }
+            proposalsPanel.isVisible = true
         } else {
-            thinkScrollPane.isVisible = true
-            thinkToggleButton.text = Strings.Agent.THINKING_EXPANDED
-            thinkSection.revalidate()
+            proposalsPanel.isVisible = false
+        }
+        proposalsPanel.revalidate()
+        proposalsPanel.repaint()
+        revalidate()
+        repaint()
+    }
+
+    private fun buildProposalCard(
+        proposal: EditProposal,
+        onViewDiff: (EditProposal) -> Unit,
+        onApply: (EditProposal) -> Unit,
+        onReject: (EditProposal) -> Unit,
+    ): JPanel {
+        val card = JPanel(java.awt.BorderLayout(0, 6)).apply {
+            isOpaque = true
+            background = cardBackground
+            border = JBUI.Borders.compound(
+                BorderFactory.createLineBorder(panelStroke, 1, true),
+                JBUI.Borders.empty(10, 12),
+            )
+            alignmentX = LEFT_ALIGNMENT
         }
 
-        responseActionBar.removeAll()
-        if (onViewDiff != null) {
-            responseActionBar.add(JButton(Strings.App.VIEW_DIFF).apply { addActionListener { onViewDiff() } })
+        val fileLabel = JBLabel(
+            "<html><b>${java.io.File(proposal.filePath).name}</b></html>"
+        ).apply {
+            foreground = LlamatikTheme.onSurface
         }
-        if (onApply != null) {
-            responseActionBar.add(JButton(Strings.App.APPLY_EDIT).apply { addActionListener { onApply() } })
+
+        val pathLabel = JBLabel(
+            "<html><span style='color:${LlamatikTheme.htmlOnSurfaceVariant};'>${proposal.filePath}</span></html>"
+        ).apply {
+            border = JBUI.Borders.emptyTop(2)
         }
-        responseActionBar.revalidate()
-        responseActionBar.repaint()
+
+        val summaryLabel = JBLabel(
+            "<html><span style='color:${LlamatikTheme.htmlOnSurfaceVariant};'>${proposal.summary}</span></html>"
+        ).apply {
+            border = JBUI.Borders.emptyTop(2)
+        }
+
+        val labelStack = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            isOpaque = false
+            add(fileLabel)
+            add(pathLabel)
+            add(summaryLabel)
+        }
+
+        val statusLabel = JBLabel("").apply {
+            isVisible = false
+            font = font.deriveFont(Font.BOLD)
+        }
+
+        val diffButton = JButton(Strings.EditDialog.VIEW_DIFF).apply {
+            isFocusPainted = false
+            isContentAreaFilled = false
+            border = JBUI.Borders.compound(
+                BorderFactory.createLineBorder(panelStroke, 1, true),
+                JBUI.Borders.empty(4, 8),
+            )
+            addActionListener { onViewDiff(proposal) }
+        }
+
+        // Declare rejectButton before acceptButton so acceptButton can reference it directly
+        val rejectButton = JButton(Strings.EditDialog.REJECT).apply {
+            isFocusPainted = false
+            isContentAreaFilled = false
+            foreground = mutedText
+            border = JBUI.Borders.compound(
+                BorderFactory.createLineBorder(panelStroke, 1, true),
+                JBUI.Borders.empty(4, 8),
+            )
+        }
+
+        val acceptButton = JButton(Strings.EditDialog.ACCEPT).apply {
+            isFocusPainted = false
+            background = LlamatikTheme.primary
+            foreground = LlamatikTheme.onPrimary
+            border = JBUI.Borders.compound(
+                BorderFactory.createLineBorder(LlamatikTheme.primary, 1, true),
+                JBUI.Borders.empty(4, 10),
+            )
+            addActionListener {
+                onApply(proposal)
+                statusLabel.text = Strings.EditDialog.ACCEPTED_LABEL
+                statusLabel.foreground = LlamatikTheme.success
+                statusLabel.isVisible = true
+                diffButton.isEnabled = false
+                rejectButton.isEnabled = false
+                this.isEnabled = false
+                card.revalidate()
+                card.repaint()
+            }
+        }
+
+        rejectButton.addActionListener {
+            onReject(proposal)
+            statusLabel.text = Strings.EditDialog.REJECTED_LABEL
+            statusLabel.foreground = mutedText
+            statusLabel.isVisible = true
+            diffButton.isEnabled = false
+            acceptButton.isEnabled = false
+            rejectButton.isEnabled = false
+            card.revalidate()
+            card.repaint()
+        }
+
+        val buttons = JPanel(FlowLayout(FlowLayout.RIGHT, 6, 0)).apply {
+            isOpaque = false
+            add(statusLabel)
+            add(diffButton)
+            add(rejectButton)
+            add(acceptButton)
+        }
+
+        // Labels on top, action buttons below
+        card.add(labelStack, java.awt.BorderLayout.NORTH)
+        card.add(buttons, java.awt.BorderLayout.SOUTH)
+        return card
     }
 
     fun updateState(taskState: AgentTaskState?) {
