@@ -15,6 +15,7 @@ import com.llamatik.teammate.model.ChatRole
 import com.llamatik.teammate.model.ChatSession
 import com.llamatik.teammate.model.EditProposal
 import com.llamatik.teammate.settings.LlamatikAppSettings
+import com.llamatik.teammate.skills.SkillService
 import com.llamatik.teammate.tools.ToolCallParser
 import com.llamatik.teammate.tools.ToolExecutionContext
 import com.llamatik.teammate.tools.ToolRegistry
@@ -26,6 +27,7 @@ class AgentOrchestrator(private val project: Project) {
     private val backend: AssistantBackend = service<LlamatikBackendService>()
     private val toolRegistry = project.service<ToolRegistry>()
     private val contextService = ProjectContextService(project)
+    private val skillService = service<SkillService>()
 
     fun selectedModelLabel(): String = backend.selectedModelLabel()
     fun isModelLoaded(): Boolean = backend.isModelLoaded()
@@ -275,7 +277,9 @@ class AgentOrchestrator(private val project: Project) {
         appendLine("<edit_proposal path=\"rel/path/to/File.kt\" summary=\"short description of change\">")
         appendLine("<new_content><![CDATA[...full new file content...]]></new_content>")
         appendLine("</edit_proposal>")
-        append("The user will review a diff for each file and approve or reject individually before any change is written.")
+        appendLine("The user will review a diff for each file and approve or reject individually before any change is written.")
+        val skillsAddition = skillService.buildSkillsPromptAddition()
+        if (skillsAddition.isNotBlank()) append(skillsAddition)
     }
 
     private val editRegex = Regex(

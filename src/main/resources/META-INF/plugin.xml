@@ -40,6 +40,10 @@
         <applicationService
                 serviceImplementation="com.llamatik.teammate.infrastructure.ModelRuntimeTracker"/>
 
+        <!-- Skills -->
+        <applicationService
+                serviceImplementation="com.llamatik.teammate.skills.SkillService"/>
+
         <!-- Project-level services -->
         <projectService
                 serviceImplementation="com.llamatik.teammate.persistence.LlamatikProjectState"/>

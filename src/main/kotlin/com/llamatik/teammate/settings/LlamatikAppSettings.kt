@@ -35,6 +35,8 @@ class LlamatikAppSettings : PersistentStateComponent<LlamatikAppSettings.State> 
         var indexingExcludedFolders: String = ".git,node_modules,build,out,target,.idea,.gradle",
         var agentAutoApprove: Boolean = false,
         var modelStoragePath: String = "",
+        var downloadedSkillIds: MutableList<String> = mutableListOf(),
+        var activeSkillIds: MutableList<String> = mutableListOf(),
     )
 
     private var myState = State()

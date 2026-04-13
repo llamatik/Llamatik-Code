@@ -285,6 +285,26 @@ object Strings {
         const val SOURCE_MANUAL = "Manual local download"
     }
 
+    // ── Skills ────────────────────────────────────────────────────────────────
+    object Skills {
+        const val SECTION_TITLE = "<html><b>Agent Skills</b></html>"
+        const val LIBRARY_TITLE = "Skill Library"
+        const val OPEN_LIBRARY = "Browse Skill Library"
+        const val SEARCH_PLACEHOLDER = "Search skills…"
+        const val NO_RESULTS = "No skills match your search."
+        const val ACTIVE_LABEL = "Active skills:"
+        const val NONE_ACTIVE = "None"
+        const val STATUS_NOT_DOWNLOADED = "Not downloaded"
+        const val STATUS_DOWNLOADED = "Downloaded"
+        const val STATUS_ACTIVE = "Active"
+        const val ACTION_DOWNLOAD = "Download"
+        const val ACTION_ACTIVATE = "Activate"
+        const val ACTION_DEACTIVATE = "Deactivate"
+        const val ACTION_DELETE = "Delete"
+        const val SECTION_SETTINGS = "<html><b>Skills</b></html>"
+        fun activeCount(n: Int) = if (n == 0) "No skills active" else "$n skill${if (n == 1) "" else "s"} active"
+    }
+
     // ── Build verification ────────────────────────────────────────────────────
     object Verification {
         const val BUILDING = "Building…"

@@ -11,8 +11,10 @@ import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTextArea
 import com.intellij.ui.components.JBTextField
 import com.intellij.util.ui.FormBuilder
+import com.llamatik.teammate.skills.SkillService
 import com.llamatik.teammate.ui.Strings
 import com.llamatik.teammate.ui.models.ModelLibraryPanel
+import com.llamatik.teammate.ui.skills.SkillLibraryDialog
 import java.awt.BorderLayout
 import java.awt.Dimension
 import java.nio.file.Files
@@ -26,6 +28,9 @@ import javax.swing.JPanel
 class LlamatikSettingsConfigurable : Configurable {
     private val settings = service<LlamatikAppSettings>()
     private val downloadedModelService = service<DownloadedModelService>()
+    private val skillService = service<SkillService>()
+
+    private val activeSkillsCountLabel = JBLabel("")
 
     // Model path
     private val modelPathField = JBTextField()
@@ -125,6 +130,12 @@ class LlamatikSettingsConfigurable : Configurable {
             }
         }
 
+        val openSkillLibraryButton = JButton(Strings.Skills.OPEN_LIBRARY).apply {
+            addActionListener {
+                SkillLibraryDialog(skillService, onChanged = { reloadActiveSkills() }).show()
+            }
+        }
+
         val resetOnboardingButton = JButton(Strings.Settings.RESET_ONBOARDING).apply {
             toolTipText = Strings.Settings.RESET_ONBOARDING_TOOLTIP
             addActionListener {
@@ -154,6 +165,7 @@ class LlamatikSettingsConfigurable : Configurable {
         }
 
         reloadDownloadedModels()
+        reloadActiveSkills()
 
         return FormBuilder.createFormBuilder()
             .addSeparator()
@@ -170,6 +182,9 @@ class LlamatikSettingsConfigurable : Configurable {
                 JBLabel(Strings.Settings.FIELD_IGNORED_DIRS))
             .addComponent(JBScrollPane(ignoredDirectoriesArea))
             .addLabeledComponent(JBLabel(Strings.Settings.FIELD_INSTRUCTIONS), JBScrollPane(projectRulesArea))
+            .addSeparator()
+            .addLabeledComponent(JBLabel(Strings.Skills.SECTION_SETTINGS), activeSkillsCountLabel)
+            .addComponent(openSkillLibraryButton)
             .addSeparator()
             .addComponent(resetOnboardingButton)
             .addComponentFillVertically(JPanel(), 0)
@@ -208,11 +223,20 @@ class LlamatikSettingsConfigurable : Configurable {
         ignoredDirectoriesArea.text = s.ignoredDirectories
         projectRulesArea.text = s.projectRules
         reloadDownloadedModels()
+        reloadActiveSkills()
     }
 
     private fun reloadDownloadedModels() {
         downloadedListModel.removeAllElements()
         downloadedModelService.listDownloaded().forEach(downloadedListModel::addElement)
+    }
+
+    private fun reloadActiveSkills() {
+        val active = skillService.activeSkills()
+        activeSkillsCountLabel.text = Strings.Skills.activeCount(active.size)
+        if (active.isNotEmpty()) {
+            activeSkillsCountLabel.toolTipText = active.joinToString(", ") { it.displayName }
+        }
     }
 
     private fun validateLocalModelPath(path: String): String? {
