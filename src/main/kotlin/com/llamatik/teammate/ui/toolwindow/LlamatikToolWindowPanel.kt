@@ -74,6 +74,7 @@ class LlamatikToolWindowPanel(
     private var isActivelyLoading = false
     private var currentHandle: GenerationHandle? = null
     private var currentMode = SurfaceMode.AGENT
+    private var activeGenId = 0
 
     private val rootBackground = LlamatikTheme.background
     private val cardBackground = LlamatikTheme.surface
@@ -378,7 +379,8 @@ class LlamatikToolWindowPanel(
         setGenerating(true)
 
         if (isAgentMode) {
-            agentTabPanel.startResponse(submittedPrompt)
+            val genId = agentTabPanel.startResponse(submittedPrompt)
+            activeGenId = genId
             currentHandle = agent.submit(
                 session = chatTabPanel.currentSession(),
                 userPrompt = submittedPrompt,
@@ -387,21 +389,23 @@ class LlamatikToolWindowPanel(
                         if (token.startsWith("\u0000STATUS:")) {
                             agentTabPanel.setStatus(token.removePrefix("\u0000STATUS:"))
                         } else {
-                            agentTabPanel.appendAnswerToken(token)
+                            agentTabPanel.appendAnswerToken(token, genId)
                         }
                     }
                 },
                 onThinkingToken = { token ->
                     SwingUtilities.invokeLater {
-                        agentTabPanel.appendThinkingToken(token)
+                        agentTabPanel.appendThinkingToken(token, genId)
                     }
                 },
                 onFinished = { msg, proposals ->
                     ApplicationManager.getApplication().invokeLater {
+                        if (genId != activeGenId) return@invokeLater
                         proposals.forEach { pendingEdits[it.id] = it }
                         val clean = ToolCallParser.cleanForDisplay(msg.content)
                         agentTabPanel.showAnswer(
                             text = clean,
+                            genId = genId,
                             proposals = proposals,
                             onViewDiff = { proposal -> diffService.showDiff(proposal) },
                             onApply = { proposal ->
@@ -415,7 +419,8 @@ class LlamatikToolWindowPanel(
                 },
                 onError = { message ->
                     ApplicationManager.getApplication().invokeLater {
-                        agentTabPanel.showAnswer("Error: $message")
+                        if (genId != activeGenId) return@invokeLater
+                        agentTabPanel.showAnswer("Error: $message", genId = genId)
                         setGenerating(false)
                     }
                 },

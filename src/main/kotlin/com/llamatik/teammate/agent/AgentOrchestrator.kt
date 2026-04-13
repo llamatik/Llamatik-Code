@@ -160,18 +160,21 @@ class AgentOrchestrator(private val project: Project) {
                     // Second pass: keep only the immediate user turn + tool results to avoid
                     // doubling history size and exceeding n_batch.
                     val toolResultsSummary = toolMessages.joinToString("\n") { msg ->
-                        "[${msg.toolName}]: ${msg.content.take(600)}"
+                        "[${msg.toolName}]:\n${msg.content.take(3000)}"
                     }
                     val secondPassMessages = listOf(
                         ChatMessage(role = ChatRole.SYSTEM, content = systemPrompt),
                         ChatMessage(role = ChatRole.USER, content = userPrompt.take(2000)),
+                        ChatMessage(role = ChatRole.SYSTEM, content = contextHint),
                         ChatMessage(
                             role = ChatRole.SYSTEM,
-                            content = "Tool results:\n${toolResultsSummary.take(2000)}\n\n" +
-                                "Answer the user concisely using these results. " +
-                                "If proposing a file change use exactly: " +
-                                "<edit_proposal path=\"rel/path\" summary=\"desc\">" +
-                                "<new_content><![CDATA[...]]></new_content></edit_proposal>",
+                            content = "Tool results:\n${toolResultsSummary.take(6000)}\n\n" +
+                                "You now have all the information needed. You MAY use <think>…</think> briefly to plan your code, " +
+                                "but you MUST immediately follow it with the actual <edit_proposal> block(s). " +
+                                "Do NOT end your response with only prose — write the complete edit_proposal:\n" +
+                                "<edit_proposal path=\"rel/path/to/File.kt\" summary=\"desc\">\n" +
+                                "<new_content><![CDATA[...full file content...]]></new_content>\n" +
+                                "</edit_proposal>",
                         ),
                     )
 
@@ -256,12 +259,12 @@ class AgentOrchestrator(private val project: Project) {
     private fun buildSystemPrompt(): String = buildString {
         appendLine("You are Llamatik Code, a local IntelliJ coding agent.")
         appendLine("CRITICAL RULES:")
-        appendLine("1. If you use <think>, keep it to 3-5 sentences maximum. Do NOT write long reasoning.")
-        appendLine("2. Always produce your actual answer (code or text) AFTER the </think> block.")
-        appendLine("3. Never end generation inside a <think> block.")
-        appendLine("4. When writing code in <edit_proposal>, write the COMPLETE file — do not truncate.")
-        appendLine("5. Use the currentFileContent in the context to write code that matches the actual project (correct package, imports, class names, method signatures). Never generate placeholder or dummy code.")
-        appendLine("Use tools for project data. Emit tool calls like:")
+        appendLine("1. You MAY use <think>…</think> to reason briefly. Keep it under 15 sentences.")
+        appendLine("2. After </think> (or immediately if you skip thinking), you MUST produce your actual answer — tool calls OR an edit_proposal block OR a direct answer. NEVER end after </think> with only prose describing what you plan to do.")
+        appendLine("3. When writing code in <edit_proposal>, write the COMPLETE file — do not truncate.")
+        appendLine("4. Use currentFileContent to write code matching the actual project (correct package, imports, class names). Never use placeholder or dummy code.")
+        appendLine("5. If you need a file's content not in context, emit a read_file tool call for it. Always follow search_filenames with read_file in the SAME response.")
+        appendLine("Use tools for project data. You may emit up to 4 tool calls in one response. Format:")
         appendLine("<tool_call name=\"read_file\"><arg name=\"path\">src/Main.kt</arg></tool_call>")
         appendLine("Tools: ${toolRegistry.describeTools().take(800)}")
         appendLine("When proposing file changes, emit one <edit_proposal> block per file that needs changing.")

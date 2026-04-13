@@ -7,6 +7,7 @@ import com.llamatik.teammate.ui.LlamatikTheme
 import com.llamatik.teammate.ui.Strings
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTextArea
+import com.intellij.util.ui.AsyncProcessIcon
 import com.intellij.util.ui.JBUI
 import com.llamatik.teammate.model.AgentPhase
 import com.llamatik.teammate.model.AgentTaskState
@@ -92,6 +93,16 @@ class AgentTabPanel(
         isVisible = false
     }
 
+    private val loadingSpinner = AsyncProcessIcon("agent-loading").apply {
+        isVisible = false
+    }
+
+    private val spinnerPanel = JPanel(FlowLayout(FlowLayout.LEFT, 0, 6)).apply {
+        isOpaque = false
+        isVisible = false
+        add(loadingSpinner)
+    }
+
     private val backButton = JButton(Strings.Agent.BACK).apply {
         isFocusPainted = false
         isContentAreaFilled = false
@@ -116,6 +127,7 @@ class AgentTabPanel(
     private var streamingBlocked = false
     private val thinkBuffer = StringBuilder()
     private var thinkingBlocked = false
+    private var currentGenerationId = 0
 
     // XML prefixes that must never reach the text area (shared by both paths)
     private val blockedPrefixes = listOf("<tool_call", "<edit_proposal")
@@ -299,12 +311,19 @@ class AgentTabPanel(
             add(statusPill)
         }
 
+        val southStack = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            isOpaque = false
+            add(spinnerPanel)
+            add(proposalsPanel)
+        }
+
         val content = JPanel(BorderLayout()).apply {
             background = rootBackground
             border = JBUI.Borders.empty(0, 16, 16, 16)
             add(statusRow, BorderLayout.NORTH)
             add(responseScrollPane, BorderLayout.CENTER)
-            add(proposalsPanel, BorderLayout.SOUTH)
+            add(southStack, BorderLayout.SOUTH)
         }
 
         return JPanel(BorderLayout()).apply {
@@ -328,12 +347,16 @@ class AgentTabPanel(
             addActionListener { onSuggestionSelected(text) }
         }
 
-    fun startResponse(prompt: String) {
+    fun startResponse(prompt: String): Int {
+        currentGenerationId++
         responseTextArea.text = ""
         proposalsPanel.removeAll()
         proposalsPanel.isVisible = false
         statusPill.text = Strings.Agent.STATUS_ANALYZING
         statusPill.isVisible = true
+        loadingSpinner.resume()
+        loadingSpinner.isVisible = true
+        spinnerPanel.isVisible = true
         streamBuffer.clear()
         streamingBlocked = false
         thinkBuffer.clear()
@@ -341,6 +364,7 @@ class AgentTabPanel(
         cardLayout.show(cardPanel, CARD_RESPONSE)
         cardPanel.revalidate()
         cardPanel.repaint()
+        return currentGenerationId
     }
 
     fun setStatus(message: String) {
@@ -348,14 +372,14 @@ class AgentTabPanel(
         statusPill.isVisible = true
     }
 
-    fun appendThinkingToken(token: String) {
-        if (thinkingBlocked) return
+    fun appendThinkingToken(token: String, genId: Int) {
+        if (genId != currentGenerationId || thinkingBlocked) return
         statusPill.isVisible = false
         flushToPanel(token, thinkBuffer, isThinking = true)
     }
 
-    fun appendAnswerToken(token: String) {
-        if (streamingBlocked) return
+    fun appendAnswerToken(token: String, genId: Int) {
+        if (genId != currentGenerationId || streamingBlocked) return
         statusPill.isVisible = false
         flushToPanel(token, streamBuffer, isThinking = false)
     }
@@ -402,12 +426,17 @@ class AgentTabPanel(
 
     fun showAnswer(
         text: String,
+        genId: Int,
         proposals: List<EditProposal> = emptyList(),
         onViewDiff: (EditProposal) -> Unit = {},
         onApply: (EditProposal) -> Unit = {},
         onRejectProposal: (EditProposal) -> Unit = {},
     ) {
+        if (genId != currentGenerationId) return
         statusPill.isVisible = false
+        loadingSpinner.suspend()
+        loadingSpinner.isVisible = false
+        spinnerPanel.isVisible = false
         // Keep whatever was streamed into the panel — only fall back to the cleaned text
         // if nothing was streamed (e.g. generation completed before any token was displayed).
         if (responseTextArea.text.isBlank() && text.isNotBlank()) {

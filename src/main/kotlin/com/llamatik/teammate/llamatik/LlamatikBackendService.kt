@@ -50,6 +50,14 @@ class LlamatikBackendService : AssistantBackend {
             return NoOpHandle(cancelled)
         }
 
+        // True once we have a complete response at the Kotlin level (stop sequence, token
+        // budget, or natural completion).  Used to prevent double-firing onCompleted.
+        val generationDone = AtomicBoolean(false)
+        // True once the *native* generateStream has actually returned (naturally or via cancel).
+        // The cancel handle checks this: calling nativeCancelGenerate() after the native side
+        // is already finished would leave a stale cancel flag that kills the next generation.
+        val nativeFinished = AtomicBoolean(false)
+
         executor.submit {
             try {
                 ensureModel(request.config.modelIdOrPath)
@@ -61,25 +69,30 @@ class LlamatikBackendService : AssistantBackend {
                 val stopSequences = PluginPromptRenderer.STOP_SEQUENCES
 
                 val acc = StringBuilder()
-                var done = false
                 var tokenCount = 0
 
                 val guard = object : GenStream {
                     override fun onDelta(text: String) {
-                        if (done || cancelled.get()) return
+                        if (generationDone.get() || cancelled.get()) return
                         acc.append(text)
                         tokenCount++
 
                         if (shouldStop(acc, stopSequences)) {
-                            done = true
+                            generationDone.set(true)
                             val final = trimAtStop(acc.toString(), stopSequences)
                             callbacks.onCompleted(final)
+                            // Do NOT call nativeCancelGenerate() here. Qwen3 natively fires
+                            // <|im_end|> as EOS so the native side stops within 1-2 tokens.
+                            // Calling nativeCancelGenerate() leaves a stale cancel flag that
+                            // causes generateStream to recreate its context with a smaller
+                            // n_ctx (4096) on the next call, starving multi-pass generations.
                             return
                         }
 
                         if (tokenCount >= request.config.maxTokens) {
-                            done = true
+                            generationDone.set(true)
                             callbacks.onCompleted(acc.toString())
+                            // Same reasoning: avoid cancel to preserve native context size.
                             return
                         }
 
@@ -87,15 +100,17 @@ class LlamatikBackendService : AssistantBackend {
                     }
 
                     override fun onComplete() {
-                        if (!done && !cancelled.get()) {
-                            done = true
+                        // Native finished on its own — mark it so cancel() won't leave a
+                        // stale flag, then fire onCompleted if we haven't already.
+                        nativeFinished.set(true)
+                        if (generationDone.compareAndSet(false, true) && !cancelled.get()) {
                             callbacks.onCompleted(acc.toString())
                         }
                     }
 
                     override fun onError(message: String) {
-                        if (!done && !cancelled.get()) {
-                            done = true
+                        nativeFinished.set(true)
+                        if (generationDone.compareAndSet(false, true) && !cancelled.get()) {
                             callbacks.onError(message, null)
                         }
                     }
@@ -109,7 +124,9 @@ class LlamatikBackendService : AssistantBackend {
                     1.1f,
                 )
                 com.llamatik.library.platform.LlamaBridge.generateStream(prompt, guard)
+                nativeFinished.set(true)
             } catch (t: Throwable) {
+                nativeFinished.set(true)
                 if (!cancelled.get()) {
                     logger.warn("Generation failed", t)
                     callbacks.onError(friendlyError(t), t)
@@ -120,7 +137,11 @@ class LlamatikBackendService : AssistantBackend {
         return object : GenerationHandle {
             override fun cancel() {
                 cancelled.set(true)
-                com.llamatik.library.platform.LlamaBridge.nativeCancelGenerate()
+                // Only signal native cancel while the native side is still running.
+                // If it already finished, the flag would persist and kill the next generation.
+                if (!nativeFinished.get()) {
+                    com.llamatik.library.platform.LlamaBridge.nativeCancelGenerate()
+                }
             }
 
             override val isCancelled: Boolean get() = cancelled.get()
