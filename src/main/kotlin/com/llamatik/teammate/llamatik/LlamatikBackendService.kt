@@ -101,6 +101,13 @@ class LlamatikBackendService : AssistantBackend {
                     }
                 }
 
+                com.llamatik.library.platform.LlamaBridge.updateGenerateParams(
+                    request.config.temperature.toFloat(),
+                    request.config.maxTokens,
+                    0.95f,
+                    40,
+                    1.1f,
+                )
                 com.llamatik.library.platform.LlamaBridge.generateStream(prompt, guard)
             } catch (t: Throwable) {
                 if (!cancelled.get()) {
