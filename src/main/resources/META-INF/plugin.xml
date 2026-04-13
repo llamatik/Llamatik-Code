@@ -52,6 +52,8 @@
         <projectService
                 serviceImplementation="com.llamatik.teammate.diff.DiffPreviewService"/>
         <projectService
+                serviceImplementation="com.llamatik.teammate.agent.BuildVerificationService"/>
+        <projectService
                 serviceImplementation="com.llamatik.teammate.context.ProjectIndexingState"/>
 
         <!-- Settings page -->

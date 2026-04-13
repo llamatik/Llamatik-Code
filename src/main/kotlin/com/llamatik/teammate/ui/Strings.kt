@@ -285,6 +285,18 @@ object Strings {
         const val SOURCE_MANUAL = "Manual local download"
     }
 
+    // ── Build verification ────────────────────────────────────────────────────
+    object Verification {
+        const val BUILDING = "Building…"
+        const val RUNNING_TESTS = "Running tests…"
+        const val BUILD_OK = "Build OK"
+        const val TESTS_PASSED = "Tests passed"
+        const val BUILD_FAILED = "Build failed"
+        const val TESTS_FAILED = "Tests failed"
+        const val AUTO_FIX = "Auto-fix"
+        const val RETRY_LIMIT = "Auto-fix limit reached — please fix manually"
+    }
+
     // ── Trial ─────────────────────────────────────────────────────────────────
     object Trial {
         const val STATUS_ACTIVE = "Trial active"

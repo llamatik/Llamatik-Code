@@ -103,6 +103,55 @@ class AgentTabPanel(
         add(loadingSpinner)
     }
 
+    private val verifyStatusLabel = JBLabel("").apply {
+        isVisible = false
+        font = font.deriveFont(Font.BOLD)
+        border = JBUI.Borders.emptyTop(8)
+        alignmentX = LEFT_ALIGNMENT
+    }
+
+    private val verifyErrorArea = JBTextArea("").apply {
+        isEditable = false
+        isOpaque = true
+        lineWrap = true
+        wrapStyleWord = true
+        background = cardBackground
+        foreground = LlamatikTheme.onSurface
+        border = JBUI.Borders.empty(6, 8)
+        font = font.deriveFont(Font.PLAIN, font.size2D - 1f)
+        rows = 3
+    }
+
+    private val verifyErrorScroll = JBScrollPane(verifyErrorArea).apply {
+        isVisible = false
+        border = BorderFactory.createLineBorder(panelStroke, 1, true)
+        viewport.background = cardBackground
+        alignmentX = LEFT_ALIGNMENT
+    }
+
+    private val autoFixButton = JButton(Strings.Verification.AUTO_FIX).apply {
+        isVisible = false
+        isFocusPainted = false
+        background = LlamatikTheme.primary
+        foreground = LlamatikTheme.onPrimary
+        border = JBUI.Borders.compound(
+            BorderFactory.createLineBorder(LlamatikTheme.primary, 1, true),
+            JBUI.Borders.empty(4, 10),
+        )
+        alignmentX = LEFT_ALIGNMENT
+    }
+
+    private val verificationPanel = JPanel().apply {
+        layout = BoxLayout(this, BoxLayout.Y_AXIS)
+        isOpaque = false
+        isVisible = false
+        add(verifyStatusLabel)
+        add(javax.swing.Box.createVerticalStrut(4))
+        add(verifyErrorScroll)
+        add(javax.swing.Box.createVerticalStrut(4))
+        add(autoFixButton)
+    }
+
     private val backButton = JButton(Strings.Agent.BACK).apply {
         isFocusPainted = false
         isContentAreaFilled = false
@@ -316,6 +365,7 @@ class AgentTabPanel(
             isOpaque = false
             add(spinnerPanel)
             add(proposalsPanel)
+            add(verificationPanel)
         }
 
         val content = JPanel(BorderLayout()).apply {
@@ -352,6 +402,7 @@ class AgentTabPanel(
         responseTextArea.text = ""
         proposalsPanel.removeAll()
         proposalsPanel.isVisible = false
+        hideVerification()
         statusPill.text = Strings.Agent.STATUS_ANALYZING
         statusPill.isVisible = true
         loadingSpinner.resume()
@@ -644,6 +695,65 @@ class AgentTabPanel(
         cardLayout.show(cardPanel, CARD_OVERLAY)
         cardPanel.revalidate()
         cardPanel.repaint()
+    }
+
+    fun hideVerification() {
+        verificationPanel.isVisible = false
+    }
+
+    fun showVerifying(message: String) {
+        verifyStatusLabel.text = message
+        verifyStatusLabel.foreground = mutedText
+        verifyStatusLabel.isVisible = true
+        verifyErrorScroll.isVisible = false
+        autoFixButton.isVisible = false
+        verificationPanel.isVisible = true
+        verificationPanel.revalidate()
+        verificationPanel.repaint()
+        revalidate()
+        repaint()
+    }
+
+    fun showBuildSuccess(testsRan: Boolean) {
+        verifyStatusLabel.text = if (testsRan) Strings.Verification.TESTS_PASSED else Strings.Verification.BUILD_OK
+        verifyStatusLabel.foreground = success
+        verifyStatusLabel.isVisible = true
+        verifyErrorScroll.isVisible = false
+        autoFixButton.isVisible = false
+        verificationPanel.isVisible = true
+        verificationPanel.revalidate()
+        verificationPanel.repaint()
+        revalidate()
+        repaint()
+    }
+
+    fun showBuildErrors(errors: String, onAutoFix: () -> Unit) {
+        verifyStatusLabel.text = Strings.Verification.BUILD_FAILED
+        verifyStatusLabel.foreground = LlamatikTheme.error
+        verifyStatusLabel.isVisible = true
+        verifyErrorArea.text = errors
+        verifyErrorScroll.isVisible = true
+        for (l in autoFixButton.actionListeners) autoFixButton.removeActionListener(l)
+        autoFixButton.text = Strings.Verification.AUTO_FIX
+        autoFixButton.addActionListener { onAutoFix() }
+        autoFixButton.isVisible = true
+        verificationPanel.isVisible = true
+        verificationPanel.revalidate()
+        verificationPanel.repaint()
+        revalidate()
+        repaint()
+    }
+
+    fun showAutoFixLimit() {
+        verifyStatusLabel.text = Strings.Verification.RETRY_LIMIT
+        verifyStatusLabel.foreground = mutedText
+        verifyStatusLabel.isVisible = true
+        autoFixButton.isVisible = false
+        verificationPanel.isVisible = true
+        verificationPanel.revalidate()
+        verificationPanel.repaint()
+        revalidate()
+        repaint()
     }
 
     private fun buildPhaseRow(

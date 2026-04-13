@@ -61,6 +61,9 @@ object LlamatikTheme {
     /** Success green. successContainer = #388E3C */
     val success = JBColor(Color(0x388E3C), Color(0x388E3C))
 
+    /** Error text color. */
+    val error = JBColor(Color(0xC62828), Color(0xFF5252))
+
     /** Error / banner background. */
     val errorBackground = JBColor(Color(0xFFE0E0), Color(0x5C2626))
 

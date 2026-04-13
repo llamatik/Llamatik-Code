@@ -12,6 +12,7 @@ import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTextArea
 import com.intellij.util.ui.JBUI
 import com.llamatik.teammate.agent.AgentOrchestrator
+import com.llamatik.teammate.agent.BuildVerificationService
 import com.llamatik.teammate.backend.GenerationHandle
 import com.llamatik.teammate.diff.DiffPreviewService
 import com.llamatik.teammate.licensing.TrialService
@@ -64,6 +65,7 @@ class LlamatikToolWindowPanel(
 
     private val agent = project.service<AgentOrchestrator>()
     private val diffService = project.service<DiffPreviewService>()
+    private val buildService = project.service<BuildVerificationService>()
     private val settings = service<LlamatikAppSettings>()
     private val trialService = service<TrialService>()
     private val stateController = PluginStateController()
@@ -75,6 +77,12 @@ class LlamatikToolWindowPanel(
     private var currentHandle: GenerationHandle? = null
     private var currentMode = SurfaceMode.AGENT
     private var activeGenId = 0
+    private var autoFixCount = 0
+    private var isAutoFix = false
+
+    companion object {
+        private const val MAX_AUTO_FIX_ITERATIONS = 3
+    }
 
     private val rootBackground = LlamatikTheme.background
     private val cardBackground = LlamatikTheme.surface
@@ -351,6 +359,8 @@ class LlamatikToolWindowPanel(
     }
 
     private fun sendPrompt() {
+        if (!isAutoFix) autoFixCount = 0
+        isAutoFix = false
         val prompt = inputArea.text.trim()
         if (prompt.isEmpty()) return
 
@@ -411,6 +421,7 @@ class LlamatikToolWindowPanel(
                             onApply = { proposal ->
                                 diffService.showDiff(proposal)
                                 diffService.applyProposal(proposal)
+                                startVerification(listOf(proposal.filePath))
                             },
                             onRejectProposal = { /* no-op: card already updates its own state */ },
                         )
@@ -520,6 +531,57 @@ class LlamatikToolWindowPanel(
         )
         if (ok == Messages.YES) {
             diffService.applyProposal(proposal)
+        }
+    }
+
+    private fun startVerification(appliedFiles: List<String>) {
+        ApplicationManager.getApplication().invokeLater {
+            agentTabPanel.showVerifying(Strings.Verification.BUILDING)
+        }
+        buildService.compile { success, errors ->
+            if (success) {
+                val testFiles = appliedFiles.filter { buildService.isTestFile(it) }
+                if (testFiles.isNotEmpty()) {
+                    val testClasses = testFiles.map { java.io.File(it).nameWithoutExtension }
+                    ApplicationManager.getApplication().invokeLater {
+                        agentTabPanel.showVerifying(Strings.Verification.RUNNING_TESTS)
+                    }
+                    buildService.runTests(testClasses) { testSuccess, output ->
+                        ApplicationManager.getApplication().invokeLater {
+                            if (testSuccess) {
+                                agentTabPanel.showBuildSuccess(testsRan = true)
+                            } else {
+                                agentTabPanel.showBuildErrors(output) { autoFixErrors(output) }
+                            }
+                        }
+                    }
+                } else {
+                    ApplicationManager.getApplication().invokeLater {
+                        agentTabPanel.showBuildSuccess(testsRan = false)
+                    }
+                }
+            } else {
+                val errorText = errors.joinToString("\n")
+                ApplicationManager.getApplication().invokeLater {
+                    agentTabPanel.showBuildErrors(errorText) { autoFixErrors(errorText) }
+                }
+            }
+        }
+    }
+
+    private fun autoFixErrors(errors: String) {
+        autoFixCount++
+        if (autoFixCount > MAX_AUTO_FIX_ITERATIONS) {
+            ApplicationManager.getApplication().invokeLater {
+                agentTabPanel.showAutoFixLimit()
+            }
+            return
+        }
+        val fixPrompt = "Fix the following build/test errors:\n$errors"
+        isAutoFix = true
+        ApplicationManager.getApplication().invokeLater {
+            prefillComposer(fixPrompt)
+            sendPrompt()
         }
     }
 
