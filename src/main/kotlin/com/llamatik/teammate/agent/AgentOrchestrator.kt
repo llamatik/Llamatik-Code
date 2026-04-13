@@ -134,7 +134,7 @@ class AgentOrchestrator(private val project: Project) {
 
                 override fun onCompleted(fullText: String) {
                     if (cancelled.get()) return
-                    val toolCalls = ToolCallParser.parse(fullText).take(4)
+                    val toolCalls = ToolCallParser.parse(fullText).take(6)
                     if (toolCalls.isEmpty()) {
                         val proposals = extractEditProposals(fullText)
                         val clean = ToolCallParser.cleanForDisplay(fullText)
@@ -160,7 +160,7 @@ class AgentOrchestrator(private val project: Project) {
                     // Second pass: keep only the immediate user turn + tool results to avoid
                     // doubling history size and exceeding n_batch.
                     val toolResultsSummary = toolMessages.joinToString("\n") { msg ->
-                        "[${msg.toolName}]:\n${msg.content.take(3000)}"
+                        "[${msg.toolName}]:\n${msg.content.take(2500)}"
                     }
                     val secondPassMessages = listOf(
                         ChatMessage(role = ChatRole.SYSTEM, content = systemPrompt),
@@ -168,12 +168,15 @@ class AgentOrchestrator(private val project: Project) {
                         ChatMessage(role = ChatRole.SYSTEM, content = contextHint),
                         ChatMessage(
                             role = ChatRole.SYSTEM,
-                            content = "Tool results:\n${toolResultsSummary.take(6000)}\n\n" +
-                                "You now have all the information needed. You MAY use <think>…</think> briefly to plan your code, " +
-                                "but you MUST immediately follow it with the actual <edit_proposal> block(s). " +
-                                "Do NOT end your response with only prose — write the complete edit_proposal:\n" +
-                                "<edit_proposal path=\"rel/path/to/File.kt\" summary=\"desc\">\n" +
-                                "<new_content><![CDATA[...full file content...]]></new_content>\n" +
+                            content = "Tool results:\n${toolResultsSummary.take(12000)}\n\n" +
+                                "You now have all the information needed. You MAY use <think>…</think> briefly to plan your code. " +
+                                "Then write ONE <edit_proposal> block for EACH file that must be created or modified — do not skip any file. " +
+                                "Do NOT end your response with only prose. Write every file in full:\n" +
+                                "<edit_proposal path=\"path/to/FileA.kt\" summary=\"desc\">\n" +
+                                "<new_content><![CDATA[...full content...]]></new_content>\n" +
+                                "</edit_proposal>\n" +
+                                "<edit_proposal path=\"path/to/FileB.kt\" summary=\"desc\">\n" +
+                                "<new_content><![CDATA[...full content...]]></new_content>\n" +
                                 "</edit_proposal>",
                         ),
                     )
@@ -260,14 +263,14 @@ class AgentOrchestrator(private val project: Project) {
         appendLine("You are Llamatik Code, a local IntelliJ coding agent.")
         appendLine("CRITICAL RULES:")
         appendLine("1. You MAY use <think>…</think> to reason briefly. Keep it under 15 sentences.")
-        appendLine("2. After </think> (or immediately if you skip thinking), you MUST produce your actual answer — tool calls OR an edit_proposal block OR a direct answer. NEVER end after </think> with only prose describing what you plan to do.")
+        appendLine("2. After </think> (or immediately if you skip thinking), you MUST produce your actual answer — tool calls OR edit_proposal blocks OR a direct answer. NEVER end after </think> with only prose describing what you plan to do.")
         appendLine("3. When writing code in <edit_proposal>, write the COMPLETE file — do not truncate.")
         appendLine("4. Use currentFileContent to write code matching the actual project (correct package, imports, class names). Never use placeholder or dummy code.")
-        appendLine("5. If you need a file's content not in context, emit a read_file tool call for it. Always follow search_filenames with read_file in the SAME response.")
-        appendLine("Use tools for project data. You may emit up to 4 tool calls in one response. Format:")
+        appendLine("5. Multi-file changes: call list_files to discover the project structure, then read_file for EVERY file you need to see — all tool calls in the SAME response. Never assume file contents you haven't read.")
+        appendLine("Use tools for project data. You may emit up to 6 tool calls in one response. Format:")
         appendLine("<tool_call name=\"read_file\"><arg name=\"path\">src/Main.kt</arg></tool_call>")
         appendLine("Tools: ${toolRegistry.describeTools().take(800)}")
-        appendLine("When proposing file changes, emit one <edit_proposal> block per file that needs changing.")
+        appendLine("When proposing changes: emit ONE <edit_proposal> block for EACH file that must be created or modified. Do not skip any file — if a task requires 4 files, write 4 proposals.")
         appendLine("Each proposal uses exactly this format:")
         appendLine("<edit_proposal path=\"rel/path/to/File.kt\" summary=\"short description of change\">")
         appendLine("<new_content><![CDATA[...full new file content...]]></new_content>")
