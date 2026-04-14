@@ -160,24 +160,20 @@ class AgentOrchestrator(private val project: Project) {
                     if (!cancelled.get()) onToken("\u0000STATUS:Writing answer…")
 
                     // Second pass: keep only the immediate user turn + tool results to avoid
-                    // doubling history size and exceeding n_batch.
+                    // doubling history size and exceeding n_batch (2048 tokens ≈ 6000 chars).
+                    // Use a compact system prompt here — no full skills text — to stay within budget.
                     val toolResultsSummary = toolMessages.joinToString("\n") { msg ->
-                        "[${msg.toolName}]:\n${msg.content.take(2500)}"
+                        "[${msg.toolName}]:\n${msg.content.take(1200)}"
                     }
                     val secondPassMessages = listOf(
-                        ChatMessage(role = ChatRole.SYSTEM, content = systemPrompt),
-                        ChatMessage(role = ChatRole.USER, content = userPrompt.take(2000)),
-                        ChatMessage(role = ChatRole.SYSTEM, content = contextHint),
+                        ChatMessage(role = ChatRole.SYSTEM, content = buildSecondPassSystemPrompt()),
+                        ChatMessage(role = ChatRole.USER, content = userPrompt.take(600)),
                         ChatMessage(
                             role = ChatRole.SYSTEM,
-                            content = "Tool results:\n${toolResultsSummary.take(12000)}\n\n" +
-                                "You now have all the information needed. You MAY use <think>…</think> briefly to plan your code. " +
-                                "Then write ONE <edit_proposal> block for EACH file that must be created or modified — do not skip any file. " +
-                                "Do NOT end your response with only prose. Write every file in full:\n" +
-                                "<edit_proposal path=\"path/to/FileA.kt\" summary=\"desc\">\n" +
-                                "<new_content><![CDATA[...full content...]]></new_content>\n" +
-                                "</edit_proposal>\n" +
-                                "<edit_proposal path=\"path/to/FileB.kt\" summary=\"desc\">\n" +
+                            content = "Project: ${contextService.projectName()}\n" +
+                                "Tool results:\n${toolResultsSummary.take(4000)}\n\n" +
+                                "Write ONE <edit_proposal> per file changed. Do NOT skip files. Full file content only:\n" +
+                                "<edit_proposal path=\"rel/path/File.kt\" summary=\"desc\">\n" +
                                 "<new_content><![CDATA[...full content...]]></new_content>\n" +
                                 "</edit_proposal>",
                         ),
@@ -185,7 +181,7 @@ class AgentOrchestrator(private val project: Project) {
 
                     val secondHandle = backend.generate(
                         GenerationRequest(
-                            systemPrompt = buildSystemPrompt(),
+                            systemPrompt = buildSecondPassSystemPrompt(),
                             messages = secondPassMessages,
                             config = config,
                         ),
@@ -222,6 +218,19 @@ class AgentOrchestrator(private val project: Project) {
         activeHandle.set(firstHandle)
 
         return compositeHandle
+    }
+
+    /**
+     * Minimal system prompt for the second (tool-results) pass.
+     * Must stay small — the second pass already carries tool results + user prompt,
+     * and the entire prompt must fit within n_batch = 2048 tokens (≈ 6000 chars).
+     */
+    private fun buildSecondPassSystemPrompt(): String = buildString {
+        appendLine("You are Llamatik Code, a local IntelliJ coding agent.")
+        appendLine("Write COMPLETE file content inside each <edit_proposal>. Never truncate.")
+        appendLine("Use package/imports/class names that match the existing project files.")
+        val activeNames = skillService.activeSkills().joinToString(", ") { it.displayName }
+        if (activeNames.isNotEmpty()) appendLine("Active skills (apply their conventions): $activeNames")
     }
 
     private fun buildContextHint(): String = buildString {
@@ -278,8 +287,9 @@ class AgentOrchestrator(private val project: Project) {
         appendLine("<new_content><![CDATA[...full new file content...]]></new_content>")
         appendLine("</edit_proposal>")
         appendLine("The user will review a diff for each file and approve or reject individually before any change is written.")
+        // Cap skills addition to protect n_batch budget (~6000 chars for the full first-pass prompt).
         val skillsAddition = skillService.buildSkillsPromptAddition()
-        if (skillsAddition.isNotBlank()) append(skillsAddition)
+        if (skillsAddition.isNotBlank()) append(skillsAddition.take(1200))
     }
 
     private val editRegex = Regex(

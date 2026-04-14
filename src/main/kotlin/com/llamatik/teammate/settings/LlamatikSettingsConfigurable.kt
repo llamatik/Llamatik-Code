@@ -2,8 +2,10 @@ package com.llamatik.teammate.settings
 
 import com.intellij.openapi.components.service
 import com.intellij.openapi.options.Configurable
+import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.Messages
+import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBList
@@ -13,6 +15,7 @@ import com.intellij.ui.components.JBTextField
 import com.intellij.util.ui.FormBuilder
 import com.llamatik.teammate.skills.SkillService
 import com.llamatik.teammate.ui.Strings
+import com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel
 import com.llamatik.teammate.ui.models.ModelLibraryPanel
 import com.llamatik.teammate.ui.skills.SkillLibraryDialog
 import java.awt.BorderLayout
@@ -213,6 +216,12 @@ class LlamatikSettingsConfigurable : Configurable {
         s.ignoredDirectories = ignoredDirectoriesArea.text
         s.projectRules = projectRulesArea.text
         if (path.isNotBlank()) downloadedModelService.registerLocalModel(path)
+
+        ProjectManager.getInstance().openProjects.forEach { project ->
+            val toolWindow = ToolWindowManager.getInstance(project).getToolWindow("Llamatik Code")
+            val panel = toolWindow?.contentManager?.getContent(0)?.component as? LlamatikToolWindowPanel
+            panel?.refreshState()
+        }
     }
 
     override fun reset() {

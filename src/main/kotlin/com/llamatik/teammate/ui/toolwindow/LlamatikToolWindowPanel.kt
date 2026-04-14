@@ -413,6 +413,15 @@ class LlamatikToolWindowPanel(
                         if (genId != activeGenId) return@invokeLater
                         proposals.forEach { pendingEdits[it.id] = it }
                         val clean = ToolCallParser.cleanForDisplay(msg.content)
+                        // Track decisions across all proposals; verify only after the last one.
+                        val appliedFiles = mutableListOf<String>()
+                        var remaining = proposals.size
+                        fun checkAllResolved() {
+                            remaining--
+                            if (remaining == 0 && appliedFiles.isNotEmpty()) {
+                                startVerification(appliedFiles.toList())
+                            }
+                        }
                         agentTabPanel.showAnswer(
                             text = clean,
                             genId = genId,
@@ -421,9 +430,10 @@ class LlamatikToolWindowPanel(
                             onApply = { proposal ->
                                 diffService.showDiff(proposal)
                                 diffService.applyProposal(proposal)
-                                startVerification(listOf(proposal.filePath))
+                                appliedFiles += proposal.filePath
+                                checkAllResolved()
                             },
-                            onRejectProposal = { /* no-op: card already updates its own state */ },
+                            onRejectProposal = { checkAllResolved() },
                         )
                         setGenerating(false)
                     }
@@ -504,6 +514,12 @@ class LlamatikToolWindowPanel(
         if (!composerEnabled) {
             inputArea.toolTipText = Strings.Composer.INPUT_TOOLTIP_NO_MODEL
             sendButton.toolTipText = Strings.Composer.INPUT_TOOLTIP_NO_MODEL
+        } else {
+            inputArea.toolTipText = when (currentMode) {
+                SurfaceMode.AGENT -> Strings.Composer.INPUT_TOOLTIP_AGENT
+                SurfaceMode.ASK -> Strings.Composer.INPUT_TOOLTIP_ASK
+            }
+            sendButton.toolTipText = Strings.Composer.SEND_TOOLTIP
         }
 
         val trialState = trialService.trialState()
@@ -518,7 +534,13 @@ class LlamatikToolWindowPanel(
             agentTabPanel.showReadinessOverlay(state, trialExpired = true)
         } else if (state == PluginReadinessState.NO_MODEL || state == PluginReadinessState.LOADING_MODEL) {
             agentTabPanel.showReadinessOverlay(state, trialExpired = false)
+        } else {
+            agentTabPanel.hideReadinessOverlay()
         }
+    }
+
+    fun refreshState() {
+        syncState()
     }
 
     private fun applyEdit(proposal: EditProposal) {

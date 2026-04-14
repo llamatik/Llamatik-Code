@@ -697,6 +697,12 @@ class AgentTabPanel(
         cardPanel.repaint()
     }
 
+    fun hideReadinessOverlay() {
+        cardLayout.show(cardPanel, CARD_WELCOME)
+        cardPanel.revalidate()
+        cardPanel.repaint()
+    }
+
     fun hideVerification() {
         verificationPanel.isVisible = false
     }
