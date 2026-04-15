@@ -3,13 +3,13 @@ package com.llamatik.teammate.ui.toolwindow
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.project.Project
 import com.intellij.ui.components.JBLabel
-import com.llamatik.teammate.ui.LlamatikTheme
-import javax.swing.Icon
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTabbedPane
+import com.intellij.ui.components.JBTextArea
 import com.intellij.util.ui.JBUI
 import com.llamatik.teammate.diff.DiffPreviewService
 import com.llamatik.teammate.model.EditProposal
+import com.llamatik.teammate.ui.LlamatikTheme
 import com.llamatik.teammate.ui.Strings
 import com.llamatik.teammate.ui.chat.ChatMessagePanel
 import com.llamatik.teammate.ui.chat.ChatSessionController
@@ -18,12 +18,23 @@ import java.awt.CardLayout
 import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.Font
+import java.awt.Graphics
+import java.awt.Graphics2D
 import java.awt.GridLayout
+import java.awt.RenderingHints
+import java.awt.Shape
+import java.awt.event.InputEvent
+import java.awt.event.KeyEvent
+import java.awt.geom.RoundRectangle2D
+import javax.swing.AbstractAction
 import javax.swing.BorderFactory
 import javax.swing.BoxLayout
+import javax.swing.Icon
 import javax.swing.JButton
+import javax.swing.JComponent
 import javax.swing.JLabel
 import javax.swing.JPanel
+import javax.swing.KeyStroke
 
 private const val CARD_WELCOME = "WELCOME"
 private const val CARD_MESSAGES = "MESSAGES"
@@ -35,6 +46,9 @@ class ChatTabPanel(
     private val pendingEdits: LinkedHashMap<String, EditProposal>,
     private val onApplyEdit: (EditProposal) -> Unit,
     private val onSuggestionSelected: (String) -> Unit,
+    private val onSend: (String) -> Unit = {},
+    private val onStop: () -> Unit = {},
+    private val onSettingsClicked: () -> Unit = {},
 ) : JPanel(BorderLayout()) {
 
     enum class EntryMode {
@@ -115,6 +129,28 @@ class ChatTabPanel(
     private val newChatButton = toolbarButton(AllIcons.General.Add, Strings.Chat.NEW_CHAT)
     private val clearButton = toolbarButton(AllIcons.Actions.GC, Strings.Chat.CLEAR)
 
+    // ── Composer ──────────────────────────────────────────────────────────────
+    private val composerInput = JBTextArea(3, 40).apply {
+        lineWrap = true
+        wrapStyleWord = true
+        isOpaque = false
+        foreground = LlamatikTheme.onSurface
+        background = cardBackground
+        caretColor = LlamatikTheme.onSurface
+        border = JBUI.Borders.empty(10, 12)
+        font = font.deriveFont(java.awt.Font.PLAIN, font.size2D + 1f)
+        toolTipText = Strings.Composer.INPUT_TOOLTIP_ASK
+    }
+    private val composerSendButton = JButton(AllIcons.Actions.Execute).apply {
+        toolTipText = Strings.Composer.SEND_TOOLTIP
+        preferredSize = Dimension(38, 32)
+    }
+    private val composerStopButton = JButton(AllIcons.Actions.Suspend).apply {
+        isEnabled = false
+        toolTipText = Strings.Composer.STOP_TOOLTIP
+        preferredSize = Dimension(38, 32)
+    }
+
     init {
         background = rootBackground
         border = JBUI.Borders.empty()
@@ -128,9 +164,56 @@ class ChatTabPanel(
 
         add(topBar, BorderLayout.NORTH)
         add(tabs, BorderLayout.CENTER)
+        add(buildComposer(), BorderLayout.SOUTH)
+
+        composerSendButton.addActionListener {
+            val text = composerInput.text.trim()
+            if (text.isNotEmpty()) onSend(text)
+        }
+        composerStopButton.addActionListener { onStop() }
+
+        composerInput.getInputMap(JComponent.WHEN_FOCUSED).put(
+            KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, InputEvent.CTRL_DOWN_MASK),
+            "send",
+        )
+        composerInput.actionMap.put("send", object : AbstractAction() {
+            override fun actionPerformed(e: java.awt.event.ActionEvent?) {
+                val text = composerInput.text.trim()
+                if (text.isNotEmpty()) onSend(text)
+            }
+        })
 
         bindActions()
         rebuildTabs()
+    }
+
+    // ── Composer public API ───────────────────────────────────────────────────
+
+    fun prefill(text: String) {
+        composerInput.text = text
+        composerInput.requestFocusInWindow()
+        composerInput.caretPosition = composerInput.document.length
+    }
+
+    fun getComposerText(): String = composerInput.text.trim()
+
+    fun clearComposer() {
+        composerInput.text = ""
+    }
+
+    fun setGenerating(generating: Boolean) {
+        composerStopButton.isEnabled = generating
+        composerSendButton.isEnabled = !generating
+        composerInput.isEnabled = !generating
+    }
+
+    fun setComposerEnabled(enabled: Boolean) {
+        composerInput.isEnabled = enabled
+        composerSendButton.isEnabled = enabled
+    }
+
+    fun setComposerTooltip(text: String) {
+        composerInput.toolTipText = text
     }
 
     fun setEntryMode(mode: EntryMode) {
@@ -344,6 +427,69 @@ class ChatTabPanel(
                 JBUI.Borders.empty(3, 5),
             )
         }
+
+    private fun buildComposer(): JPanel {
+        val arc = 16
+        val inputScroll = JBScrollPane(composerInput).apply {
+            border = JBUI.Borders.empty()
+            viewport.border = null
+            isOpaque = false
+            background = cardBackground
+            viewport.isOpaque = false
+            viewport.background = cardBackground
+            preferredSize = Dimension(100, 86)
+        }
+        composerInput.isOpaque = false
+        composerInput.background = cardBackground
+
+        val settingsButton = JButton(AllIcons.General.Settings).apply {
+            toolTipText = Strings.Settings.PAGE_NAME
+            isFocusPainted = false
+            isContentAreaFilled = false
+            preferredSize = Dimension(38, 32)
+            border = JBUI.Borders.compound(
+                BorderFactory.createLineBorder(LlamatikTheme.outline, 1, true),
+                JBUI.Borders.empty(5, 10),
+            )
+            addActionListener { onSettingsClicked() }
+        }
+
+        val footer = JPanel(FlowLayout(FlowLayout.RIGHT, 8, 0)).apply {
+            isOpaque = false
+            add(settingsButton)
+            add(composerStopButton)
+            add(composerSendButton)
+        }
+
+        val shell = object : JPanel(BorderLayout(0, 8)) {
+            private val shape: Shape get() = RoundRectangle2D.Float(0f, 0f, width.toFloat(), height.toFloat(), arc.toFloat(), arc.toFloat())
+            override fun paintComponent(g: Graphics) {
+                val g2 = g.create() as Graphics2D
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+                g2.color = cardBackground
+                g2.fill(shape)
+                g2.dispose()
+            }
+            override fun paintBorder(g: Graphics) {
+                val g2 = g.create() as Graphics2D
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+                g2.color = LlamatikTheme.primary
+                g2.draw(RoundRectangle2D.Float(0.5f, 0.5f, width - 1f, height - 1f, arc.toFloat(), arc.toFloat()))
+                g2.dispose()
+            }
+        }.apply {
+            isOpaque = false
+            border = JBUI.Borders.empty(10, 10, 8, 10)
+            add(inputScroll, BorderLayout.CENTER)
+            add(footer, BorderLayout.SOUTH)
+        }
+
+        return JPanel(BorderLayout()).apply {
+            background = rootBackground
+            border = JBUI.Borders.empty(10, 12, 8, 12)
+            add(shell, BorderLayout.CENTER)
+        }
+    }
 
     private fun closeTab(sessionId: String) {
         sessionController.removeSession(sessionId)

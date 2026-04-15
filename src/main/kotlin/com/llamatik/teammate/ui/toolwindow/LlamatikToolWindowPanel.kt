@@ -1,6 +1,5 @@
 package com.llamatik.teammate.ui.toolwindow
 
-import com.intellij.icons.AllIcons
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.options.ShowSettingsUtil
 import com.intellij.openapi.components.service
@@ -8,8 +7,6 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.ui.components.JBLabel
-import com.intellij.ui.components.JBScrollPane
-import com.intellij.ui.components.JBTextArea
 import com.intellij.util.ui.JBUI
 import com.llamatik.teammate.agent.AgentOrchestrator
 import com.llamatik.teammate.agent.BuildVerificationService
@@ -30,26 +27,18 @@ import com.llamatik.teammate.ui.chat.ChatSessionController
 import java.awt.BorderLayout
 import java.awt.CardLayout
 import java.awt.Dimension
-import java.awt.FlowLayout
 import java.awt.Font
 import java.awt.Graphics
 import java.awt.Graphics2D
 import java.awt.GridLayout
 import java.awt.RenderingHints
-import java.awt.Shape
 import java.awt.geom.RoundRectangle2D
-import java.awt.event.InputEvent
-import java.awt.event.KeyEvent
-import javax.swing.AbstractAction
 import javax.swing.BorderFactory
-import javax.swing.BoxLayout
 import javax.swing.ButtonGroup
 import javax.swing.JButton
-import javax.swing.JComponent
 import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.JToggleButton
-import javax.swing.KeyStroke
 import javax.swing.SwingConstants
 import javax.swing.SwingUtilities
 
@@ -85,8 +74,6 @@ class LlamatikToolWindowPanel(
     }
 
     private val rootBackground = LlamatikTheme.background
-    private val cardBackground = LlamatikTheme.surface
-    private val accentBorder = LlamatikTheme.primary
 
     private val trialBannerPanel = JPanel(BorderLayout(8, 0)).apply {
         background = LlamatikTheme.warningBackground
@@ -106,31 +93,6 @@ class LlamatikToolWindowPanel(
         isOpaque = false
     }
 
-    private val inputArea = JBTextArea(3, 40).apply {
-        lineWrap = true
-        wrapStyleWord = true
-        isOpaque = true
-        foreground = LlamatikTheme.onSurface
-        background = rootBackground
-        caretColor = LlamatikTheme.onSurface
-        border = JBUI.Borders.empty(10, 12)
-        font = font.deriveFont(Font.PLAIN, font.size2D + 1f)
-        toolTipText = Strings.Composer.INPUT_TOOLTIP_DEFAULT
-    }
-
-    private val sendButton = JButton(AllIcons.Actions.Execute).apply {
-        toolTipText = Strings.Composer.SEND_TOOLTIP
-        preferredSize = Dimension(38, 32)
-    }
-    private val stopButton = JButton(AllIcons.Actions.Suspend).apply {
-        isEnabled = false
-        toolTipText = Strings.Composer.STOP_TOOLTIP
-        preferredSize = Dimension(38, 32)
-    }
-
-    //private val contextButton = buildFooterPill(Strings.Composer.CONTEXT_PILL)
-    //private val profileButton = buildFooterPill(Strings.Composer.PROFILE_PILL)
-    private val settingsButton = buildFooterPill(AllIcons.General.Settings, Strings.Settings.PAGE_NAME)
     private val disclaimerLabel = JBLabel(Strings.App.DISCLAIMER).apply {
         foreground = LlamatikTheme.onSurfaceVariant
         font = font.deriveFont(Font.PLAIN, font.size2D - 1f)
@@ -144,12 +106,22 @@ class LlamatikToolWindowPanel(
         pendingEdits = pendingEdits,
         onApplyEdit = { applyEdit(it) },
         onSuggestionSelected = { text -> prefillComposer(text) },
+        onSend = { text -> sendPromptFromTab(text, isAgent = false) },
+        onStop = { currentHandle?.cancel(); setGenerating(false) },
+        onSettingsClicked = {
+            ShowSettingsUtil.getInstance().showSettingsDialog(project, LlamatikSettingsConfigurable::class.java)
+        },
     )
 
     private val agentTabPanel = AgentTabPanel(
         onSuggestionSelected = { text -> prefillComposer(text) },
         onApprove = {},
         onReject = {},
+        onSend = { text -> sendPromptFromTab(text, isAgent = true) },
+        onStop = { currentHandle?.cancel(); setGenerating(false) },
+        onSettingsClicked = {
+            ShowSettingsUtil.getInstance().showSettingsDialog(project, LlamatikSettingsConfigurable::class.java)
+        },
         onClear = { currentHandle?.cancel(); setGenerating(false) },
         isAutoApprove = { settings.data().agentAutoApprove },
         onAutoApproveChanged = { checked -> settings.data().agentAutoApprove = checked },
@@ -178,7 +150,7 @@ class LlamatikToolWindowPanel(
 
         add(buildTopSection(), BorderLayout.NORTH)
         add(contentPanel, BorderLayout.CENTER)
-        add(buildComposer(), BorderLayout.SOUTH)
+        add(buildDisclaimerStrip(), BorderLayout.SOUTH)
 
         agentToggle.isSelected = true
         bindActions()
@@ -249,93 +221,16 @@ class LlamatikToolWindowPanel(
         }
     }
 
-    private fun buildComposer(): JPanel {
-        val arc = 16
-
-        val inputScroll = JBScrollPane(inputArea).apply {
-            border = JBUI.Borders.empty()
-            viewport.border = null
-            isOpaque = false
-            background = cardBackground
-            viewport.isOpaque = false
-            viewport.background = cardBackground
-            preferredSize = Dimension(100, 86)
-        }
-
-        inputArea.isOpaque = false
-        inputArea.background = cardBackground
-
-        val composerShell = object : JPanel(BorderLayout(0, 8)) {
-            private val shape: Shape get() = RoundRectangle2D.Float(0f, 0f, width.toFloat(), height.toFloat(), arc.toFloat(), arc.toFloat())
-            override fun paintComponent(g: Graphics) {
-                val g2 = g.create() as Graphics2D
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
-                g2.color = cardBackground
-                g2.fill(shape)
-                g2.dispose()
-            }
-            override fun paintBorder(g: Graphics) {
-                val g2 = g.create() as Graphics2D
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
-                g2.color = accentBorder
-                g2.draw(RoundRectangle2D.Float(0.5f, 0.5f, width - 1f, height - 1f, arc.toFloat(), arc.toFloat()))
-                g2.dispose()
-            }
-        }.apply {
-            isOpaque = false
-            border = JBUI.Borders.empty(10, 10, 8, 10)
-            add(inputScroll, BorderLayout.CENTER)
-            add(buildComposerFooter(), BorderLayout.SOUTH)
-        }
-
-        return JPanel(BorderLayout()).apply {
+    private fun buildDisclaimerStrip(): JPanel =
+        JPanel(BorderLayout()).apply {
             background = rootBackground
-            border = JBUI.Borders.empty(10, 12, 8, 12)
-            add(composerShell, BorderLayout.CENTER)
-            add(disclaimerLabel, BorderLayout.SOUTH)
+            border = JBUI.Borders.empty(0, 12, 6, 12)
+            add(disclaimerLabel, BorderLayout.CENTER)
         }
-    }
-
-    private fun buildComposerFooter(): JPanel {
-        val left = JPanel(FlowLayout(FlowLayout.LEFT, 8, 0)).apply {
-            isOpaque = false
-            //add(contextButton)
-        }
-
-        val rightControls = JPanel(FlowLayout(FlowLayout.RIGHT, 8, 0)).apply {
-            isOpaque = false
-            //add(profileButton)
-            add(settingsButton)
-            add(stopButton)
-            add(sendButton)
-        }
-
-        return JPanel(BorderLayout()).apply {
-            isOpaque = false
-            add(left, BorderLayout.WEST)
-            add(rightControls, BorderLayout.EAST)
-        }
-    }
 
     private fun bindActions() {
-        sendButton.addActionListener { sendPrompt() }
-        stopButton.addActionListener {
-            currentHandle?.cancel()
-            setGenerating(false)
-        }
-
         agentToggle.addActionListener { applyMode(SurfaceMode.AGENT) }
         askToggle.addActionListener { applyMode(SurfaceMode.ASK) }
-
-        inputArea.getInputMap(JComponent.WHEN_FOCUSED).put(
-            KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, InputEvent.CTRL_DOWN_MASK),
-            "send",
-        )
-        inputArea.actionMap.put("send", object : AbstractAction() {
-            override fun actionPerformed(e: java.awt.event.ActionEvent?) {
-                sendPrompt()
-            }
-        })
     }
 
     private fun applyMode(mode: SurfaceMode) {
@@ -346,12 +241,10 @@ class LlamatikToolWindowPanel(
         when (mode) {
             SurfaceMode.AGENT -> {
                 contentLayout.show(contentPanel, SurfaceMode.AGENT.name)
-                inputArea.toolTipText = Strings.Composer.INPUT_TOOLTIP_AGENT
             }
             SurfaceMode.ASK -> {
                 contentLayout.show(contentPanel, SurfaceMode.ASK.name)
                 chatTabPanel.setEntryMode(ChatTabPanel.EntryMode.ASK)
-                inputArea.toolTipText = Strings.Composer.INPUT_TOOLTIP_ASK
             }
         }
         // Re-evaluate input lock: switching away from Agent while it generates should free input.
@@ -359,15 +252,15 @@ class LlamatikToolWindowPanel(
     }
 
     private fun prefillComposer(text: String) {
-        inputArea.text = text
-        inputArea.requestFocusInWindow()
-        inputArea.caretPosition = inputArea.document.length
+        when (currentMode) {
+            SurfaceMode.AGENT -> agentTabPanel.prefill(text)
+            SurfaceMode.ASK -> chatTabPanel.prefill(text)
+        }
     }
 
-    private fun sendPrompt() {
+    private fun sendPromptFromTab(prompt: String, isAgent: Boolean) {
         if (!isAutoFix) autoFixCount = 0
         isAutoFix = false
-        val prompt = inputArea.text.trim()
         if (prompt.isEmpty()) return
 
         val state = computeState()
@@ -380,8 +273,7 @@ class LlamatikToolWindowPanel(
             return
         }
 
-        val isAgentMode = currentMode == SurfaceMode.AGENT
-        if (isAgentMode && !trialService.isAgentAllowed()) {
+        if (isAgent && !trialService.isAgentAllowed()) {
             Messages.showErrorDialog(
                 project,
                 Strings.App.TRIAL_EXPIRED_MSG,
@@ -391,10 +283,10 @@ class LlamatikToolWindowPanel(
         }
 
         val submittedPrompt = prompt
-        inputArea.text = ""
+        if (isAgent) agentTabPanel.clearComposer() else chatTabPanel.clearComposer()
         setGenerating(true)
 
-        if (isAgentMode) {
+        if (isAgent) {
             val genId = agentTabPanel.startResponse(submittedPrompt)
             activeGenId = genId
             currentHandle = agent.submit(
@@ -486,7 +378,7 @@ class LlamatikToolWindowPanel(
         val streamPanel = ChatMessagePanel(
             project = project,
             role = ChatRole.ASSISTANT,
-            roleLabel = if (currentMode == SurfaceMode.ASK) "Ask" else "Assistant",
+            roleLabel = "Assistant",
             initialContent = "",
         )
         chatTabPanel.appendStreamingPanel(streamPanel)
@@ -518,7 +410,7 @@ class LlamatikToolWindowPanel(
             },
             onError = { message ->
                 ApplicationManager.getApplication().invokeLater {
-                    errorBanner.showError(message) { sendPrompt() }
+                    errorBanner.showError(message) {}
                     setGenerating(false)
                 }
             },
@@ -532,30 +424,24 @@ class LlamatikToolWindowPanel(
 
     private fun setGenerating(generating: Boolean) {
         isAgentGenerating = generating
-        stopButton.isEnabled = generating
-        // Input and send are only locked when we are actively viewing the Agent tab.
-        // Switching to Ask frees them so the user can send Ask queries in parallel.
-        val agentTabActive = currentMode == SurfaceMode.AGENT
-        sendButton.isEnabled = !generating || !agentTabActive
-        inputArea.isEnabled = !generating || !agentTabActive
+        // Agent tab: lock while generating. Ask tab: always free (can send in parallel).
+        agentTabPanel.setGenerating(generating)
+        if (generating) chatTabPanel.setGenerating(false) // ensure Ask stays unlocked
     }
 
     private fun syncState() {
         val state = computeState()
         val composerEnabled = state != PluginReadinessState.NO_MODEL
 
-        inputArea.isEnabled = composerEnabled
-        sendButton.isEnabled = composerEnabled
+        agentTabPanel.setComposerEnabled(composerEnabled)
+        chatTabPanel.setComposerEnabled(composerEnabled)
 
         if (!composerEnabled) {
-            inputArea.toolTipText = Strings.Composer.INPUT_TOOLTIP_NO_MODEL
-            sendButton.toolTipText = Strings.Composer.INPUT_TOOLTIP_NO_MODEL
+            agentTabPanel.setComposerTooltip(Strings.Composer.INPUT_TOOLTIP_NO_MODEL)
+            chatTabPanel.setComposerTooltip(Strings.Composer.INPUT_TOOLTIP_NO_MODEL)
         } else {
-            inputArea.toolTipText = when (currentMode) {
-                SurfaceMode.AGENT -> Strings.Composer.INPUT_TOOLTIP_AGENT
-                SurfaceMode.ASK -> Strings.Composer.INPUT_TOOLTIP_ASK
-            }
-            sendButton.toolTipText = Strings.Composer.SEND_TOOLTIP
+            agentTabPanel.setComposerTooltip(Strings.Composer.INPUT_TOOLTIP_AGENT)
+            chatTabPanel.setComposerTooltip(Strings.Composer.INPUT_TOOLTIP_ASK)
         }
 
         val trialState = trialService.trialState()
@@ -638,8 +524,7 @@ class LlamatikToolWindowPanel(
         val fixPrompt = "Fix the following build/test errors:\n$errors"
         isAutoFix = true
         ApplicationManager.getApplication().invokeLater {
-            prefillComposer(fixPrompt)
-            sendPrompt()
+            sendPromptFromTab(fixPrompt, isAgent = true)
         }
     }
 
@@ -667,38 +552,4 @@ class LlamatikToolWindowPanel(
             }
         }
 
-    private fun buildFooterPill(text: String): JButton =
-        JButton("<html><span style='color:${LlamatikTheme.htmlOnSurfaceVariant};'>$text</span></html>").apply {
-            isFocusPainted = false
-            isContentAreaFilled = false
-            border = JBUI.Borders.compound(
-                BorderFactory.createLineBorder(LlamatikTheme.outline, 1, true),
-                JBUI.Borders.empty(5, 10),
-            )
-        }
-
-    private fun buildFooterPill(icon: javax.swing.Icon, tooltip: String): JButton =
-        JButton(icon).apply {
-            toolTipText = tooltip
-            isFocusPainted = false
-            isContentAreaFilled = false
-            preferredSize = Dimension(38, 32)
-            border = JBUI.Borders.compound(
-                BorderFactory.createLineBorder(LlamatikTheme.outline, 1, true),
-                JBUI.Borders.empty(5, 10),
-            )
-            addActionListener {
-                ShowSettingsUtil.getInstance().showSettingsDialog(
-                    project,
-                    LlamatikSettingsConfigurable::class.java,
-                )
-            }
-        }
-
-    private fun headerIconButton(text: String): JButton =
-        JButton("<html><span style='color:${LlamatikTheme.htmlOnSurfaceVariant};'>$text</span></html>").apply {
-            isFocusPainted = false
-            isContentAreaFilled = false
-            border = JBUI.Borders.empty(2, 6)
-        }
 }
