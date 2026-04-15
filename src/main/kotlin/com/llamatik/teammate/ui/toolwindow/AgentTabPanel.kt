@@ -2,7 +2,6 @@ package com.llamatik.teammate.ui.toolwindow
 
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.ide.CopyPasteManager
-import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTextArea
@@ -31,9 +30,11 @@ import javax.swing.AbstractAction
 import javax.swing.BorderFactory
 import javax.swing.BoxLayout
 import javax.swing.JButton
+import javax.swing.JCheckBoxMenuItem
 import javax.swing.JComponent
 import javax.swing.JLabel
 import javax.swing.JPanel
+import javax.swing.JPopupMenu
 import javax.swing.KeyStroke
 import javax.swing.ScrollPaneConstants
 import javax.swing.Timer
@@ -223,31 +224,36 @@ class AgentTabPanel(
         maximumSize = Dimension(Int.MAX_VALUE, Int.MAX_VALUE)
     }
 
-    // ── Auto-approve checkbox ─────────────────────────────────────────────────
-    private val autoApproveCheck = JBCheckBox(Strings.Agent.AUTO_APPROVE_NEXT).apply {
-        isOpaque = false
-        foreground = mutedText
-        font = font.deriveFont(Font.PLAIN, font.size2D - 1f)
+    // ── Run-options popup (auto-approve / auto-build / auto-fix) ─────────────
+    // State is tracked via JCheckBoxMenuItems; the button label reflects active options.
+    private val autoApproveItem = JCheckBoxMenuItem(Strings.Agent.AUTO_APPROVE_NEXT).apply {
         isSelected = isAutoApprove()
-        addActionListener { onAutoApproveChanged(isSelected) }
+        addActionListener { onAutoApproveChanged(isSelected); updateRunOptionsButton() }
     }
-
-    // ── Auto-build checkbox ───────────────────────────────────────────────────
-    private val autoBuildCheck = JBCheckBox(Strings.Agent.AUTO_BUILD_NEXT).apply {
-        isOpaque = false
-        foreground = mutedText
-        font = font.deriveFont(Font.PLAIN, font.size2D - 1f)
+    private val autoBuildItem = JCheckBoxMenuItem(Strings.Agent.AUTO_BUILD_NEXT).apply {
         isSelected = isAutoBuild()
-        addActionListener { onAutoBuildChanged(isSelected) }
+        addActionListener { onAutoBuildChanged(isSelected); updateRunOptionsButton() }
     }
-
-    // ── Auto-fix checkbox ─────────────────────────────────────────────────────
-    private val autoFixCheck = JBCheckBox(Strings.Agent.AUTO_FIX_NEXT).apply {
-        isOpaque = false
-        foreground = mutedText
-        font = font.deriveFont(Font.PLAIN, font.size2D - 1f)
+    private val autoFixItem = JCheckBoxMenuItem(Strings.Agent.AUTO_FIX_NEXT).apply {
         isSelected = isAutoFix()
-        addActionListener { onAutoFixChanged(isSelected) }
+        addActionListener { onAutoFixChanged(isSelected); updateRunOptionsButton() }
+    }
+    private val runOptionsPopup = JPopupMenu().apply {
+        add(autoApproveItem)
+        add(autoBuildItem)
+        add(autoFixItem)
+    }
+    private val runOptionsButton = JButton().apply {
+        isFocusPainted = false
+        isContentAreaFilled = false
+        border = JBUI.Borders.compound(
+            BorderFactory.createLineBorder(LlamatikTheme.outline, 1, true),
+            JBUI.Borders.empty(3, 8),
+        )
+        font = font.deriveFont(Font.PLAIN, font.size2D - 1f)
+        addActionListener {
+            runOptionsPopup.show(this, 0, height)
+        }
     }
 
     // ── Spinner ───────────────────────────────────────────────────────────────
@@ -435,6 +441,15 @@ class AgentTabPanel(
         composerStopButton.isEnabled = generating
         composerSendButton.isEnabled = !generating
         composerInput.isEnabled = !generating
+        if (!generating) stopSpinnerAndTimer()
+    }
+
+    private fun stopSpinnerAndTimer() {
+        elapsedTimer.stop()
+        loadingSpinner.suspend()
+        loadingSpinner.isVisible = false
+        spinnerPanel.isVisible = false
+        statusPill.isVisible = false
     }
 
     fun setComposerEnabled(enabled: Boolean) {
@@ -485,9 +500,10 @@ class AgentTabPanel(
         elapsedLabel.text = "0s"
         elapsedTimer.start()
 
-        autoApproveCheck.isSelected = isAutoApprove()
-        autoBuildCheck.isSelected = isAutoBuild()
-        autoFixCheck.isSelected = isAutoFix()
+        autoApproveItem.isSelected = isAutoApprove()
+        autoBuildItem.isSelected = isAutoBuild()
+        autoFixItem.isSelected = isAutoFix()
+        updateRunOptionsButton()
 
         conversationScroll.viewport.viewPosition = java.awt.Point(0, 0)
 
@@ -548,8 +564,8 @@ class AgentTabPanel(
     ) {
         if (genId != currentGenerationId) return
 
-        elapsedTimer.stop()
         elapsedLabel.text = Strings.Agent.brewedFor(formatElapsed(System.currentTimeMillis() - genStartMs))
+        stopSpinnerAndTimer()
 
         if (thinkHasContent && thinkContent.isVisible) {
             thinkElapsedMs = System.currentTimeMillis() - thinkStartMs
@@ -557,10 +573,6 @@ class AgentTabPanel(
             thinkToggleBtn.text = Strings.Agent.REASONING_PREFIX_COLLAPSED + formatElapsed(thinkElapsedMs)
             conversationPanel.revalidate()
         }
-
-        statusPill.isVisible = false
-        loadingSpinner.suspend()
-        loadingSpinner.isVisible = false
 
         if (responseTextArea.text.isBlank() && text.isNotBlank()) {
             responseTextArea.text = text
@@ -856,14 +868,13 @@ class AgentTabPanel(
         addItem(proposalsPanel)
         conversationPanel.add(verificationPanel.also { it.alignmentX = LEFT_ALIGNMENT })
 
-        // Fixed bottom bar: checkboxes always visible at bottom
-        val bottomBar = JPanel(FlowLayout(FlowLayout.LEFT, 16, 8)).apply {
+        // Fixed bottom bar: single compact button opens options popup
+        updateRunOptionsButton()
+        val bottomBar = JPanel(FlowLayout(FlowLayout.LEFT, 8, 6)).apply {
             isOpaque = true
             background = cardBackground
             border = BorderFactory.createMatteBorder(1, 0, 0, 0, panelStroke)
-            add(autoApproveCheck)
-            add(autoBuildCheck)
-            add(autoFixCheck)
+            add(runOptionsButton)
         }
 
         return JPanel(BorderLayout()).apply {
@@ -1111,6 +1122,16 @@ class AgentTabPanel(
             target.append(safe)
             target.caretPosition = target.document.length
         }
+    }
+
+    private fun updateRunOptionsButton() {
+        val active = listOfNotNull(
+            if (autoApproveItem.isSelected) "Auto-apply" else null,
+            if (autoBuildItem.isSelected) "Auto-build" else null,
+            if (autoFixItem.isSelected) "Auto-fix" else null,
+        )
+        val label = if (active.isEmpty()) "Run options ▾" else "${active.joinToString(", ")} ▾"
+        runOptionsButton.text = "<html><span style='color:${LlamatikTheme.htmlOnSurfaceVariant};'>$label</span></html>"
     }
 
     private fun formatElapsed(ms: Long): String {
