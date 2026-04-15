@@ -76,29 +76,38 @@ class AgentTabPanel(
     // ── Single conversation scroll area ───────────────────────────────────────
     // ONE JScrollPane containing ONE vertical BoxLayout panel.
     // Every piece of content is a direct child — no nested scroll panes.
+    //
+    // The BoxLayout panel sits at NORTH of a BorderLayout wrapper so that
+    // the scroll pane always has a correct preferred height (no content clipping).
     private val conversationPanel = JPanel().apply {
         layout = BoxLayout(this, BoxLayout.Y_AXIS)
-        background = rootBackground
+        background = cardBackground
         border = JBUI.Borders.empty(12, 16, 12, 16)
+        // BoxLayout requires this so children stretch to full width
+        isOpaque = true
     }
-    private val conversationScroll = JBScrollPane(conversationPanel).apply {
+    // Wrapper anchors conversationPanel to NORTH so it never collapses mid-scroll
+    private val conversationWrapper = JPanel(BorderLayout()).apply {
+        background = cardBackground
+        isOpaque = true
+        add(conversationPanel, BorderLayout.NORTH)
+    }
+    private val conversationScroll = JBScrollPane(conversationWrapper).apply {
         border = JBUI.Borders.empty()
-        viewport.background = rootBackground
+        viewport.background = cardBackground
+        background = cardBackground
         horizontalScrollBarPolicy = ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER
         verticalScrollBarPolicy = ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED
     }
 
     // ── Prompt bubble ─────────────────────────────────────────────────────────
-    // Plain non-editable text area — no inner scroll pane.
     private val promptLabel = JBLabel("").apply {
         foreground = LlamatikTheme.onSurface
-        font = font.deriveFont(Font.PLAIN, font.size2D)
-        border = JBUI.Borders.empty(10, 12)
+        font = font.deriveFont(Font.BOLD, font.size2D)
+        border = JBUI.Borders.empty(0, 0, 10, 0)
     }
     private val promptBubble = JPanel(BorderLayout()).apply {
-        isOpaque = true
-        background = cardBackground
-        border = BorderFactory.createLineBorder(panelStroke, 1, true)
+        isOpaque = false
         alignmentX = LEFT_ALIGNMENT
         maximumSize = Dimension(Int.MAX_VALUE, Int.MAX_VALUE)
         add(promptLabel, BorderLayout.CENTER)
@@ -108,11 +117,8 @@ class AgentTabPanel(
     // ── Status pill ───────────────────────────────────────────────────────────
     private val statusPill = JBLabel("").apply {
         isVisible = false
-        foreground = LlamatikTheme.onSurface
-        border = JBUI.Borders.compound(
-            BorderFactory.createLineBorder(panelStroke, 1, true),
-            JBUI.Borders.empty(4, 10),
-        )
+        foreground = mutedText
+        border = JBUI.Borders.empty(0, 0, 6, 0)
         alignmentX = LEFT_ALIGNMENT
     }
     private val statusRow = JPanel(FlowLayout(FlowLayout.LEFT, 0, 0)).apply {
@@ -130,19 +136,16 @@ class AgentTabPanel(
     private var thinkElapsedMs = 0L
     private val thinkTextArea = JBTextArea("").apply {
         isEditable = false
-        isOpaque = true
+        isOpaque = false
         lineWrap = true
         wrapStyleWord = true
         background = cardBackground
         foreground = mutedText
-        border = JBUI.Borders.empty(8, 10)
+        border = JBUI.Borders.empty(0, 0, 8, 0)
         font = font.deriveFont(Font.PLAIN, font.size2D - 1f)
     }
-    // Wrapper gives the bordered look without creating a nested scroll pane
     private val thinkContent = JPanel(BorderLayout()).apply {
-        isOpaque = true
-        background = cardBackground
-        border = BorderFactory.createLineBorder(panelStroke, 1, true)
+        isOpaque = false
         alignmentX = LEFT_ALIGNMENT
         maximumSize = Dimension(Int.MAX_VALUE, Int.MAX_VALUE)
         add(thinkTextArea, BorderLayout.CENTER)
@@ -179,18 +182,16 @@ class AgentTabPanel(
     // Plain JBTextArea — no wrapping JScrollPane. Expands vertically in-place.
     private val responseTextArea = JBTextArea("").apply {
         isEditable = false
-        isOpaque = true
+        isOpaque = false
         lineWrap = true
         wrapStyleWord = true
         background = cardBackground
         foreground = LlamatikTheme.onSurface
-        border = JBUI.Borders.empty(12, 14)
+        border = JBUI.Borders.empty(0)
         font = font.deriveFont(Font.PLAIN, font.size2D + 1f)
     }
     private val responseContent = JPanel(BorderLayout()).apply {
-        isOpaque = true
-        background = cardBackground
-        border = BorderFactory.createLineBorder(panelStroke, 1, true)
+        isOpaque = false
         alignmentX = LEFT_ALIGNMENT
         maximumSize = Dimension(Int.MAX_VALUE, Int.MAX_VALUE)
         add(responseTextArea, BorderLayout.CENTER)
@@ -236,18 +237,16 @@ class AgentTabPanel(
     // Build errors shown as plain non-editable text — no nested scroll pane.
     private val verifyErrorArea = JBTextArea("").apply {
         isEditable = false
-        isOpaque = true
+        isOpaque = false
         lineWrap = true
         wrapStyleWord = true
         background = cardBackground
         foreground = LlamatikTheme.onSurface
-        border = JBUI.Borders.empty(6, 8)
+        border = JBUI.Borders.empty(4, 0)
         font = font.deriveFont(Font.PLAIN, font.size2D - 1f)
     }
     private val verifyErrorContent = JPanel(BorderLayout()).apply {
-        isOpaque = true
-        background = cardBackground
-        border = BorderFactory.createLineBorder(panelStroke, 1, true)
+        isOpaque = false
         alignmentX = LEFT_ALIGNMENT
         maximumSize = Dimension(Int.MAX_VALUE, Int.MAX_VALUE)
         add(verifyErrorArea, BorderLayout.CENTER)
@@ -727,7 +726,8 @@ class AgentTabPanel(
         }
 
         val topBar = JPanel(BorderLayout(8, 0)).apply {
-            background = rootBackground
+            background = cardBackground
+            isOpaque = true
             border = JBUI.Borders.empty(10, 16, 8, 16)
             add(backButton, BorderLayout.WEST)
             add(elapsedLabel, BorderLayout.CENTER)
@@ -754,7 +754,8 @@ class AgentTabPanel(
         conversationPanel.add(verificationPanel.also { it.alignmentX = LEFT_ALIGNMENT })
 
         return JPanel(BorderLayout()).apply {
-            background = rootBackground
+            background = cardBackground
+            isOpaque = true
             add(topBar, BorderLayout.NORTH)
             add(conversationScroll, BorderLayout.CENTER)
         }
@@ -805,11 +806,10 @@ class AgentTabPanel(
         onReject: (EditProposal) -> Unit,
     ): JPanel {
         val card = JPanel(BorderLayout(0, 6)).apply {
-            isOpaque = true
-            background = cardBackground
+            isOpaque = false
             border = JBUI.Borders.compound(
-                BorderFactory.createLineBorder(panelStroke, 1, true),
-                JBUI.Borders.empty(10, 12),
+                BorderFactory.createMatteBorder(0, 0, 1, 0, panelStroke),
+                JBUI.Borders.empty(10, 0),
             )
             alignmentX = LEFT_ALIGNMENT
             maximumSize = Dimension(Int.MAX_VALUE, Int.MAX_VALUE)
