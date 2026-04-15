@@ -422,9 +422,24 @@ class LlamatikToolWindowPanel(
                         if (genId != activeGenId) return@invokeLater
                         proposals.forEach { pendingEdits[it.id] = it }
                         val clean = ToolCallParser.cleanForDisplay(msg.content)
-                        // Track decisions across all proposals; verify only after the last one.
+
+                        if (settings.data().agentAutoApprove && proposals.isNotEmpty()) {
+                            // Auto-apply: write every proposal immediately, no user confirmation.
+                            val appliedFiles = proposals.mapNotNull { proposal ->
+                                runCatching { diffService.applyProposal(proposal) }.fold(
+                                    onSuccess = { proposal.filePath },
+                                    onFailure = { null },
+                                )
+                            }
+                            agentTabPanel.showAnswer(text = clean, genId = genId)
+                            setGenerating(false)
+                            if (appliedFiles.isNotEmpty()) startVerification(appliedFiles)
+                            return@invokeLater
+                        }
+
+                        // Manual mode: show proposal cards and wait for per-file decisions.
                         val appliedFiles = mutableListOf<String>()
-                        var remaining = proposals.size
+                        var remaining = proposals.size.coerceAtLeast(1)
                         fun checkAllResolved() {
                             remaining--
                             if (remaining == 0 && appliedFiles.isNotEmpty()) {
