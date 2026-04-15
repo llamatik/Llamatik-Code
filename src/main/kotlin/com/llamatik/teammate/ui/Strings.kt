@@ -69,6 +69,7 @@ object Strings {
         const val TOOL_CALL_ICON = "⚙"
         const val AUTO_APPROVE_NEXT = "Auto-apply edits on next run"
         const val AUTO_BUILD_NEXT = "Auto-build after applying edits"
+        const val AUTO_FIX_NEXT = "Auto-fix build errors"
         fun brewedFor(elapsed: String) = "brewed for $elapsed"
 
         val SUGGESTIONS = listOf(

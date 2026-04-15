@@ -127,6 +127,8 @@ class LlamatikToolWindowPanel(
         onAutoApproveChanged = { checked -> settings.data().agentAutoApprove = checked },
         isAutoBuild = { settings.data().agentAutoBuild },
         onAutoBuildChanged = { checked -> settings.data().agentAutoBuild = checked },
+        isAutoFix = { settings.data().agentAutoFix },
+        onAutoFixChanged = { checked -> settings.data().agentAutoFix = checked },
     )
 /*
     private val titleLabel = JBLabel("Llamatik Code").apply {
@@ -496,6 +498,7 @@ class LlamatikToolWindowPanel(
                                 agentTabPanel.showBuildSuccess(testsRan = true)
                             } else {
                                 agentTabPanel.showBuildErrors(output) { autoFixErrors(output) }
+                                if (settings.data().agentAutoFix) autoFixErrors(output)
                             }
                         }
                     }
@@ -508,6 +511,7 @@ class LlamatikToolWindowPanel(
                 val errorText = errors.joinToString("\n")
                 ApplicationManager.getApplication().invokeLater {
                     agentTabPanel.showBuildErrors(errorText) { autoFixErrors(errorText) }
+                    if (settings.data().agentAutoFix) autoFixErrors(errorText)
                 }
             }
         }

@@ -55,6 +55,8 @@ class AgentTabPanel(
     private val onAutoApproveChanged: (Boolean) -> Unit = {},
     private val isAutoBuild: () -> Boolean = { true },
     private val onAutoBuildChanged: (Boolean) -> Unit = {},
+    private val isAutoFix: () -> Boolean = { false },
+    private val onAutoFixChanged: (Boolean) -> Unit = {},
 ) : JPanel(BorderLayout()) {
 
     private val rootBackground = LlamatikTheme.background
@@ -237,6 +239,15 @@ class AgentTabPanel(
         font = font.deriveFont(Font.PLAIN, font.size2D - 1f)
         isSelected = isAutoBuild()
         addActionListener { onAutoBuildChanged(isSelected) }
+    }
+
+    // ── Auto-fix checkbox ─────────────────────────────────────────────────────
+    private val autoFixCheck = JBCheckBox(Strings.Agent.AUTO_FIX_NEXT).apply {
+        isOpaque = false
+        foreground = mutedText
+        font = font.deriveFont(Font.PLAIN, font.size2D - 1f)
+        isSelected = isAutoFix()
+        addActionListener { onAutoFixChanged(isSelected) }
     }
 
     // ── Spinner ───────────────────────────────────────────────────────────────
@@ -476,6 +487,7 @@ class AgentTabPanel(
 
         autoApproveCheck.isSelected = isAutoApprove()
         autoBuildCheck.isSelected = isAutoBuild()
+        autoFixCheck.isSelected = isAutoFix()
 
         conversationScroll.viewport.viewPosition = java.awt.Point(0, 0)
 
@@ -851,6 +863,7 @@ class AgentTabPanel(
             border = BorderFactory.createMatteBorder(1, 0, 0, 0, panelStroke)
             add(autoApproveCheck)
             add(autoBuildCheck)
+            add(autoFixCheck)
         }
 
         return JPanel(BorderLayout()).apply {
