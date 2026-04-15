@@ -29,7 +29,6 @@ class LlamatikAppSettings : PersistentStateComponent<LlamatikAppSettings.State> 
         /** Epoch ms when the trial was first started. 0 means not yet initialised. */
         var trialStartedAtEpoch: Long = 0L,
         var onboardingCompleted: Boolean = false,
-        var loadModelOnStartup: Boolean = false,
         var unloadModelOnIdle: Boolean = false,
         var trialWarningDismissed: Boolean = false,
         var indexingExcludedFolders: String = ".git,node_modules,build,out,target,.idea,.gradle",

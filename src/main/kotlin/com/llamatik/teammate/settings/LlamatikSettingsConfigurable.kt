@@ -13,6 +13,7 @@ import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTextArea
 import com.intellij.ui.components.JBTextField
 import com.intellij.util.ui.FormBuilder
+import com.intellij.util.ui.JBUI
 import com.llamatik.teammate.skills.SkillService
 import com.llamatik.teammate.ui.Strings
 import com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel
@@ -20,12 +21,17 @@ import com.llamatik.teammate.ui.models.ModelLibraryPanel
 import com.llamatik.teammate.ui.skills.SkillLibraryDialog
 import java.awt.BorderLayout
 import java.awt.Dimension
+import java.awt.Font
+import java.awt.GridBagConstraints
+import java.awt.GridBagLayout
 import java.nio.file.Files
 import java.nio.file.Path
 import javax.swing.DefaultListModel
+import javax.swing.ImageIcon
 import javax.swing.JButton
 import javax.swing.JComponent
 import javax.swing.JFileChooser
+import javax.swing.JLabel
 import javax.swing.JPanel
 
 class LlamatikSettingsConfigurable : Configurable {
@@ -39,8 +45,9 @@ class LlamatikSettingsConfigurable : Configurable {
     private val modelPathField = JBTextField()
 
     // Behaviour
-    private val loadModelOnStartupCheck = JBCheckBox(Strings.Settings.LOAD_ON_STARTUP)
     private val agentAutoApproveCheck = JBCheckBox(Strings.Settings.AUTO_APPROVE)
+    private val agentAutoBuildCheck = JBCheckBox(Strings.Settings.AUTO_BUILD)
+    private val agentAutoFixCheck = JBCheckBox(Strings.Settings.AUTO_FIX)
 
     // Context / indexing
     private val ignoredDirectoriesArea = JBTextArea(3, 40)
@@ -150,6 +157,56 @@ class LlamatikSettingsConfigurable : Configurable {
             }
         }
 
+        val aboutButton = JButton(Strings.About.BUTTON).apply {
+            addActionListener {
+                val dialog = object : DialogWrapper(null, true) {
+                    init {
+                        title = Strings.About.DIALOG_TITLE
+                        init()
+                    }
+                    override fun createCenterPanel(): JComponent {
+                        val panel = JPanel(GridBagLayout())
+                        panel.border = JBUI.Borders.empty(16, 24)
+                        val gbc = GridBagConstraints().apply {
+                            gridx = 0; gridy = GridBagConstraints.RELATIVE
+                            anchor = GridBagConstraints.CENTER
+                            fill = GridBagConstraints.NONE
+                            insets = JBUI.insets(4, 0)
+                        }
+
+                        // Logo
+                        val logoUrl = LlamatikSettingsConfigurable::class.java
+                            .getResource("/icons/llamatik.svg")
+                        if (logoUrl != null) {
+                            val raw = ImageIcon(logoUrl)
+                            val scaled = ImageIcon(
+                                raw.image.getScaledInstance(80, 80, java.awt.Image.SCALE_SMOOTH)
+                            )
+                            panel.add(JLabel(scaled), gbc)
+                        }
+
+                        // Title
+                        panel.add(JLabel(Strings.About.TOOL_NAME).apply {
+                            font = font.deriveFont(Font.BOLD, 18f)
+                        }, gbc)
+
+                        // Credits
+                        for (line in listOf(
+                            Strings.About.DEVELOPED_BY,
+                            Strings.About.POWERED_BY,
+                            Strings.About.COPYRIGHT,
+                        )) {
+                            panel.add(JLabel(line), gbc)
+                        }
+
+                        return panel
+                    }
+                    override fun createActions() = arrayOf(okAction)
+                }
+                dialog.show()
+            }
+        }
+
         val modelPathPanel = JPanel(BorderLayout(6, 0)).apply {
             add(modelPathField, BorderLayout.CENTER)
             add(JPanel().apply {
@@ -178,8 +235,10 @@ class LlamatikSettingsConfigurable : Configurable {
             .addLabeledComponent(JBLabel(Strings.Settings.SECTION_REGISTERED_MODELS), registeredModelsPanel)
             .addComponent(openModelLibraryButton)
             .addSeparator()
-            .addLabeledComponent(JBLabel(Strings.Settings.SECTION_BEHAVIOUR), loadModelOnStartupCheck)
+            .addLabeledComponent(JBLabel(Strings.Settings.SECTION_BEHAVIOUR), JBLabel(""))
             .addComponent(agentAutoApproveCheck)
+            .addComponent(agentAutoBuildCheck)
+            .addComponent(agentAutoFixCheck)
             .addSeparator()
             .addLabeledComponent(JBLabel(Strings.Settings.SECTION_CONTEXT),
                 JBLabel(Strings.Settings.FIELD_IGNORED_DIRS))
@@ -190,6 +249,7 @@ class LlamatikSettingsConfigurable : Configurable {
             .addComponent(openSkillLibraryButton)
             .addSeparator()
             .addComponent(resetOnboardingButton)
+            .addComponent(aboutButton)
             .addComponentFillVertically(JPanel(), 0)
             .panel
     }
@@ -197,8 +257,9 @@ class LlamatikSettingsConfigurable : Configurable {
     override fun isModified(): Boolean {
         val s = settings.data()
         return modelPathField.text.trim() != s.modelPath ||
-            loadModelOnStartupCheck.isSelected != s.loadModelOnStartup ||
             agentAutoApproveCheck.isSelected != s.agentAutoApprove ||
+            agentAutoBuildCheck.isSelected != s.agentAutoBuild ||
+            agentAutoFixCheck.isSelected != s.agentAutoFix ||
             ignoredDirectoriesArea.text != s.ignoredDirectories ||
             projectRulesArea.text != s.projectRules
     }
@@ -211,8 +272,9 @@ class LlamatikSettingsConfigurable : Configurable {
             if (err != null) throw com.intellij.openapi.options.ConfigurationException(err)
         }
         s.modelPath = path
-        s.loadModelOnStartup = loadModelOnStartupCheck.isSelected
         s.agentAutoApprove = agentAutoApproveCheck.isSelected
+        s.agentAutoBuild = agentAutoBuildCheck.isSelected
+        s.agentAutoFix = agentAutoFixCheck.isSelected
         s.ignoredDirectories = ignoredDirectoriesArea.text
         s.projectRules = projectRulesArea.text
         if (path.isNotBlank()) downloadedModelService.registerLocalModel(path)
@@ -227,8 +289,9 @@ class LlamatikSettingsConfigurable : Configurable {
     override fun reset() {
         val s = settings.data()
         modelPathField.text = s.modelPath
-        loadModelOnStartupCheck.isSelected = s.loadModelOnStartup
         agentAutoApproveCheck.isSelected = s.agentAutoApprove
+        agentAutoBuildCheck.isSelected = s.agentAutoBuild
+        agentAutoFixCheck.isSelected = s.agentAutoFix
         ignoredDirectoriesArea.text = s.ignoredDirectories
         projectRulesArea.text = s.projectRules
         reloadDownloadedModels()

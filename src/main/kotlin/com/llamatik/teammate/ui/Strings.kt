@@ -195,8 +195,9 @@ object Strings {
     // ── Settings ──────────────────────────────────────────────────────────────
     object Settings {
         const val PAGE_NAME = "Llamatik Code"
-        const val LOAD_ON_STARTUP = "Load model on startup"
-        const val AUTO_APPROVE = "Agent: auto-approve file edits without confirmation"
+        const val AUTO_APPROVE = "Auto-apply edits without confirmation"
+        const val AUTO_BUILD = "Auto-build after applying edits"
+        const val AUTO_FIX = "Auto-fix build errors"
         const val BROWSE = "Browse…"
         const val FILE_CHOOSER_TITLE = "Select local .gguf model file"
         const val REGISTER = "Register"
@@ -323,6 +324,16 @@ object Strings {
         const val TESTS_FAILED = "Tests failed"
         const val AUTO_FIX = "Auto-fix"
         const val RETRY_LIMIT = "Auto-fix limit reached — please fix manually"
+    }
+
+    // ── About ─────────────────────────────────────────────────────────────────
+    object About {
+        const val BUTTON = "About Llamatik Code"
+        const val DIALOG_TITLE = "About"
+        const val TOOL_NAME = "Llamatik Code"
+        const val DEVELOPED_BY = "Developed by Llamatik AI"
+        const val POWERED_BY = "Powered by Llamatik and llama.cpp"
+        const val COPYRIGHT = "Copyright 2026"
     }
 
     // ── Trial ─────────────────────────────────────────────────────────────────
