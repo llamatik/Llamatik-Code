@@ -39,6 +39,7 @@ object ToolCallParser {
         val withoutThink = withoutComplete
             .replace(Regex("<think>.*$", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)), "")
             .replace(Regex("<edit_proposal\\b.*$", RegexOption.DOT_MATCHES_ALL), "")
+            .replace(Regex("<tool_call\\b.*$", RegexOption.DOT_MATCHES_ALL), "")
             .trim()
         if (withoutThink.isNotEmpty()) return withoutThink
         // Only thinking, no answer — extract and show the think content as a fallback.
