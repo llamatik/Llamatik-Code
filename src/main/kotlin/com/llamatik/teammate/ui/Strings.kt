@@ -63,6 +63,12 @@ object Strings {
         const val OVERLAY_TRIAL_EXPIRED = "Trial expired — Agent requires a subscription."
         const val OVERLAY_NO_MODEL = "Configure a model to use Agent mode."
         const val OVERLAY_LOADING_MODEL = "Loading model…"
+        const val REASONING_STREAMING = "▼ Reasoning…"
+        const val REASONING_PREFIX_COLLAPSED = "▶ Reasoned for "
+        const val REASONING_PREFIX_EXPANDED = "▼ Reasoned for "
+        const val TOOL_CALL_ICON = "⚙"
+        const val AUTO_APPROVE_NEXT = "Auto-apply edits on next run"
+        fun brewedFor(elapsed: String) = "brewed for $elapsed"
 
         val SUGGESTIONS = listOf(
             "Find and resolve build errors in my project",

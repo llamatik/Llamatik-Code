@@ -151,6 +151,8 @@ class LlamatikToolWindowPanel(
         onApprove = {},
         onReject = {},
         onClear = { currentHandle?.cancel(); setGenerating(false) },
+        isAutoApprove = { settings.data().agentAutoApprove },
+        onAutoApproveChanged = { checked -> settings.data().agentAutoApprove = checked },
     )
 /*
     private val titleLabel = JBLabel("Llamatik Code").apply {
@@ -396,10 +398,17 @@ class LlamatikToolWindowPanel(
                 userPrompt = submittedPrompt,
                 onToken = { token ->
                     SwingUtilities.invokeLater {
-                        if (token.startsWith("\u0000STATUS:")) {
-                            agentTabPanel.setStatus(token.removePrefix("\u0000STATUS:"))
-                        } else {
-                            agentTabPanel.appendAnswerToken(token, genId)
+                        when {
+                            token.startsWith("\u0000STATUS:") ->
+                                agentTabPanel.setStatus(token.removePrefix("\u0000STATUS:"))
+                            token.startsWith("\u0000TOOL:") -> {
+                                val payload = token.removePrefix("\u0000TOOL:")
+                                val sep = payload.indexOf(':')
+                                val name = if (sep >= 0) payload.substring(0, sep) else payload
+                                val arg = if (sep >= 0) payload.substring(sep + 1) else ""
+                                agentTabPanel.addToolCall(name, arg)
+                            }
+                            else -> agentTabPanel.appendAnswerToken(token, genId)
                         }
                     }
                 },

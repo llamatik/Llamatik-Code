@@ -151,6 +151,8 @@ class AgentOrchestrator(private val project: Project) {
                     if (!cancelled.get()) onToken("\u0000STATUS:Gathering project context…")
 
                     val toolMessages = toolCalls.map { call ->
+                        val mainArg = call.arguments.values.firstOrNull().orEmpty().take(60)
+                        if (!cancelled.get()) onToken("\u0000TOOL:${call.name}:$mainArg")
                         val result = toolRegistry.execute(call, ToolExecutionContext(project))
                         ChatMessage(role = ChatRole.TOOL, content = result.content, toolName = result.name)
                     }

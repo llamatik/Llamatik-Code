@@ -2,9 +2,8 @@ package com.llamatik.teammate.ui.toolwindow
 
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.ide.CopyPasteManager
+import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
-import com.llamatik.teammate.ui.LlamatikTheme
-import com.llamatik.teammate.ui.Strings
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTextArea
 import com.intellij.util.ui.AsyncProcessIcon
@@ -13,7 +12,10 @@ import com.llamatik.teammate.model.AgentPhase
 import com.llamatik.teammate.model.AgentTaskState
 import com.llamatik.teammate.model.EditProposal
 import com.llamatik.teammate.model.PluginReadinessState
+import com.llamatik.teammate.ui.LlamatikTheme
+import com.llamatik.teammate.ui.Strings
 import java.awt.BorderLayout
+import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.Font
 import java.awt.GridLayout
@@ -23,6 +25,8 @@ import javax.swing.BoxLayout
 import javax.swing.JButton
 import javax.swing.JLabel
 import javax.swing.JPanel
+import javax.swing.ScrollPaneConstants
+import javax.swing.Timer
 
 private const val CARD_WELCOME = "WELCOME"
 private const val CARD_TASK = "TASK"
@@ -34,6 +38,8 @@ class AgentTabPanel(
     private val onApprove: () -> Unit,
     private val onReject: () -> Unit,
     private val onClear: () -> Unit = {},
+    private val isAutoApprove: () -> Boolean = { false },
+    private val onAutoApproveChanged: (Boolean) -> Unit = {},
 ) : JPanel(BorderLayout()) {
 
     private val rootBackground = LlamatikTheme.background
@@ -44,21 +50,62 @@ class AgentTabPanel(
     private val success = LlamatikTheme.success
 
     private val cardLayout = java.awt.CardLayout()
-    private val cardPanel = JPanel(cardLayout).apply {
-        background = rootBackground
-    }
+    private val cardPanel = JPanel(cardLayout).apply { background = rootBackground }
 
     private val suggestions = Strings.Agent.SUGGESTIONS
 
+    // ── Task card ──────────────────────────────────────────────────────────────
     private val phaseList = JPanel().apply {
         layout = BoxLayout(this, BoxLayout.Y_AXIS)
         background = rootBackground
         border = JBUI.Borders.empty(16)
     }
-
     private val approveButton = JButton(Strings.Agent.APPROVE)
     private val rejectButton = JButton(Strings.Agent.REJECT)
 
+    // ── Response card: elapsed timer ──────────────────────────────────────────
+    private var genStartMs = 0L
+    private val elapsedLabel = JBLabel("").apply {
+        foreground = mutedText
+        font = font.deriveFont(Font.PLAIN, font.size2D - 1f)
+    }
+    private val elapsedTimer = Timer(500) {
+        elapsedLabel.text = formatElapsed(System.currentTimeMillis() - genStartMs)
+    }
+
+    // ── Single conversation scroll area ───────────────────────────────────────
+    // ONE JScrollPane containing ONE vertical BoxLayout panel.
+    // Every piece of content is a direct child — no nested scroll panes.
+    private val conversationPanel = JPanel().apply {
+        layout = BoxLayout(this, BoxLayout.Y_AXIS)
+        background = rootBackground
+        border = JBUI.Borders.empty(12, 16, 12, 16)
+    }
+    private val conversationScroll = JBScrollPane(conversationPanel).apply {
+        border = JBUI.Borders.empty()
+        viewport.background = rootBackground
+        horizontalScrollBarPolicy = ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER
+        verticalScrollBarPolicy = ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED
+    }
+
+    // ── Prompt bubble ─────────────────────────────────────────────────────────
+    // Plain non-editable text area — no inner scroll pane.
+    private val promptLabel = JBLabel("").apply {
+        foreground = LlamatikTheme.onSurface
+        font = font.deriveFont(Font.PLAIN, font.size2D)
+        border = JBUI.Borders.empty(10, 12)
+    }
+    private val promptBubble = JPanel(BorderLayout()).apply {
+        isOpaque = true
+        background = cardBackground
+        border = BorderFactory.createLineBorder(panelStroke, 1, true)
+        alignmentX = LEFT_ALIGNMENT
+        maximumSize = Dimension(Int.MAX_VALUE, Int.MAX_VALUE)
+        add(promptLabel, BorderLayout.CENTER)
+        isVisible = false
+    }
+
+    // ── Status pill ───────────────────────────────────────────────────────────
     private val statusPill = JBLabel("").apply {
         isVisible = false
         foreground = LlamatikTheme.onSurface
@@ -66,8 +113,70 @@ class AgentTabPanel(
             BorderFactory.createLineBorder(panelStroke, 1, true),
             JBUI.Borders.empty(4, 10),
         )
+        alignmentX = LEFT_ALIGNMENT
+    }
+    private val statusRow = JPanel(FlowLayout(FlowLayout.LEFT, 0, 0)).apply {
+        isOpaque = false
+        alignmentX = LEFT_ALIGNMENT
+        maximumSize = Dimension(Int.MAX_VALUE, 32)
+        add(statusPill)
     }
 
+    // ── Reasoning section ─────────────────────────────────────────────────────
+    // thinkTextArea is a plain JBTextArea with no wrapping JScrollPane.
+    // It auto-expands vertically — the outer conversationScroll handles overflow.
+    private var thinkHasContent = false
+    private var thinkStartMs = 0L
+    private var thinkElapsedMs = 0L
+    private val thinkTextArea = JBTextArea("").apply {
+        isEditable = false
+        isOpaque = true
+        lineWrap = true
+        wrapStyleWord = true
+        background = cardBackground
+        foreground = mutedText
+        border = JBUI.Borders.empty(8, 10)
+        font = font.deriveFont(Font.PLAIN, font.size2D - 1f)
+    }
+    // Wrapper gives the bordered look without creating a nested scroll pane
+    private val thinkContent = JPanel(BorderLayout()).apply {
+        isOpaque = true
+        background = cardBackground
+        border = BorderFactory.createLineBorder(panelStroke, 1, true)
+        alignmentX = LEFT_ALIGNMENT
+        maximumSize = Dimension(Int.MAX_VALUE, Int.MAX_VALUE)
+        add(thinkTextArea, BorderLayout.CENTER)
+        isVisible = false
+    }
+    private val thinkToggleBtn = JButton(Strings.Agent.REASONING_STREAMING).apply {
+        isFocusPainted = false
+        isContentAreaFilled = false
+        border = JBUI.Borders.empty(4, 0)
+        foreground = mutedText
+        font = font.deriveFont(Font.PLAIN, font.size2D - 1f)
+        horizontalAlignment = JButton.LEFT
+        cursor = java.awt.Cursor(java.awt.Cursor.HAND_CURSOR)
+        alignmentX = LEFT_ALIGNMENT
+    }
+    private val thinkingSection = JPanel().apply {
+        layout = BoxLayout(this, BoxLayout.Y_AXIS)
+        isOpaque = false
+        isVisible = false
+        alignmentX = LEFT_ALIGNMENT
+        maximumSize = Dimension(Int.MAX_VALUE, Int.MAX_VALUE)
+    }
+
+    // ── Tool calls ────────────────────────────────────────────────────────────
+    private val toolCallsPanel = JPanel().apply {
+        layout = BoxLayout(this, BoxLayout.Y_AXIS)
+        isOpaque = false
+        isVisible = false
+        alignmentX = LEFT_ALIGNMENT
+        maximumSize = Dimension(Int.MAX_VALUE, Int.MAX_VALUE)
+    }
+
+    // ── Response text ─────────────────────────────────────────────────────────
+    // Plain JBTextArea — no wrapping JScrollPane. Expands vertically in-place.
     private val responseTextArea = JBTextArea("").apply {
         isEditable = false
         isOpaque = true
@@ -78,38 +187,53 @@ class AgentTabPanel(
         border = JBUI.Borders.empty(12, 14)
         font = font.deriveFont(Font.PLAIN, font.size2D + 1f)
     }
-
-    private val responseScrollPane = JBScrollPane(responseTextArea).apply {
-        border = JBUI.Borders.compound(
-            BorderFactory.createLineBorder(panelStroke, 1, true),
-            JBUI.Borders.empty(),
-        )
-        viewport.background = cardBackground
+    private val responseContent = JPanel(BorderLayout()).apply {
+        isOpaque = true
+        background = cardBackground
+        border = BorderFactory.createLineBorder(panelStroke, 1, true)
+        alignmentX = LEFT_ALIGNMENT
+        maximumSize = Dimension(Int.MAX_VALUE, Int.MAX_VALUE)
+        add(responseTextArea, BorderLayout.CENTER)
     }
 
+    // ── Proposals list ────────────────────────────────────────────────────────
     private val proposalsPanel = JPanel().apply {
         layout = BoxLayout(this, BoxLayout.Y_AXIS)
         isOpaque = false
         isVisible = false
+        alignmentX = LEFT_ALIGNMENT
+        maximumSize = Dimension(Int.MAX_VALUE, Int.MAX_VALUE)
     }
 
-    private val loadingSpinner = AsyncProcessIcon("agent-loading").apply {
-        isVisible = false
+    // ── Auto-approve checkbox ─────────────────────────────────────────────────
+    private val autoApproveCheck = JBCheckBox(Strings.Agent.AUTO_APPROVE_NEXT).apply {
+        isOpaque = false
+        foreground = mutedText
+        font = font.deriveFont(Font.PLAIN, font.size2D - 1f)
+        isSelected = isAutoApprove()
+        addActionListener { onAutoApproveChanged(isSelected) }
+        alignmentX = LEFT_ALIGNMENT
+        maximumSize = Dimension(Int.MAX_VALUE, 28)
     }
 
+    // ── Spinner ───────────────────────────────────────────────────────────────
+    private val loadingSpinner = AsyncProcessIcon("agent-loading").apply { isVisible = false }
     private val spinnerPanel = JPanel(FlowLayout(FlowLayout.LEFT, 0, 6)).apply {
         isOpaque = false
         isVisible = false
+        alignmentX = LEFT_ALIGNMENT
+        maximumSize = Dimension(Int.MAX_VALUE, 36)
         add(loadingSpinner)
     }
 
+    // ── Verification panel ────────────────────────────────────────────────────
     private val verifyStatusLabel = JBLabel("").apply {
         isVisible = false
         font = font.deriveFont(Font.BOLD)
         border = JBUI.Borders.emptyTop(8)
         alignmentX = LEFT_ALIGNMENT
     }
-
+    // Build errors shown as plain non-editable text — no nested scroll pane.
     private val verifyErrorArea = JBTextArea("").apply {
         isEditable = false
         isOpaque = true
@@ -119,16 +243,16 @@ class AgentTabPanel(
         foreground = LlamatikTheme.onSurface
         border = JBUI.Borders.empty(6, 8)
         font = font.deriveFont(Font.PLAIN, font.size2D - 1f)
-        rows = 3
     }
-
-    private val verifyErrorScroll = JBScrollPane(verifyErrorArea).apply {
-        isVisible = false
+    private val verifyErrorContent = JPanel(BorderLayout()).apply {
+        isOpaque = true
+        background = cardBackground
         border = BorderFactory.createLineBorder(panelStroke, 1, true)
-        viewport.background = cardBackground
         alignmentX = LEFT_ALIGNMENT
+        maximumSize = Dimension(Int.MAX_VALUE, Int.MAX_VALUE)
+        add(verifyErrorArea, BorderLayout.CENTER)
+        isVisible = false
     }
-
     private val autoFixButton = JButton(Strings.Verification.AUTO_FIX).apply {
         isVisible = false
         isFocusPainted = false
@@ -140,50 +264,72 @@ class AgentTabPanel(
         )
         alignmentX = LEFT_ALIGNMENT
     }
-
     private val verificationPanel = JPanel().apply {
         layout = BoxLayout(this, BoxLayout.Y_AXIS)
         isOpaque = false
         isVisible = false
+        alignmentX = LEFT_ALIGNMENT
+        maximumSize = Dimension(Int.MAX_VALUE, Int.MAX_VALUE)
         add(verifyStatusLabel)
         add(javax.swing.Box.createVerticalStrut(4))
-        add(verifyErrorScroll)
+        add(verifyErrorContent)
         add(javax.swing.Box.createVerticalStrut(4))
         add(autoFixButton)
     }
 
+    // ── Navigation buttons ────────────────────────────────────────────────────
     private val backButton = JButton(Strings.Agent.BACK).apply {
         isFocusPainted = false
         isContentAreaFilled = false
         foreground = mutedText
         border = JBUI.Borders.empty(4, 0)
     }
-
     private val clearButton = JButton(AllIcons.Actions.GC).apply {
         toolTipText = Strings.Chat.CLEAR
         isFocusPainted = false
         isContentAreaFilled = true
         isOpaque = true
         background = LlamatikTheme.surface
-        preferredSize = java.awt.Dimension(32, 32)
+        preferredSize = Dimension(32, 32)
         border = JBUI.Borders.compound(
             BorderFactory.createLineBorder(LlamatikTheme.outline, 1, true),
             JBUI.Borders.empty(3, 5),
         )
     }
 
+    // ── Streaming state ───────────────────────────────────────────────────────
     private val streamBuffer = StringBuilder()
     private var streamingBlocked = false
     private val thinkBuffer = StringBuilder()
     private var thinkingBlocked = false
     private var currentGenerationId = 0
-
-    // XML prefixes that must never reach the text area (shared by both paths)
     private val blockedPrefixes = listOf("<tool_call", "<edit_proposal")
 
+    // ── Init ──────────────────────────────────────────────────────────────────
     init {
         background = rootBackground
         border = JBUI.Borders.empty()
+
+        // Wire up thinking section: toggle button + expandable content (no inner scroll)
+        val thinkHeaderRow = JPanel(FlowLayout(FlowLayout.LEFT, 0, 0)).apply {
+            isOpaque = false
+            alignmentX = LEFT_ALIGNMENT
+            maximumSize = Dimension(Int.MAX_VALUE, 32)
+            add(thinkToggleBtn)
+        }
+        thinkingSection.add(thinkHeaderRow)
+        thinkingSection.add(thinkContent)
+
+        thinkToggleBtn.addActionListener {
+            val expand = !thinkContent.isVisible
+            thinkContent.isVisible = expand
+            val prefix = if (expand) Strings.Agent.REASONING_PREFIX_EXPANDED
+                         else Strings.Agent.REASONING_PREFIX_COLLAPSED
+            thinkToggleBtn.text = if (thinkElapsedMs > 0) "$prefix${formatElapsed(thinkElapsedMs)}"
+                                  else Strings.Agent.REASONING_STREAMING
+            conversationPanel.revalidate()
+            conversationPanel.repaint()
+        }
 
         cardPanel.add(buildWelcomeCard(), CARD_WELCOME)
         cardPanel.add(buildTaskCard(), CARD_TASK)
@@ -193,15 +339,271 @@ class AgentTabPanel(
         add(cardPanel, BorderLayout.CENTER)
         cardLayout.show(cardPanel, CARD_WELCOME)
 
-        backButton.addActionListener {
-            cardLayout.show(cardPanel, CARD_WELCOME)
-        }
-
+        backButton.addActionListener { cardLayout.show(cardPanel, CARD_WELCOME) }
         clearButton.addActionListener {
+            elapsedTimer.stop()
             onClear()
             cardLayout.show(cardPanel, CARD_WELCOME)
         }
     }
+
+    // ── Public API ────────────────────────────────────────────────────────────
+
+    fun startResponse(prompt: String): Int {
+        currentGenerationId++
+        genStartMs = System.currentTimeMillis()
+
+        promptLabel.text = "<html>${prompt.replace("\n", "<br>")}</html>"
+        promptBubble.isVisible = true
+
+        thinkHasContent = false
+        thinkStartMs = 0L
+        thinkElapsedMs = 0L
+        thinkTextArea.text = ""
+        thinkContent.isVisible = false
+        thinkToggleBtn.text = Strings.Agent.REASONING_STREAMING
+        thinkingSection.isVisible = false
+
+        toolCallsPanel.removeAll()
+        toolCallsPanel.isVisible = false
+
+        responseTextArea.text = ""
+
+        proposalsPanel.removeAll()
+        proposalsPanel.isVisible = false
+        hideVerification()
+
+        streamBuffer.clear()
+        streamingBlocked = false
+        thinkBuffer.clear()
+        thinkingBlocked = false
+
+        statusPill.text = Strings.Agent.STATUS_ANALYZING
+        statusPill.isVisible = true
+        loadingSpinner.resume()
+        loadingSpinner.isVisible = true
+        spinnerPanel.isVisible = true
+
+        elapsedTimer.stop()
+        elapsedLabel.text = "0s"
+        elapsedTimer.start()
+
+        autoApproveCheck.isSelected = isAutoApprove()
+
+        conversationScroll.viewport.viewPosition = java.awt.Point(0, 0)
+
+        cardLayout.show(cardPanel, CARD_RESPONSE)
+        cardPanel.revalidate()
+        cardPanel.repaint()
+        return currentGenerationId
+    }
+
+    fun setStatus(message: String) {
+        statusPill.text = message
+        statusPill.isVisible = true
+    }
+
+    fun appendThinkingToken(token: String, genId: Int) {
+        if (genId != currentGenerationId || thinkingBlocked) return
+        statusPill.isVisible = false
+        if (!thinkHasContent) {
+            thinkHasContent = true
+            thinkStartMs = System.currentTimeMillis()
+            thinkingSection.isVisible = true
+            thinkContent.isVisible = true
+            thinkToggleBtn.text = Strings.Agent.REASONING_STREAMING
+            conversationPanel.revalidate()
+        }
+        flushToArea(token, thinkBuffer, thinkTextArea)
+        scrollToBottom()
+    }
+
+    fun appendAnswerToken(token: String, genId: Int) {
+        if (genId != currentGenerationId || streamingBlocked) return
+        statusPill.isVisible = false
+        if (thinkHasContent && thinkContent.isVisible) {
+            thinkElapsedMs = System.currentTimeMillis() - thinkStartMs
+            thinkContent.isVisible = false
+            thinkToggleBtn.text = Strings.Agent.REASONING_PREFIX_COLLAPSED + formatElapsed(thinkElapsedMs)
+            conversationPanel.revalidate()
+        }
+        flushToArea(token, streamBuffer, responseTextArea)
+        scrollToBottom()
+    }
+
+    fun addToolCall(name: String, arg: String) {
+        toolCallsPanel.add(buildToolCallRow(name, arg))
+        toolCallsPanel.isVisible = true
+        toolCallsPanel.revalidate()
+        toolCallsPanel.repaint()
+        scrollToBottom()
+    }
+
+    fun showAnswer(
+        text: String,
+        genId: Int,
+        proposals: List<EditProposal> = emptyList(),
+        onViewDiff: (EditProposal) -> Unit = {},
+        onApply: (EditProposal) -> Unit = {},
+        onRejectProposal: (EditProposal) -> Unit = {},
+    ) {
+        if (genId != currentGenerationId) return
+
+        elapsedTimer.stop()
+        elapsedLabel.text = Strings.Agent.brewedFor(formatElapsed(System.currentTimeMillis() - genStartMs))
+
+        if (thinkHasContent && thinkContent.isVisible) {
+            thinkElapsedMs = System.currentTimeMillis() - thinkStartMs
+            thinkContent.isVisible = false
+            thinkToggleBtn.text = Strings.Agent.REASONING_PREFIX_COLLAPSED + formatElapsed(thinkElapsedMs)
+            conversationPanel.revalidate()
+        }
+
+        statusPill.isVisible = false
+        loadingSpinner.suspend()
+        loadingSpinner.isVisible = false
+        spinnerPanel.isVisible = false
+
+        if (responseTextArea.text.isBlank() && text.isNotBlank()) {
+            responseTextArea.text = text
+            responseTextArea.caretPosition = 0
+        }
+
+        proposalsPanel.removeAll()
+        if (proposals.isNotEmpty()) {
+            val header = JBLabel(Strings.EditDialog.PROPOSED_CHANGES_HEADER).apply {
+                foreground = LlamatikTheme.onSurface
+                font = font.deriveFont(Font.BOLD, font.size2D + 1f)
+                border = JBUI.Borders.empty(12, 0, 8, 0)
+                alignmentX = LEFT_ALIGNMENT
+            }
+            proposalsPanel.add(header)
+            proposals.forEach { proposal ->
+                proposalsPanel.add(buildProposalCard(proposal, onViewDiff, onApply, onRejectProposal))
+                proposalsPanel.add(vStrut(6))
+            }
+            proposalsPanel.isVisible = true
+        } else {
+            proposalsPanel.isVisible = false
+        }
+
+        conversationPanel.revalidate()
+        conversationPanel.repaint()
+        scrollToBottom()
+    }
+
+    fun showReadinessOverlay(state: PluginReadinessState, trialExpired: Boolean) {
+        val message = when {
+            trialExpired -> Strings.Agent.OVERLAY_TRIAL_EXPIRED
+            state == PluginReadinessState.NO_MODEL -> Strings.Agent.OVERLAY_NO_MODEL
+            state == PluginReadinessState.LOADING_MODEL -> Strings.Agent.OVERLAY_LOADING_MODEL
+            else -> return
+        }
+        cardPanel.add(buildOverlayCard(message), CARD_OVERLAY)
+        cardLayout.show(cardPanel, CARD_OVERLAY)
+        cardPanel.revalidate()
+        cardPanel.repaint()
+    }
+
+    fun hideReadinessOverlay() {
+        cardLayout.show(cardPanel, CARD_WELCOME)
+        cardPanel.revalidate()
+        cardPanel.repaint()
+    }
+
+    fun hideVerification() {
+        verificationPanel.isVisible = false
+    }
+
+    fun showVerifying(message: String) {
+        verifyStatusLabel.text = message
+        verifyStatusLabel.foreground = mutedText
+        verifyStatusLabel.isVisible = true
+        verifyErrorContent.isVisible = false
+        autoFixButton.isVisible = false
+        verificationPanel.isVisible = true
+        conversationPanel.revalidate()
+        conversationPanel.repaint()
+        scrollToBottom()
+    }
+
+    fun showBuildSuccess(testsRan: Boolean) {
+        verifyStatusLabel.text = if (testsRan) Strings.Verification.TESTS_PASSED else Strings.Verification.BUILD_OK
+        verifyStatusLabel.foreground = success
+        verifyStatusLabel.isVisible = true
+        verifyErrorContent.isVisible = false
+        autoFixButton.isVisible = false
+        verificationPanel.isVisible = true
+        conversationPanel.revalidate()
+        conversationPanel.repaint()
+        scrollToBottom()
+    }
+
+    fun showBuildErrors(errors: String, onAutoFix: () -> Unit) {
+        verifyStatusLabel.text = Strings.Verification.BUILD_FAILED
+        verifyStatusLabel.foreground = LlamatikTheme.error
+        verifyStatusLabel.isVisible = true
+        verifyErrorArea.text = errors
+        verifyErrorContent.isVisible = true
+        for (l in autoFixButton.actionListeners) autoFixButton.removeActionListener(l)
+        autoFixButton.text = Strings.Verification.AUTO_FIX
+        autoFixButton.addActionListener { onAutoFix() }
+        autoFixButton.isVisible = true
+        verificationPanel.isVisible = true
+        conversationPanel.revalidate()
+        conversationPanel.repaint()
+        scrollToBottom()
+    }
+
+    fun showAutoFixLimit() {
+        verifyStatusLabel.text = Strings.Verification.RETRY_LIMIT
+        verifyStatusLabel.foreground = mutedText
+        verifyStatusLabel.isVisible = true
+        autoFixButton.isVisible = false
+        verificationPanel.isVisible = true
+        conversationPanel.revalidate()
+        conversationPanel.repaint()
+        scrollToBottom()
+    }
+
+    fun updateState(taskState: AgentTaskState?) {
+        if (taskState == null) {
+            cardLayout.show(cardPanel, CARD_WELCOME)
+            return
+        }
+        cardLayout.show(cardPanel, CARD_TASK)
+        phaseList.removeAll()
+
+        val taskCard = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            background = cardBackground
+            border = JBUI.Borders.compound(
+                BorderFactory.createLineBorder(panelStroke, 1, true),
+                JBUI.Borders.empty(14),
+            )
+        }
+        taskCard.add(JBLabel("<html><b>Task</b><br/>${taskState.prompt}</html>").apply {
+            foreground = LlamatikTheme.onSurface
+            border = JBUI.Borders.emptyBottom(12)
+            alignmentX = LEFT_ALIGNMENT
+        })
+        AgentPhase.values().forEach { phase ->
+            taskCard.add(buildPhaseRow(phase, isCurrent = phase == taskState.currentPhase, isDone = phase in taskState.phaseHistory))
+        }
+        if (taskState.filesInvolved.isNotEmpty()) {
+            taskCard.add(JBLabel("<html><br/><b>Files</b><br/>${taskState.filesInvolved.joinToString("<br/>")}</html>").apply {
+                foreground = mutedText
+                alignmentX = LEFT_ALIGNMENT
+            })
+        }
+        phaseList.add(taskCard)
+        approveButton.isVisible = taskState.waitingForApproval
+        rejectButton.isVisible = taskState.waitingForApproval
+        phaseList.revalidate()
+        phaseList.repaint()
+    }
+
+    // ── Card builders ─────────────────────────────────────────────────────────
 
     private fun buildWelcomeCard(): JPanel {
         val title = JBLabel("<html><span style='font-size:22pt; font-weight:700; color:${LlamatikTheme.htmlPrimary};'>${Strings.Agent.HERO_TITLE}</span></html>")
@@ -211,7 +613,6 @@ class AgentTabPanel(
             font = font.deriveFont(Font.BOLD, font.size2D + 4f)
             border = JBUI.Borders.emptyBottom(24)
         }
-
         val activityCard = JPanel(BorderLayout(0, 10)).apply {
             isOpaque = true
             background = cardBackground
@@ -220,16 +621,12 @@ class AgentTabPanel(
                 JBUI.Borders.empty(14, 16),
             )
         }
-
         val activityTitle = JBLabel(
             "<html><span style='color:${LlamatikTheme.htmlOnSurface};'>${Strings.Agent.WORKFLOW_TITLE}</span></html>",
-        ).apply {
-            font = font.deriveFont(Font.BOLD, font.size2D + 1f)
-        }
+        ).apply { font = font.deriveFont(Font.BOLD, font.size2D + 1f) }
         val activityBody = JBLabel(
             "<html><span style='color:${LlamatikTheme.htmlOnSurfaceVariant};'>${Strings.Agent.WORKFLOW_BODY}</span></html>",
         )
-
         activityCard.add(activityTitle, BorderLayout.NORTH)
         activityCard.add(activityBody, BorderLayout.CENTER)
 
@@ -239,31 +636,17 @@ class AgentTabPanel(
             font = font.deriveFont(Font.BOLD, font.size2D + 1f)
             border = JBUI.Borders.empty(24, 0, 10, 0)
         }
+        val promptGrid = JPanel(GridLayout(0, 1, 0, 8)).apply { isOpaque = false }
+        suggestions.forEach { promptGrid.add(buildPromptCard(it)) }
 
-        val promptGrid = JPanel(GridLayout(0, 1, 0, 8)).apply {
-            isOpaque = false
-        }
-        suggestions.forEach { suggestion ->
-            promptGrid.add(buildPromptCard(suggestion))
-        }
-
-        title.alignmentX = LEFT_ALIGNMENT
-        subtitle.alignmentX = LEFT_ALIGNMENT
-        activityCard.alignmentX = LEFT_ALIGNMENT
-        promptTitle.alignmentX = LEFT_ALIGNMENT
-        promptGrid.alignmentX = LEFT_ALIGNMENT
+        listOf(title, subtitle, activityCard, promptTitle, promptGrid).forEach { it.alignmentX = LEFT_ALIGNMENT }
 
         val content = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
             background = rootBackground
             border = JBUI.Borders.empty(26, 20, 20, 20)
-            add(title)
-            add(subtitle)
-            add(activityCard)
-            add(promptTitle)
-            add(promptGrid)
+            add(title); add(subtitle); add(activityCard); add(promptTitle); add(promptGrid)
         }
-
         return JPanel(BorderLayout()).apply {
             background = rootBackground
             add(content, BorderLayout.NORTH)
@@ -279,15 +662,12 @@ class AgentTabPanel(
                 font = font.deriveFont(Font.BOLD, font.size2D + 2f)
             }, BorderLayout.WEST)
         }
-
         val approvalBar = JPanel(FlowLayout(FlowLayout.RIGHT, 8, 10)).apply {
             background = rootBackground
             approveButton.addActionListener { onApprove() }
             rejectButton.addActionListener { onReject() }
-            add(rejectButton)
-            add(approveButton)
+            add(rejectButton); add(approveButton)
         }
-
         approveButton.isVisible = false
         rejectButton.isVisible = false
 
@@ -296,7 +676,6 @@ class AgentTabPanel(
             viewport.background = rootBackground
             background = rootBackground
         }
-
         return JPanel(BorderLayout()).apply {
             background = rootBackground
             add(header, BorderLayout.NORTH)
@@ -332,7 +711,7 @@ class AgentTabPanel(
             isContentAreaFilled = true
             isOpaque = true
             background = LlamatikTheme.surface
-            preferredSize = java.awt.Dimension(32, 32)
+            preferredSize = Dimension(32, 32)
             border = JBUI.Borders.compound(
                 BorderFactory.createLineBorder(LlamatikTheme.outline, 1, true),
                 JBUI.Borders.empty(3, 5),
@@ -344,42 +723,54 @@ class AgentTabPanel(
 
         val rightButtons = JPanel(FlowLayout(FlowLayout.RIGHT, 4, 0)).apply {
             isOpaque = false
-            add(clearButton)
-            add(copyButton)
+            add(clearButton); add(copyButton)
         }
 
-        val topBar = JPanel(BorderLayout()).apply {
+        val topBar = JPanel(BorderLayout(8, 0)).apply {
             background = rootBackground
-            border = JBUI.Borders.empty(12, 16, 8, 16)
+            border = JBUI.Borders.empty(10, 16, 8, 16)
             add(backButton, BorderLayout.WEST)
+            add(elapsedLabel, BorderLayout.CENTER)
             add(rightButtons, BorderLayout.EAST)
         }
 
-        val statusRow = JPanel(FlowLayout(FlowLayout.LEFT, 0, 0)).apply {
-            isOpaque = false
-            add(statusPill)
+        // Populate the single conversation panel.
+        // Order: prompt bubble → status → reasoning → tool calls →
+        //        response text → proposals → spinner → auto-approve → verification
+        conversationPanel.removeAll()
+        fun addItem(c: javax.swing.JComponent, bottomGap: Int = 8) {
+            c.alignmentX = LEFT_ALIGNMENT
+            conversationPanel.add(c)
+            conversationPanel.add(vStrut(bottomGap))
         }
-
-        val southStack = JPanel().apply {
-            layout = BoxLayout(this, BoxLayout.Y_AXIS)
-            isOpaque = false
-            add(spinnerPanel)
-            add(proposalsPanel)
-            add(verificationPanel)
-        }
-
-        val content = JPanel(BorderLayout()).apply {
-            background = rootBackground
-            border = JBUI.Borders.empty(0, 16, 16, 16)
-            add(statusRow, BorderLayout.NORTH)
-            add(responseScrollPane, BorderLayout.CENTER)
-            add(southStack, BorderLayout.SOUTH)
-        }
+        addItem(promptBubble)
+        addItem(statusRow, 4)
+        addItem(thinkingSection)
+        addItem(toolCallsPanel, 4)
+        addItem(responseContent)
+        addItem(proposalsPanel)
+        addItem(spinnerPanel, 4)
+        addItem(autoApproveCheck, 4)
+        conversationPanel.add(verificationPanel.also { it.alignmentX = LEFT_ALIGNMENT })
 
         return JPanel(BorderLayout()).apply {
             background = rootBackground
             add(topBar, BorderLayout.NORTH)
-            add(content, BorderLayout.CENTER)
+            add(conversationScroll, BorderLayout.CENTER)
+        }
+    }
+
+    // ── Private helpers ───────────────────────────────────────────────────────
+
+    private fun vStrut(height: Int): javax.swing.JComponent =
+        (javax.swing.Box.createVerticalStrut(height) as javax.swing.JComponent).also {
+            it.alignmentX = LEFT_ALIGNMENT
+        }
+
+    private fun scrollToBottom() {
+        javax.swing.SwingUtilities.invokeLater {
+            val bar = conversationScroll.verticalScrollBar
+            bar.value = bar.maximum
         }
     }
 
@@ -397,128 +788,15 @@ class AgentTabPanel(
             addActionListener { onSuggestionSelected(text) }
         }
 
-    fun startResponse(prompt: String): Int {
-        currentGenerationId++
-        responseTextArea.text = ""
-        proposalsPanel.removeAll()
-        proposalsPanel.isVisible = false
-        hideVerification()
-        statusPill.text = Strings.Agent.STATUS_ANALYZING
-        statusPill.isVisible = true
-        loadingSpinner.resume()
-        loadingSpinner.isVisible = true
-        spinnerPanel.isVisible = true
-        streamBuffer.clear()
-        streamingBlocked = false
-        thinkBuffer.clear()
-        thinkingBlocked = false
-        cardLayout.show(cardPanel, CARD_RESPONSE)
-        cardPanel.revalidate()
-        cardPanel.repaint()
-        return currentGenerationId
-    }
-
-    fun setStatus(message: String) {
-        statusPill.text = message
-        statusPill.isVisible = true
-    }
-
-    fun appendThinkingToken(token: String, genId: Int) {
-        if (genId != currentGenerationId || thinkingBlocked) return
-        statusPill.isVisible = false
-        flushToPanel(token, thinkBuffer, isThinking = true)
-    }
-
-    fun appendAnswerToken(token: String, genId: Int) {
-        if (genId != currentGenerationId || streamingBlocked) return
-        statusPill.isVisible = false
-        flushToPanel(token, streamBuffer, isThinking = false)
-    }
-
-    /**
-     * Shared token-to-panel flushing with blocking for XML markup that must never reach the UI.
-     * Thinking tokens are blocked from showing tool/proposal XML.
-     * Answer tokens are additionally blocked from showing <think> tags.
-     */
-    private fun flushToPanel(token: String, buffer: StringBuilder, isThinking: Boolean) {
-        val allBlocked = if (isThinking) blockedPrefixes
-                         else blockedPrefixes + listOf("<think>", "<think ")
-
-        buffer.append(token)
-        val buf = buffer.toString()
-
-        val blockAt = allBlocked.mapNotNull { p -> buf.indexOf(p).takeIf { it >= 0 } }.minOrNull()
-        if (blockAt != null) {
-            val safe = buf.substring(0, blockAt).trimEnd()
-            if (safe.isNotEmpty()) {
-                responseTextArea.append(safe)
-                responseTextArea.caretPosition = responseTextArea.document.length
+    private fun buildToolCallRow(name: String, arg: String): JPanel =
+        JPanel(FlowLayout(FlowLayout.LEFT, 6, 2)).apply {
+            isOpaque = false
+            add(JBLabel(Strings.Agent.TOOL_CALL_ICON).apply { foreground = mutedText })
+            add(JBLabel("<html><span style='font-family:monospace; color:${LlamatikTheme.htmlOnSurface};'>$name</span></html>"))
+            if (arg.isNotBlank()) {
+                add(JBLabel("<html><span style='font-family:monospace; color:${LlamatikTheme.htmlOnSurfaceVariant};'>$arg</span></html>"))
             }
-            if (isThinking) thinkingBlocked = true else streamingBlocked = true
-            return
         }
-
-        val maxPrefixLen = allBlocked.maxOf { it.length }
-        val tail = buf.takeLast(maxPrefixLen)
-        val holdLen = (1..tail.length).reversed().firstOrNull { len ->
-            val candidate = tail.takeLast(len)
-            allBlocked.any { it.startsWith(candidate) }
-        } ?: 0
-
-        val safeEnd = buf.length - holdLen
-        if (safeEnd > 0) {
-            val safe = buf.substring(0, safeEnd)
-            buffer.clear()
-            buffer.append(buf.substring(safeEnd))
-            responseTextArea.append(safe)
-            responseTextArea.caretPosition = responseTextArea.document.length
-        }
-    }
-
-    fun showAnswer(
-        text: String,
-        genId: Int,
-        proposals: List<EditProposal> = emptyList(),
-        onViewDiff: (EditProposal) -> Unit = {},
-        onApply: (EditProposal) -> Unit = {},
-        onRejectProposal: (EditProposal) -> Unit = {},
-    ) {
-        if (genId != currentGenerationId) return
-        statusPill.isVisible = false
-        loadingSpinner.suspend()
-        loadingSpinner.isVisible = false
-        spinnerPanel.isVisible = false
-        // Keep whatever was streamed into the panel — only fall back to the cleaned text
-        // if nothing was streamed (e.g. generation completed before any token was displayed).
-        if (responseTextArea.text.isBlank() && text.isNotBlank()) {
-            responseTextArea.text = text
-            responseTextArea.caretPosition = 0
-        }
-
-        proposalsPanel.removeAll()
-        if (proposals.isNotEmpty()) {
-            val header = JBLabel(Strings.EditDialog.PROPOSED_CHANGES_HEADER).apply {
-                foreground = LlamatikTheme.onSurface
-                font = font.deriveFont(Font.BOLD, font.size2D + 1f)
-                border = JBUI.Borders.empty(12, 0, 8, 0)
-                alignmentX = LEFT_ALIGNMENT
-            }
-            proposalsPanel.add(header)
-            proposals.forEach { proposal ->
-                proposalsPanel.add(buildProposalCard(proposal, onViewDiff, onApply, onRejectProposal))
-                proposalsPanel.add(javax.swing.Box.createVerticalStrut(6).also {
-                    (it as javax.swing.JComponent).alignmentX = LEFT_ALIGNMENT
-                })
-            }
-            proposalsPanel.isVisible = true
-        } else {
-            proposalsPanel.isVisible = false
-        }
-        proposalsPanel.revalidate()
-        proposalsPanel.repaint()
-        revalidate()
-        repaint()
-    }
 
     private fun buildProposalCard(
         proposal: EditProposal,
@@ -526,7 +804,7 @@ class AgentTabPanel(
         onApply: (EditProposal) -> Unit,
         onReject: (EditProposal) -> Unit,
     ): JPanel {
-        val card = JPanel(java.awt.BorderLayout(0, 6)).apply {
+        val card = JPanel(BorderLayout(0, 6)).apply {
             isOpaque = true
             background = cardBackground
             border = JBUI.Borders.compound(
@@ -534,39 +812,26 @@ class AgentTabPanel(
                 JBUI.Borders.empty(10, 12),
             )
             alignmentX = LEFT_ALIGNMENT
+            maximumSize = Dimension(Int.MAX_VALUE, Int.MAX_VALUE)
         }
-
-        val fileLabel = JBLabel(
-            "<html><b>${java.io.File(proposal.filePath).name}</b></html>"
-        ).apply {
+        val fileLabel = JBLabel("<html><b>${java.io.File(proposal.filePath).name}</b></html>").apply {
             foreground = LlamatikTheme.onSurface
         }
-
         val pathLabel = JBLabel(
-            "<html><span style='color:${LlamatikTheme.htmlOnSurfaceVariant};'>${proposal.filePath}</span></html>"
-        ).apply {
-            border = JBUI.Borders.emptyTop(2)
-        }
-
+            "<html><span style='color:${LlamatikTheme.htmlOnSurfaceVariant};'>${proposal.filePath}</span></html>",
+        ).apply { border = JBUI.Borders.emptyTop(2) }
         val summaryLabel = JBLabel(
-            "<html><span style='color:${LlamatikTheme.htmlOnSurfaceVariant};'>${proposal.summary}</span></html>"
-        ).apply {
-            border = JBUI.Borders.emptyTop(2)
-        }
-
+            "<html><span style='color:${LlamatikTheme.htmlOnSurfaceVariant};'>${proposal.summary}</span></html>",
+        ).apply { border = JBUI.Borders.emptyTop(2) }
         val labelStack = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
             isOpaque = false
-            add(fileLabel)
-            add(pathLabel)
-            add(summaryLabel)
+            add(fileLabel); add(pathLabel); add(summaryLabel)
         }
-
         val statusLabel = JBLabel("").apply {
             isVisible = false
             font = font.deriveFont(Font.BOLD)
         }
-
         val diffButton = JButton(Strings.EditDialog.VIEW_DIFF).apply {
             isFocusPainted = false
             isContentAreaFilled = false
@@ -576,8 +841,6 @@ class AgentTabPanel(
             )
             addActionListener { onViewDiff(proposal) }
         }
-
-        // Declare rejectButton before acceptButton so acceptButton can reference it directly
         val rejectButton = JButton(Strings.EditDialog.REJECT).apply {
             isFocusPainted = false
             isContentAreaFilled = false
@@ -587,7 +850,6 @@ class AgentTabPanel(
                 JBUI.Borders.empty(4, 8),
             )
         }
-
         val acceptButton = JButton(Strings.EditDialog.ACCEPT).apply {
             isFocusPainted = false
             background = LlamatikTheme.primary
@@ -604,11 +866,9 @@ class AgentTabPanel(
                 diffButton.isEnabled = false
                 rejectButton.isEnabled = false
                 this.isEnabled = false
-                card.revalidate()
-                card.repaint()
+                card.revalidate(); card.repaint()
             }
         }
-
         rejectButton.addActionListener {
             onReject(proposal)
             statusLabel.text = Strings.EditDialog.REJECTED_LABEL
@@ -617,177 +877,68 @@ class AgentTabPanel(
             diffButton.isEnabled = false
             acceptButton.isEnabled = false
             rejectButton.isEnabled = false
-            card.revalidate()
-            card.repaint()
+            card.revalidate(); card.repaint()
         }
-
         val buttons = JPanel(FlowLayout(FlowLayout.RIGHT, 6, 0)).apply {
             isOpaque = false
-            add(statusLabel)
-            add(diffButton)
-            add(rejectButton)
-            add(acceptButton)
+            add(statusLabel); add(diffButton); add(rejectButton); add(acceptButton)
         }
-
-        // Labels on top, action buttons below
-        card.add(labelStack, java.awt.BorderLayout.NORTH)
-        card.add(buttons, java.awt.BorderLayout.SOUTH)
+        card.add(labelStack, BorderLayout.NORTH)
+        card.add(buttons, BorderLayout.SOUTH)
         return card
     }
 
-    fun updateState(taskState: AgentTaskState?) {
-        if (taskState == null) {
-            cardLayout.show(cardPanel, CARD_WELCOME)
-            return
-        }
-
-        cardLayout.show(cardPanel, CARD_TASK)
-        phaseList.removeAll()
-
-        val taskCard = JPanel().apply {
-            layout = BoxLayout(this, BoxLayout.Y_AXIS)
-            background = cardBackground
-            border = JBUI.Borders.compound(
-                BorderFactory.createLineBorder(panelStroke, 1, true),
-                JBUI.Borders.empty(14),
-            )
-        }
-
-        taskCard.add(JBLabel("<html><b>Task</b><br/>${taskState.prompt}</html>").apply {
-            foreground = LlamatikTheme.onSurface
-            border = JBUI.Borders.emptyBottom(12)
-            alignmentX = LEFT_ALIGNMENT
-        })
-
-        AgentPhase.values().forEach { phase ->
-            taskCard.add(buildPhaseRow(
-                phase = phase,
-                isCurrent = phase == taskState.currentPhase,
-                isDone = phase in taskState.phaseHistory,
-            ))
-        }
-
-        if (taskState.filesInvolved.isNotEmpty()) {
-            taskCard.add(JBLabel("<html><br/><b>Files</b><br/>${taskState.filesInvolved.joinToString("<br/>")}</html>").apply {
-                foreground = mutedText
-                alignmentX = LEFT_ALIGNMENT
-            })
-        }
-
-        phaseList.add(taskCard)
-
-        approveButton.isVisible = taskState.waitingForApproval
-        rejectButton.isVisible = taskState.waitingForApproval
-
-        phaseList.revalidate()
-        phaseList.repaint()
-    }
-
-    fun showReadinessOverlay(state: PluginReadinessState, trialExpired: Boolean) {
-        val message = when {
-            trialExpired -> Strings.Agent.OVERLAY_TRIAL_EXPIRED
-            state == PluginReadinessState.NO_MODEL -> Strings.Agent.OVERLAY_NO_MODEL
-            state == PluginReadinessState.LOADING_MODEL -> Strings.Agent.OVERLAY_LOADING_MODEL
-            else -> return
-        }
-
-        cardPanel.add(buildOverlayCard(message), CARD_OVERLAY)
-        cardLayout.show(cardPanel, CARD_OVERLAY)
-        cardPanel.revalidate()
-        cardPanel.repaint()
-    }
-
-    fun hideReadinessOverlay() {
-        cardLayout.show(cardPanel, CARD_WELCOME)
-        cardPanel.revalidate()
-        cardPanel.repaint()
-    }
-
-    fun hideVerification() {
-        verificationPanel.isVisible = false
-    }
-
-    fun showVerifying(message: String) {
-        verifyStatusLabel.text = message
-        verifyStatusLabel.foreground = mutedText
-        verifyStatusLabel.isVisible = true
-        verifyErrorScroll.isVisible = false
-        autoFixButton.isVisible = false
-        verificationPanel.isVisible = true
-        verificationPanel.revalidate()
-        verificationPanel.repaint()
-        revalidate()
-        repaint()
-    }
-
-    fun showBuildSuccess(testsRan: Boolean) {
-        verifyStatusLabel.text = if (testsRan) Strings.Verification.TESTS_PASSED else Strings.Verification.BUILD_OK
-        verifyStatusLabel.foreground = success
-        verifyStatusLabel.isVisible = true
-        verifyErrorScroll.isVisible = false
-        autoFixButton.isVisible = false
-        verificationPanel.isVisible = true
-        verificationPanel.revalidate()
-        verificationPanel.repaint()
-        revalidate()
-        repaint()
-    }
-
-    fun showBuildErrors(errors: String, onAutoFix: () -> Unit) {
-        verifyStatusLabel.text = Strings.Verification.BUILD_FAILED
-        verifyStatusLabel.foreground = LlamatikTheme.error
-        verifyStatusLabel.isVisible = true
-        verifyErrorArea.text = errors
-        verifyErrorScroll.isVisible = true
-        for (l in autoFixButton.actionListeners) autoFixButton.removeActionListener(l)
-        autoFixButton.text = Strings.Verification.AUTO_FIX
-        autoFixButton.addActionListener { onAutoFix() }
-        autoFixButton.isVisible = true
-        verificationPanel.isVisible = true
-        verificationPanel.revalidate()
-        verificationPanel.repaint()
-        revalidate()
-        repaint()
-    }
-
-    fun showAutoFixLimit() {
-        verifyStatusLabel.text = Strings.Verification.RETRY_LIMIT
-        verifyStatusLabel.foreground = mutedText
-        verifyStatusLabel.isVisible = true
-        autoFixButton.isVisible = false
-        verificationPanel.isVisible = true
-        verificationPanel.revalidate()
-        verificationPanel.repaint()
-        revalidate()
-        repaint()
-    }
-
-    private fun buildPhaseRow(
-        phase: AgentPhase,
-        isCurrent: Boolean,
-        isDone: Boolean,
-    ): JPanel {
-        val icon = when {
-            isDone -> "✓"
-            isCurrent -> "●"
-            else -> "○"
-        }
-
-        val color = when {
-            isDone -> success
-            isCurrent -> accent
-            else -> mutedText
-        }
-
+    private fun buildPhaseRow(phase: AgentPhase, isCurrent: Boolean, isDone: Boolean): JPanel {
+        val icon = when { isDone -> "✓"; isCurrent -> "●"; else -> "○" }
+        val color = when { isDone -> success; isCurrent -> accent; else -> mutedText }
         return JPanel(BorderLayout()).apply {
             isOpaque = false
             border = JBUI.Borders.empty(4, 0)
             add(JLabel("$icon  ${phase.name.replace('_', ' ')}").apply {
                 foreground = color
-                if (isCurrent) {
-                    font = font.deriveFont(Font.BOLD)
-                }
+                if (isCurrent) font = font.deriveFont(Font.BOLD)
             }, BorderLayout.WEST)
         }
+    }
+
+    private fun flushToArea(token: String, buffer: StringBuilder, target: JBTextArea) {
+        val allBlocked = if (target === thinkTextArea) blockedPrefixes
+                         else blockedPrefixes + listOf("<think>", "<think ")
+
+        buffer.append(token)
+        val buf = buffer.toString()
+
+        val blockAt = allBlocked.mapNotNull { p -> buf.indexOf(p).takeIf { it >= 0 } }.minOrNull()
+        if (blockAt != null) {
+            val safe = buf.substring(0, blockAt).trimEnd()
+            if (safe.isNotEmpty()) {
+                target.append(safe)
+                target.caretPosition = target.document.length
+            }
+            if (target === thinkTextArea) thinkingBlocked = true else streamingBlocked = true
+            return
+        }
+
+        val maxPrefixLen = allBlocked.maxOf { it.length }
+        val tail = buf.takeLast(maxPrefixLen)
+        val holdLen = (1..tail.length).reversed().firstOrNull { len ->
+            val candidate = tail.takeLast(len)
+            allBlocked.any { it.startsWith(candidate) }
+        } ?: 0
+
+        val safeEnd = buf.length - holdLen
+        if (safeEnd > 0) {
+            val safe = buf.substring(0, safeEnd)
+            buffer.clear()
+            buffer.append(buf.substring(safeEnd))
+            target.append(safe)
+            target.caretPosition = target.document.length
+        }
+    }
+
+    private fun formatElapsed(ms: Long): String {
+        val secs = ms / 1000
+        val mins = secs / 60
+        return if (mins > 0) "${mins}m ${secs % 60}s" else "${secs}s"
     }
 }
