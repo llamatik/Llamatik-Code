@@ -354,6 +354,8 @@ class LlamatikToolWindowPanel(
                 inputArea.toolTipText = Strings.Composer.INPUT_TOOLTIP_ASK
             }
         }
+        // Re-evaluate input lock: switching away from Agent while it generates should free input.
+        setGenerating(isAgentGenerating)
     }
 
     private fun prefillComposer(text: String) {
@@ -526,10 +528,16 @@ class LlamatikToolWindowPanel(
     private fun computeState(): PluginReadinessState =
         stateController.currentState(isActivelyLoading = isActivelyLoading, isIndexing = false)
 
+    private var isAgentGenerating = false
+
     private fun setGenerating(generating: Boolean) {
-        sendButton.isEnabled = !generating
+        isAgentGenerating = generating
         stopButton.isEnabled = generating
-        inputArea.isEnabled = !generating || currentMode != SurfaceMode.AGENT
+        // Input and send are only locked when we are actively viewing the Agent tab.
+        // Switching to Ask frees them so the user can send Ask queries in parallel.
+        val agentTabActive = currentMode == SurfaceMode.AGENT
+        sendButton.isEnabled = !generating || !agentTabActive
+        inputArea.isEnabled = !generating || !agentTabActive
     }
 
     private fun syncState() {

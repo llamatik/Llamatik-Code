@@ -743,8 +743,7 @@ class AgentTabPanel(
             background = cardBackground
             isOpaque = true
             border = JBUI.Borders.empty(10, 16, 8, 16)
-            add(backButton, BorderLayout.WEST)
-            add(timerRow, BorderLayout.CENTER)
+            add(timerRow, BorderLayout.WEST)
             add(rightButtons, BorderLayout.EAST)
         }
 
