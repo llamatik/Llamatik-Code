@@ -106,17 +106,18 @@ class AgentOrchestrator(private val project: Project) {
             override val isCancelled: Boolean get() = cancelled.get()
         }
 
-        // Keep total prompt well under n_batch (2048 tokens ≈ 6000 chars at ~3 chars/token).
-        // Reserve ~1500 chars for the system prompt + context hint, leaving ~4500 for history.
+        // n_batch = 2048 tokens ≈ 6000 chars at ~3 chars/token.
+        // Budget breakdown (chars): systemPrompt ≤1800, userPrompt ≤800, contextHint ≤1200,
+        // history ≤1200, chat-template overhead ~400 → total ≤5400 (safe margin).
         val systemPrompt = buildSystemPrompt()
         val contextHint = buildContextHint()
-        val historyBudgetChars = 4500
+        val historyBudgetChars = 1200
         val recentMessages = fitMessagesInBudget(session.messages, historyBudgetChars)
 
         val toolAugmentedMessages = mutableListOf<ChatMessage>()
         toolAugmentedMessages += ChatMessage(role = ChatRole.SYSTEM, content = systemPrompt)
         toolAugmentedMessages += recentMessages
-        toolAugmentedMessages += ChatMessage(role = ChatRole.USER, content = userPrompt.take(2000))
+        toolAugmentedMessages += ChatMessage(role = ChatRole.USER, content = userPrompt.take(800))
         toolAugmentedMessages += ChatMessage(role = ChatRole.SYSTEM, content = contextHint)
 
         val config = BackendConfig(
@@ -164,17 +165,19 @@ class AgentOrchestrator(private val project: Project) {
                     // Second pass: keep only the immediate user turn + tool results to avoid
                     // doubling history size and exceeding n_batch (2048 tokens ≈ 6000 chars).
                     // Use a compact system prompt here — no full skills text — to stay within budget.
+                    // Second-pass budget: systemPrompt ≤600, userPrompt ≤400, toolResults ≤2000
+                    // → total ≤3000 chars + chat-template overhead ≤5400 (safely under 2048 tokens).
                     val toolResultsSummary = toolMessages.joinToString("\n") { msg ->
-                        "[${msg.toolName}]:\n${msg.content.take(1200)}"
+                        "[${msg.toolName}]:\n${msg.content.take(600)}"
                     }
                     val secondPassMessages = listOf(
                         ChatMessage(role = ChatRole.SYSTEM, content = buildSecondPassSystemPrompt()),
-                        ChatMessage(role = ChatRole.USER, content = userPrompt.take(600)),
+                        ChatMessage(role = ChatRole.USER, content = userPrompt.take(400)),
                         ChatMessage(
                             role = ChatRole.SYSTEM,
                             content = "Project: ${contextService.projectName()}\n" +
-                                "Tool results:\n${toolResultsSummary.take(4000)}\n\n" +
-                                "Write ONE <edit_proposal> per file changed. Do NOT skip files. Full file content only:\n" +
+                                "Tool results:\n${toolResultsSummary.take(2000)}\n\n" +
+                                "Write ONE <edit_proposal> per file changed. Full file content only:\n" +
                                 "<edit_proposal path=\"rel/path/File.kt\" summary=\"desc\">\n" +
                                 "<new_content><![CDATA[...full content...]]></new_content>\n" +
                                 "</edit_proposal>",
@@ -245,10 +248,10 @@ class AgentOrchestrator(private val project: Project) {
             val content = runCatching { contextService.readFile(currentFilePath) }.getOrNull()
             if (!content.isNullOrBlank()) {
                 appendLine("- currentFileContent:")
-                appendLine(content.take(3000))
+                appendLine(content.take(800))
             }
         }
-        val selected = contextService.getSelectedText()?.take(600)
+        val selected = contextService.getSelectedText()?.take(300)
         if (!selected.isNullOrBlank()) appendLine("- selectedText=${selected}")
         val pinned = contextService.pinnedInstructions()
         if (pinned.isNotBlank()) appendLine("- instructions=${pinned.take(200)}")
@@ -280,18 +283,13 @@ class AgentOrchestrator(private val project: Project) {
         appendLine("3. When writing code in <edit_proposal>, write the COMPLETE file — do not truncate.")
         appendLine("4. Use currentFileContent to write code matching the actual project (correct package, imports, class names). Never use placeholder or dummy code.")
         appendLine("5. Multi-file changes: call list_files to discover the project structure, then read_file for EVERY file you need to see — all tool calls in the SAME response. Never assume file contents you haven't read.")
-        appendLine("Use tools for project data. You may emit up to 6 tool calls in one response. Format:")
+        appendLine("Use tools for project data. Up to 6 tool calls per response. Format:")
         appendLine("<tool_call name=\"read_file\"><arg name=\"path\">src/Main.kt</arg></tool_call>")
-        appendLine("Tools: ${toolRegistry.describeTools().take(800)}")
-        appendLine("When proposing changes: emit ONE <edit_proposal> block for EACH file that must be created or modified. Do not skip any file — if a task requires 4 files, write 4 proposals.")
-        appendLine("Each proposal uses exactly this format:")
-        appendLine("<edit_proposal path=\"rel/path/to/File.kt\" summary=\"short description of change\">")
-        appendLine("<new_content><![CDATA[...full new file content...]]></new_content>")
-        appendLine("</edit_proposal>")
-        appendLine("The user will review a diff for each file and approve or reject individually before any change is written.")
-        // Cap skills addition to protect n_batch budget (~6000 chars for the full first-pass prompt).
+        appendLine("Tools: ${toolRegistry.describeTools().take(400)}")
+        appendLine("Emit ONE <edit_proposal> per file changed:")
+        appendLine("<edit_proposal path=\"rel/path/File.kt\" summary=\"desc\"><new_content><![CDATA[...]]></new_content></edit_proposal>")
         val skillsAddition = skillService.buildSkillsPromptAddition()
-        if (skillsAddition.isNotBlank()) append(skillsAddition.take(1200))
+        if (skillsAddition.isNotBlank()) append(skillsAddition.take(400))
     }
 
     private val editRegex = Regex(
