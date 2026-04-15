@@ -40,6 +40,8 @@ class AgentTabPanel(
     private val onClear: () -> Unit = {},
     private val isAutoApprove: () -> Boolean = { false },
     private val onAutoApproveChanged: (Boolean) -> Unit = {},
+    private val isAutoBuild: () -> Boolean = { true },
+    private val onAutoBuildChanged: (Boolean) -> Unit = {},
 ) : JPanel(BorderLayout()) {
 
     private val rootBackground = LlamatikTheme.background
@@ -213,17 +215,22 @@ class AgentTabPanel(
         font = font.deriveFont(Font.PLAIN, font.size2D - 1f)
         isSelected = isAutoApprove()
         addActionListener { onAutoApproveChanged(isSelected) }
-        alignmentX = LEFT_ALIGNMENT
-        maximumSize = Dimension(Int.MAX_VALUE, 28)
+    }
+
+    // ── Auto-build checkbox ───────────────────────────────────────────────────
+    private val autoBuildCheck = JBCheckBox(Strings.Agent.AUTO_BUILD_NEXT).apply {
+        isOpaque = false
+        foreground = mutedText
+        font = font.deriveFont(Font.PLAIN, font.size2D - 1f)
+        isSelected = isAutoBuild()
+        addActionListener { onAutoBuildChanged(isSelected) }
     }
 
     // ── Spinner ───────────────────────────────────────────────────────────────
     private val loadingSpinner = AsyncProcessIcon("agent-loading").apply { isVisible = false }
-    private val spinnerPanel = JPanel(FlowLayout(FlowLayout.LEFT, 0, 6)).apply {
+    private val spinnerPanel = JPanel(FlowLayout(FlowLayout.LEFT, 4, 0)).apply {
         isOpaque = false
         isVisible = false
-        alignmentX = LEFT_ALIGNMENT
-        maximumSize = Dimension(Int.MAX_VALUE, 36)
         add(loadingSpinner)
     }
 
@@ -381,13 +388,14 @@ class AgentTabPanel(
         statusPill.isVisible = true
         loadingSpinner.resume()
         loadingSpinner.isVisible = true
-        spinnerPanel.isVisible = true
+        spinnerPanel.isVisible = true  // spinnerPanel lives in the bottom bar
 
         elapsedTimer.stop()
         elapsedLabel.text = "0s"
         elapsedTimer.start()
 
         autoApproveCheck.isSelected = isAutoApprove()
+        autoBuildCheck.isSelected = isAutoBuild()
 
         conversationScroll.viewport.viewPosition = java.awt.Point(0, 0)
 
@@ -461,7 +469,6 @@ class AgentTabPanel(
         statusPill.isVisible = false
         loadingSpinner.suspend()
         loadingSpinner.isVisible = false
-        spinnerPanel.isVisible = false
 
         if (responseTextArea.text.isBlank() && text.isNotBlank()) {
             responseTextArea.text = text
@@ -725,18 +732,25 @@ class AgentTabPanel(
             add(clearButton); add(copyButton)
         }
 
+        // Spinner sits inline next to the elapsed timer in the top bar
+        val timerRow = JPanel(FlowLayout(FlowLayout.LEFT, 6, 0)).apply {
+            isOpaque = false
+            add(elapsedLabel)
+            add(spinnerPanel)
+        }
+
         val topBar = JPanel(BorderLayout(8, 0)).apply {
             background = cardBackground
             isOpaque = true
             border = JBUI.Borders.empty(10, 16, 8, 16)
             add(backButton, BorderLayout.WEST)
-            add(elapsedLabel, BorderLayout.CENTER)
+            add(timerRow, BorderLayout.CENTER)
             add(rightButtons, BorderLayout.EAST)
         }
 
-        // Populate the single conversation panel.
-        // Order: prompt bubble → status → reasoning → tool calls →
-        //        response text → proposals → spinner → auto-approve → verification
+        // Conversation scroll: prompt → status → reasoning → tool calls →
+        //                      response text → proposals → verification
+        // (inline content only — no controls)
         conversationPanel.removeAll()
         fun addItem(c: javax.swing.JComponent, bottomGap: Int = 8) {
             c.alignmentX = LEFT_ALIGNMENT
@@ -749,15 +763,23 @@ class AgentTabPanel(
         addItem(toolCallsPanel, 4)
         addItem(responseContent)
         addItem(proposalsPanel)
-        addItem(spinnerPanel, 4)
-        addItem(autoApproveCheck, 4)
         conversationPanel.add(verificationPanel.also { it.alignmentX = LEFT_ALIGNMENT })
+
+        // Fixed bottom bar: checkboxes always visible at bottom
+        val bottomBar = JPanel(FlowLayout(FlowLayout.LEFT, 16, 8)).apply {
+            isOpaque = true
+            background = cardBackground
+            border = BorderFactory.createMatteBorder(1, 0, 0, 0, panelStroke)
+            add(autoApproveCheck)
+            add(autoBuildCheck)
+        }
 
         return JPanel(BorderLayout()).apply {
             background = cardBackground
             isOpaque = true
             add(topBar, BorderLayout.NORTH)
             add(conversationScroll, BorderLayout.CENTER)
+            add(bottomBar, BorderLayout.SOUTH)
         }
     }
 

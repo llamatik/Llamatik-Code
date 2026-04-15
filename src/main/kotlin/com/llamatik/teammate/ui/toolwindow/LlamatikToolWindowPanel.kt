@@ -153,6 +153,8 @@ class LlamatikToolWindowPanel(
         onClear = { currentHandle?.cancel(); setGenerating(false) },
         isAutoApprove = { settings.data().agentAutoApprove },
         onAutoApproveChanged = { checked -> settings.data().agentAutoApprove = checked },
+        isAutoBuild = { settings.data().agentAutoBuild },
+        onAutoBuildChanged = { checked -> settings.data().agentAutoBuild = checked },
     )
 /*
     private val titleLabel = JBLabel("Llamatik Code").apply {
@@ -433,7 +435,9 @@ class LlamatikToolWindowPanel(
                             }
                             agentTabPanel.showAnswer(text = clean, genId = genId)
                             setGenerating(false)
-                            if (appliedFiles.isNotEmpty()) startVerification(appliedFiles)
+                            if (appliedFiles.isNotEmpty() && settings.data().agentAutoBuild) {
+                                startVerification(appliedFiles)
+                            }
                             return@invokeLater
                         }
 
@@ -442,7 +446,7 @@ class LlamatikToolWindowPanel(
                         var remaining = proposals.size.coerceAtLeast(1)
                         fun checkAllResolved() {
                             remaining--
-                            if (remaining == 0 && appliedFiles.isNotEmpty()) {
+                            if (remaining == 0 && appliedFiles.isNotEmpty() && settings.data().agentAutoBuild) {
                                 startVerification(appliedFiles.toList())
                             }
                         }
