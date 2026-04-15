@@ -1,14 +1,16 @@
 package com.llamatik.teammate.ui.chat
 
+import com.intellij.icons.AllIcons
 import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.openapi.project.Project
 import com.intellij.ui.components.JBTextArea
+import com.intellij.util.ui.AsyncProcessIcon
 import com.llamatik.teammate.ui.LlamatikTheme
 import com.llamatik.teammate.ui.Strings
 import com.intellij.util.ui.JBUI
 import com.llamatik.teammate.model.ChatRole
 import java.awt.BorderLayout
-import java.awt.Color
+import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.Graphics
 import java.awt.Graphics2D
@@ -45,8 +47,12 @@ class ChatMessagePanel(
         font = font.deriveFont(font.size2D + 1f)
     }
 
-    private val actions = JPanel(FlowLayout(FlowLayout.RIGHT, 6, 0)).apply {
+    private val actions = JPanel(FlowLayout(FlowLayout.RIGHT, 4, 0)).apply {
         isOpaque = false
+    }
+
+    private val spinner = AsyncProcessIcon("chat-streaming").apply {
+        isVisible = initialContent.isEmpty() && role == ChatRole.ASSISTANT
     }
 
     init {
@@ -63,7 +69,7 @@ class ChatMessagePanel(
             font = font.deriveFont(font.size2D - 1f)
         }, BorderLayout.WEST)
 
-        actions.add(actionButton(Strings.App.COPY) {
+        actions.add(iconButton(AllIcons.Actions.Copy, Strings.App.COPY) {
             CopyPasteManager.getInstance().setContents(StringSelection(textArea.text))
         })
 
@@ -78,6 +84,12 @@ class ChatMessagePanel(
 
         val bubbleColor = if (role == ChatRole.USER) userBubble else assistantBubble
         val strokeColor = if (role == ChatRole.USER) userStroke else bubbleStroke
+
+        val spinnerRow = JPanel(FlowLayout(FlowLayout.LEFT, 8, 4)).apply {
+            isOpaque = false
+            add(spinner)
+        }
+
         val bubble = object : JPanel(BorderLayout()) {
             override fun paintComponent(g: Graphics) {
                 val g2 = g.create() as Graphics2D
@@ -92,6 +104,7 @@ class ChatMessagePanel(
             isOpaque = false
             border = JBUI.Borders.empty(1)
             add(textArea, BorderLayout.CENTER)
+            add(spinnerRow, BorderLayout.SOUTH)
         }
 
         val stack = JPanel().apply {
@@ -115,11 +128,17 @@ class ChatMessagePanel(
     }
 
     fun appendToken(token: String) {
+        if (spinner.isVisible) {
+            spinner.isVisible = false
+            spinner.suspend()
+        }
         textArea.append(token)
         textArea.caretPosition = textArea.document.length
     }
 
     fun setContent(value: String) {
+        spinner.isVisible = false
+        spinner.suspend()
         textArea.text = value
         textArea.caretPosition = 0
     }
@@ -130,6 +149,16 @@ class ChatMessagePanel(
         actions.revalidate()
         actions.repaint()
     }
+
+    private fun iconButton(icon: javax.swing.Icon, tooltip: String, onClick: () -> Unit): JButton =
+        JButton(icon).apply {
+            toolTipText = tooltip
+            isFocusPainted = false
+            isContentAreaFilled = false
+            preferredSize = Dimension(24, 24)
+            border = JBUI.Borders.empty(2)
+            addActionListener { onClick() }
+        }
 
     private fun actionButton(text: String, onClick: () -> Unit): JButton =
         JButton("<html><span style='color:${LlamatikTheme.htmlOnSurfaceVariant};'>$text</span></html>").apply {
