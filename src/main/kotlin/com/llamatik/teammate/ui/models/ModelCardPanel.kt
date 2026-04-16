@@ -19,6 +19,7 @@ import com.llamatik.teammate.model.ModelSpecialization
 import com.llamatik.teammate.model.ModelStatus
 import com.llamatik.teammate.settings.DownloadedModelService
 import com.llamatik.teammate.settings.LlamatikAppSettings
+import java.nio.file.Files
 import com.llamatik.teammate.ui.Strings
 import com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel
 import java.awt.BorderLayout
@@ -53,7 +54,7 @@ class ModelCardPanel(
         layout = BoxLayout(this, BoxLayout.Y_AXIS)
         isOpaque = false
     }
-    private val statusBadge = buildStatusBadge(descriptor.status)
+    private val statusBadge = buildStatusBadge(resolveCurrentStatus())
     private var currentActionComponent: java.awt.Component? = null
 
     private var progressBar: JProgressBar? = null
@@ -86,6 +87,7 @@ class ModelCardPanel(
         ).apply {
             foreground = JBColor.GRAY
             font = font.deriveFont(font.size2D - 1f)
+            alignmentX = LEFT_ALIGNMENT
         }
         topPanel.add(metaLabel)
 
@@ -140,7 +142,7 @@ class ModelCardPanel(
 
     private fun buildActionsPanel(): JPanel {
         val panel = JPanel(FlowLayout(FlowLayout.RIGHT, 4, 0)).apply { isOpaque = false }
-        val liveStatus = downloadManager.getProgress(descriptor.id)?.status ?: descriptor.status
+        val liveStatus = downloadManager.getProgress(descriptor.id)?.status ?: resolveCurrentStatus()
 
         when (liveStatus) {
             ModelStatus.NOT_DOWNLOADED, ModelStatus.FAILED, ModelStatus.CORRUPTED -> {
@@ -326,6 +328,14 @@ class ModelCardPanel(
             font = font.deriveFont(font.size2D - 1.5f)
             foreground = JBColor.GRAY
         }
+        val cancelButton = JButton(Strings.ModelCard.ACTION_CANCEL).apply {
+            addActionListener {
+                downloadManager.cancelDownload(descriptor.id)
+                hideProgressBar()
+                updateStatusBadge(ModelStatus.NOT_DOWNLOADED)
+                refreshActionsPanel()
+            }
+        }
         progressBar = bar
         progressLabel = label
 
@@ -335,6 +345,8 @@ class ModelCardPanel(
             add(bar)
             add(Box.createVerticalStrut(2))
             add(label)
+            add(Box.createVerticalStrut(4))
+            add(cancelButton)
         }
         replaceActionComponent(container)
     }
@@ -393,6 +405,23 @@ class ModelCardPanel(
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    /**
+     * Derives the real status by checking disk and settings at call time.
+     * - LOADED   : the file is the currently configured model path
+     * - DOWNLOADED : the file exists on disk
+     * - NOT_DOWNLOADED : file absent
+     */
+    private fun resolveCurrentStatus(): ModelStatus {
+        val localPath = settings.storageDir().resolve(localFileName()).toAbsolutePath()
+        val fileExists = Files.exists(localPath) && Files.isRegularFile(localPath)
+        if (!fileExists) return ModelStatus.NOT_DOWNLOADED
+        val configuredPath = runCatching {
+            java.nio.file.Path.of(settings.data().modelPath).toAbsolutePath()
+        }.getOrNull()
+        return if (configuredPath != null && configuredPath == localPath) ModelStatus.LOADED
+               else ModelStatus.DOWNLOADED
+    }
 
     private fun hwRecommendationText(rec: String): String = when (rec) {
         "recommended"    -> Strings.ModelCard.HW_OK

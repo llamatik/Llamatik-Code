@@ -16,7 +16,32 @@ import kotlin.io.path.deleteIfExists
 class DownloadedModelService {
     fun listDownloaded(): List<String> {
         val settings = service<LlamatikAppSettings>()
-        return settings.data().downloadedModels.toList()
+        val storageDir = settings.storageDir()
+        val all = settings.data().downloadedModels.toList()
+
+        val resolved = all.mapNotNull { path ->
+            val p = runCatching { Path.of(path) }.getOrNull() ?: return@mapNotNull null
+            when {
+                // Path still valid
+                Files.exists(p) && Files.isRegularFile(p) -> p.toAbsolutePath().normalize().toString()
+                // Path stale — try to find by filename in current storageDir
+                else -> {
+                    val fileName = p.fileName?.toString() ?: return@mapNotNull null
+                    val candidate = storageDir.resolve(fileName).toAbsolutePath().normalize()
+                    if (Files.exists(candidate) && Files.isRegularFile(candidate)) candidate.toString()
+                    else null
+                }
+            }
+        }.distinct()
+
+        // Update persisted list if anything changed
+        if (resolved != all) {
+            settings.data().downloadedModels.apply {
+                clear()
+                addAll(resolved)
+            }
+        }
+        return resolved
     }
 
     fun registerLocalModel(path: String) {

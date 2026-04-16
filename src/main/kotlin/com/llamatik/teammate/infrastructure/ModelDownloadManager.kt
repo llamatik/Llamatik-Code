@@ -94,6 +94,7 @@ class ModelDownloadManager {
                             if (progressMap[modelId]?.status == ModelStatus.NOT_DOWNLOADED) {
                                 logger.info("Download cancelled for $modelId")
                                 Files.deleteIfExists(partFile)
+                                progressMap.remove(modelId)
                                 return@submit
                             }
 
@@ -146,6 +147,7 @@ class ModelDownloadManager {
             } catch (e: InterruptedException) {
                 Thread.currentThread().interrupt()
                 Files.deleteIfExists(partFile)
+                progressMap.remove(modelId)
                 logger.info("Download interrupted for $modelId")
             } catch (e: Exception) {
                 Files.deleteIfExists(partFile)
@@ -163,11 +165,12 @@ class ModelDownloadManager {
     fun cancelDownload(modelId: String) {
         activeFutures[modelId]?.cancel(true)
         activeFutures.remove(modelId)
-        progressMap.remove(modelId)
+        // Keep a NOT_DOWNLOADED entry so the background thread's cancellation check fires
         val cancelled = DownloadProgressState(
             modelId = modelId, bytesDownloaded = 0, totalBytes = 0,
             speedBytesPerSec = 0, etaSeconds = 0, status = ModelStatus.NOT_DOWNLOADED,
         )
+        progressMap[modelId] = cancelled
         notifyListeners(modelId, cancelled)
     }
 

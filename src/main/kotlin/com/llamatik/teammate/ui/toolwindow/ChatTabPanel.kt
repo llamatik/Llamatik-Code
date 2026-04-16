@@ -49,6 +49,7 @@ class ChatTabPanel(
     private val onSend: (String) -> Unit = {},
     private val onStop: () -> Unit = {},
     private val onSettingsClicked: () -> Unit = {},
+    private val onModelChanged: () -> Unit = {},
 ) : JPanel(BorderLayout()) {
 
     enum class EntryMode {
@@ -129,6 +130,9 @@ class ChatTabPanel(
     private val newChatButton = toolbarButton(AllIcons.General.Add, Strings.Chat.NEW_CHAT)
     private val clearButton = toolbarButton(AllIcons.Actions.GC, Strings.Chat.CLEAR)
 
+    // ── Model picker ──────────────────────────────────────────────────────────
+    private val modelPickerButton = ModelPickerButton(onModelChanged = onModelChanged)
+
     // ── Composer ──────────────────────────────────────────────────────────────
     private val composerInput = JBTextArea(3, 40).apply {
         lineWrap = true
@@ -188,6 +192,8 @@ class ChatTabPanel(
     }
 
     // ── Composer public API ───────────────────────────────────────────────────
+
+    fun refreshModelPicker() = modelPickerButton.refresh()
 
     fun prefill(text: String) {
         composerInput.text = text
@@ -454,11 +460,20 @@ class ChatTabPanel(
             addActionListener { onSettingsClicked() }
         }
 
-        val footer = JPanel(FlowLayout(FlowLayout.RIGHT, 8, 0)).apply {
+        val footerLeft = JPanel(FlowLayout(FlowLayout.LEFT, 8, 0)).apply {
+            isOpaque = false
+            add(modelPickerButton)
+        }
+        val footerRight = JPanel(FlowLayout(FlowLayout.RIGHT, 8, 0)).apply {
             isOpaque = false
             add(settingsButton)
             add(composerStopButton)
             add(composerSendButton)
+        }
+        val footer = JPanel(java.awt.BorderLayout()).apply {
+            isOpaque = false
+            add(footerLeft, java.awt.BorderLayout.WEST)
+            add(footerRight, java.awt.BorderLayout.EAST)
         }
 
         val shell = object : JPanel(BorderLayout(0, 8)) {

@@ -111,6 +111,7 @@ class LlamatikToolWindowPanel(
         onSettingsClicked = {
             ShowSettingsUtil.getInstance().showSettingsDialog(project, LlamatikSettingsConfigurable::class.java)
         },
+        onModelChanged = { syncState() },
     )
 
     private val agentTabPanel = AgentTabPanel(
@@ -122,6 +123,7 @@ class LlamatikToolWindowPanel(
         onSettingsClicked = {
             ShowSettingsUtil.getInstance().showSettingsDialog(project, LlamatikSettingsConfigurable::class.java)
         },
+        onModelChanged = { syncState() },
         onClear = { currentHandle?.cancel(); setGenerating(false) },
         isAutoApprove = { settings.data().agentAutoApprove },
         onAutoApproveChanged = { checked -> settings.data().agentAutoApprove = checked },
@@ -432,11 +434,16 @@ class LlamatikToolWindowPanel(
     }
 
     private fun syncState() {
+        reconcileModelPath()
+
+
         val state = computeState()
         val composerEnabled = state != PluginReadinessState.NO_MODEL
 
         agentTabPanel.setComposerEnabled(composerEnabled)
+        agentTabPanel.refreshModelPicker()
         chatTabPanel.setComposerEnabled(composerEnabled)
+        chatTabPanel.refreshModelPicker()
 
         if (!composerEnabled) {
             agentTabPanel.setComposerTooltip(Strings.Composer.INPUT_TOOLTIP_NO_MODEL)
@@ -465,6 +472,39 @@ class LlamatikToolWindowPanel(
 
     fun refreshState() {
         syncState()
+    }
+
+    /**
+     * Ensures settings.modelPath points to a file that actually exists.
+     * If the stored path is stale (sandbox path changed between runs), tries to
+     * find a file with the same name inside the current storageDir and remaps to it.
+     * Only clears modelPath if the file cannot be found anywhere.
+     */
+    private fun reconcileModelPath() {
+        val stored = settings.data().modelPath.trim()
+        if (stored.isBlank()) return
+
+        val storedPath = runCatching { java.nio.file.Path.of(stored) }.getOrNull() ?: run {
+            settings.data().modelPath = ""
+            return
+        }
+
+        if (java.nio.file.Files.exists(storedPath) && java.nio.file.Files.isRegularFile(storedPath)) return
+
+        // File missing — try to find by filename in current storageDir
+        val fileName = storedPath.fileName?.toString() ?: run {
+            settings.data().modelPath = ""
+            return
+        }
+
+        val candidate = settings.storageDir().resolve(fileName)
+        if (java.nio.file.Files.exists(candidate) && java.nio.file.Files.isRegularFile(candidate)) {
+            val remapped = candidate.toAbsolutePath().toString()
+            settings.data().modelPath = remapped
+            service<com.llamatik.teammate.settings.DownloadedModelService>().registerLocalModel(remapped)
+        } else {
+            settings.data().modelPath = ""
+        }
     }
 
     private fun applyEdit(proposal: EditProposal) {
