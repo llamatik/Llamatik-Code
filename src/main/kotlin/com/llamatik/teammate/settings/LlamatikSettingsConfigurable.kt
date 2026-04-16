@@ -132,7 +132,7 @@ class LlamatikSettingsConfigurable : Configurable {
                     }
                     override fun createCenterPanel(): JComponent =
                         ModelLibraryPanel(null).apply {
-                            preferredSize = Dimension(720, 520)
+                            preferredSize = Dimension(860, 640)
                         }
                     override fun createActions() = arrayOf(okAction)
                 }

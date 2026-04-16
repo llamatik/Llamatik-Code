@@ -10,6 +10,19 @@ enum class ModelStatus {
     DOWNLOADED, LOADING, LOADED, UNLOADED, CORRUPTED
 }
 
+enum class ModelSpecialization {
+    CODING,
+    GENERAL_REASONING,
+    BALANCED,
+}
+
+enum class ModelCatalogStatus {
+    RECOMMENDED,
+    AVAILABLE,
+    LEGACY,
+    EXPERIMENTAL,
+}
+
 data class DownloadProgressState(
     val modelId: String,
     val bytesDownloaded: Long,

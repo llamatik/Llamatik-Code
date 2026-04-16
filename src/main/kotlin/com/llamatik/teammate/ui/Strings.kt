@@ -148,6 +148,7 @@ object Strings {
         const val STATUS_UNLOADED = "Unloaded"
         const val STATUS_CORRUPTED = "Corrupted"
         const val ACTION_DOWNLOAD = "Download"
+        const val ACTION_CANCEL = "Cancel"
         const val ACTION_LOAD = "Load"
         const val ACTION_DELETE = "Delete"
         const val ACTION_UNLOAD = "Unload"

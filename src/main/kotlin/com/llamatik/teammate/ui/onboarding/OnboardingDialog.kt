@@ -189,7 +189,7 @@ class OnboardingDialog(private val project: Project) : DialogWrapper(project, tr
 
             override fun createCenterPanel(): JComponent =
                 ModelLibraryPanel(project).apply {
-                    preferredSize = java.awt.Dimension(700, 500)
+                    preferredSize = java.awt.Dimension(860, 640)
                 }
         }
         dialog.show()

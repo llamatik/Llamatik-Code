@@ -56,20 +56,26 @@ class LlamatikAppSettings : PersistentStateComponent<LlamatikAppSettings.State> 
         ModelDescriptor(
             id = "Qwen3-14B-Q4_K_M",
             displayName = "Qwen3 14B Q4_K_M",
-            source = "Manual local download",
-            description = "Recommended local default for the plugin. Download the GGUF yourself and then select the file path below.",
+            source = "Hugging Face GGUF",
+            description = "Recommended local default for the plugin. Strong reasoning and coding balance for refactors, code understanding, and architecture work.",
         ),
         ModelDescriptor(
             id = "Qwen2.5-Coder-7B-Instruct-Q4_K_M",
             displayName = "Qwen2.5 Coder 7B Q4_K_M",
-            source = "Manual local download",
-            description = "Smaller local coding model for lower storage and RAM usage.",
+            source = "Hugging Face GGUF",
+            description = "Smaller coding-specialized model for lower RAM usage and fast everyday IntelliJ assistance.",
         ),
         ModelDescriptor(
-            id = "DeepSeek-R1-Distill-Qwen-7B-Q4_K_M",
-            displayName = "DeepSeek R1 Distill Qwen 7B Q4_K_M",
+            id = "Gemma-4-E4B-Q4_K_M",
+            displayName = "Gemma 4 E4B Q4_K_M",
+            source = "Gemma / Google model distribution",
+            description = "Small modern generalist with strong reasoning and useful coding performance for local plugin workflows.",
+        ),
+        ModelDescriptor(
+            id = "DeepSeek-R1-Distill-Qwen-32B-Q4_K_M",
+            displayName = "DeepSeek R1 Distill Qwen 32B Q4_K_M",
             source = "Manual local download",
-            description = "Reasoning-oriented option, but still requires a manually downloaded GGUF file.",
+            description = "High-end reasoning-oriented option for larger machines; useful for complex architecture and analysis tasks.",
         ),
     )
 }

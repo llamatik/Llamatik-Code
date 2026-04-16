@@ -11,7 +11,12 @@ data class ExtendedModelDescriptor(
     val useCases: List<String>,
     val tradeoffs: String,
     val isDefault: Boolean = false,
-    val downloadSourceUrl: String = "", // placeholder
+    val downloadSourceUrl: String = "",
+    val repositoryUrl: String = "",
+    val modelCardUrl: String = "",
+    val recommendedFileName: String? = null,
+    val specialization: ModelSpecialization = ModelSpecialization.BALANCED,
+    val catalogStatus: ModelCatalogStatus = ModelCatalogStatus.AVAILABLE,
     var status: ModelStatus = ModelStatus.NOT_DOWNLOADED,
     val localPath: String? = null,
 )
