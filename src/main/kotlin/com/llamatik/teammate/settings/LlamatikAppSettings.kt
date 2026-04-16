@@ -1,6 +1,5 @@
 package com.llamatik.teammate.settings
 
-import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.components.PersistentStateComponent
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.State
@@ -50,7 +49,7 @@ class LlamatikAppSettings : PersistentStateComponent<LlamatikAppSettings.State> 
 
     fun data(): State = myState
 
-    fun storageDir(): Path = Path.of(PathManager.getPluginsPath(), "llamatik-code-models")
+    fun storageDir(): Path = Path.of(System.getProperty("user.home"), ".llamatik", "models")
 
     fun predefinedModels(): List<ModelDescriptor> = listOf(
         ModelDescriptor(

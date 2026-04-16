@@ -14,6 +14,12 @@ import kotlin.io.path.deleteIfExists
 
 @Service(Service.Level.APP)
 class DownloadedModelService {
+
+    private val onRegisteredListeners = java.util.concurrent.CopyOnWriteArrayList<() -> Unit>()
+
+    fun addOnRegisteredListener(listener: () -> Unit) { onRegisteredListeners.add(listener) }
+    fun removeOnRegisteredListener(listener: () -> Unit) { onRegisteredListeners.remove(listener) }
+    private fun notifyRegistered() { onRegisteredListeners.forEach { it() } }
     fun listDownloaded(): List<String> {
         val settings = service<LlamatikAppSettings>()
         val storageDir = settings.storageDir()
@@ -50,6 +56,7 @@ class DownloadedModelService {
         if (normalized !in settings.data().downloadedModels) {
             settings.data().downloadedModels.add(normalized)
         }
+        notifyRegistered()
     }
 
     fun deleteModel(path: String) {

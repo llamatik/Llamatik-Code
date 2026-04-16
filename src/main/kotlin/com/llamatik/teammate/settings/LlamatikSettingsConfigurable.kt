@@ -39,6 +39,11 @@ class LlamatikSettingsConfigurable : Configurable {
     private val downloadedModelService = service<DownloadedModelService>()
     private val skillService = service<SkillService>()
 
+    private val onModelRegistered: () -> Unit = {
+        com.intellij.openapi.application.ApplicationManager.getApplication()
+            .invokeLater { reloadDownloadedModels() }
+    }
+
     private val activeSkillsCountLabel = JBLabel("")
 
     // Model path
@@ -60,6 +65,8 @@ class LlamatikSettingsConfigurable : Configurable {
     override fun getDisplayName(): String = Strings.Settings.PAGE_NAME
 
     override fun createComponent(): JComponent {
+        downloadedModelService.addOnRegisteredListener(onModelRegistered)
+
         val browseModelButton = JButton(Strings.Settings.BROWSE).apply {
             addActionListener {
                 val chooser = JFileChooser().apply {
@@ -252,6 +259,10 @@ class LlamatikSettingsConfigurable : Configurable {
             .addComponent(aboutButton)
             .addComponentFillVertically(JPanel(), 0)
             .panel
+    }
+
+    override fun disposeUIResources() {
+        downloadedModelService.removeOnRegisteredListener(onModelRegistered)
     }
 
     override fun isModified(): Boolean {
