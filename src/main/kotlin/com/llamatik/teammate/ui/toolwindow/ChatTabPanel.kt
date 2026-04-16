@@ -187,6 +187,8 @@ class ChatTabPanel(
             }
         })
 
+        AtMentionHandler(composerInput, project)
+
         bindActions()
         rebuildTabs()
     }

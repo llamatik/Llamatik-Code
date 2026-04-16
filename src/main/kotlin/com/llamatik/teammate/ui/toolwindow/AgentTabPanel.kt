@@ -61,6 +61,7 @@ class AgentTabPanel(
     private val onAutoBuildChanged: (Boolean) -> Unit = {},
     private val isAutoFix: () -> Boolean = { false },
     private val onAutoFixChanged: (Boolean) -> Unit = {},
+    private val project: com.intellij.openapi.project.Project? = null,
 ) : JPanel(BorderLayout()) {
 
     private val rootBackground = LlamatikTheme.background
@@ -439,6 +440,8 @@ class AgentTabPanel(
                 if (text.isNotEmpty()) onSend(text)
             }
         })
+
+        if (project != null) AtMentionHandler(composerInput, project)
     }
 
     // ── Public API ────────────────────────────────────────────────────────────

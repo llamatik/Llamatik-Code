@@ -106,18 +106,33 @@ class AgentOrchestrator(private val project: Project) {
             override val isCancelled: Boolean get() = cancelled.get()
         }
 
-        // n_batch = 2048 tokens ≈ 6000 chars at ~3 chars/token.
-        // Budget breakdown (chars): systemPrompt ≤1800, userPrompt ≤800, contextHint ≤1200,
-        // history ≤1200, chat-template overhead ~400 → total ≤5400 (safe margin).
-        val systemPrompt = buildSystemPrompt()
+        // Resolve @{path} file references typed in the composer.
+        // cleanInstruction = user text with @{…} tokens replaced by bare filenames.
+        // fileContext = fenced file contents to append into the system prompt.
+        val (cleanInstruction, fileContext) = resolveFileReferences(userPrompt)
+
+        // Build the single system prompt that the renderer will place at the top.
+        // File context is appended here so it is always visible to the model and never
+        // competes with the user instruction for the USER message character budget.
+        val systemPrompt = buildString {
+            append(buildSystemPrompt())
+            if (fileContext.isNotBlank()) {
+                appendLine()
+                appendLine()
+                appendLine("=== Attached files ===")
+                append(fileContext.take(3000))
+                appendLine()
+                appendLine("=== End attached files ===")
+            }
+        }
         val contextHint = buildContextHint()
         val historyBudgetChars = 1200
         val recentMessages = fitMessagesInBudget(session.messages, historyBudgetChars)
 
+        // messages list: no leading SYSTEM turn — the renderer takes systemPrompt separately.
         val toolAugmentedMessages = mutableListOf<ChatMessage>()
-        toolAugmentedMessages += ChatMessage(role = ChatRole.SYSTEM, content = systemPrompt)
         toolAugmentedMessages += recentMessages
-        toolAugmentedMessages += ChatMessage(role = ChatRole.USER, content = userPrompt.take(800))
+        toolAugmentedMessages += ChatMessage(role = ChatRole.USER, content = cleanInstruction.take(800))
         toolAugmentedMessages += ChatMessage(role = ChatRole.SYSTEM, content = contextHint)
 
         val config = BackendConfig(
@@ -129,7 +144,7 @@ class AgentOrchestrator(private val project: Project) {
         )
 
         val firstHandle = backend.generate(
-            GenerationRequest(systemPrompt = buildSystemPrompt(), messages = toolAugmentedMessages, config = config),
+            GenerationRequest(systemPrompt = systemPrompt, messages = toolAugmentedMessages, config = config),
             object : GenerationCallbacks {
                 override fun onToken(token: String) {
                     if (!cancelled.get()) filteredToken(token)
@@ -171,8 +186,7 @@ class AgentOrchestrator(private val project: Project) {
                         "[${msg.toolName}]:\n${msg.content.take(600)}"
                     }
                     val secondPassMessages = listOf(
-                        ChatMessage(role = ChatRole.SYSTEM, content = buildSecondPassSystemPrompt()),
-                        ChatMessage(role = ChatRole.USER, content = userPrompt.take(400)),
+                        ChatMessage(role = ChatRole.USER, content = cleanInstruction.take(400)),
                         ChatMessage(
                             role = ChatRole.SYSTEM,
                             content = "Project: ${contextService.projectName()}\n" +
@@ -290,6 +304,41 @@ class AgentOrchestrator(private val project: Project) {
         appendLine("<edit_proposal path=\"rel/path/File.kt\" summary=\"desc\"><new_content><![CDATA[...]]></new_content></edit_proposal>")
         val skillsAddition = skillService.buildSkillsPromptAddition()
         if (skillsAddition.isNotBlank()) append(skillsAddition.take(400))
+    }
+
+    /**
+     * Finds all `@{path}` tokens in [prompt] and reads each referenced file.
+     *
+     * Returns a [Pair] of:
+     * - `first`  — the clean user instruction with `@{…}` tokens replaced by bare filenames
+     * - `second` — fenced file contents to inject as a separate SYSTEM message (empty string if no refs)
+     *
+     * Keeping them separate ensures the user instruction is never truncated by the char budget.
+     */
+    private fun resolveFileReferences(prompt: String): Pair<String, String> {
+        val tokenRegex = Regex("""@\{([^}]+)}""")
+        val matches = tokenRegex.findAll(prompt).toList()
+        if (matches.isEmpty()) return Pair(prompt, "")
+
+        val attachments = StringBuilder()
+        matches.forEach { match ->
+            val path = match.groupValues[1].trim()
+            val content = runCatching { contextService.readFile(path) }.getOrNull()
+            if (!content.isNullOrBlank()) {
+                attachments.appendLine("### File: $path")
+                attachments.appendLine("```")
+                attachments.appendLine(content.take(2000))
+                attachments.appendLine("```")
+                attachments.appendLine()
+            }
+        }
+
+        // Replace @{path} tokens with just the filename so the instruction reads naturally
+        val cleanInstruction = tokenRegex.replace(prompt) { match ->
+            match.groupValues[1].substringAfterLast('/')
+        }
+
+        return Pair(cleanInstruction, attachments.trimEnd().toString())
     }
 
     private val editRegex = Regex(

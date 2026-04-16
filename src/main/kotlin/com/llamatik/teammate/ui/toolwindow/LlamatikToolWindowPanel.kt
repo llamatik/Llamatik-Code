@@ -131,6 +131,7 @@ class LlamatikToolWindowPanel(
         onAutoBuildChanged = { checked -> settings.data().agentAutoBuild = checked },
         isAutoFix = { settings.data().agentAutoFix },
         onAutoFixChanged = { checked -> settings.data().agentAutoFix = checked },
+        project = project,
     )
 /*
     private val titleLabel = JBLabel("Llamatik Code").apply {
