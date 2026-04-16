@@ -41,7 +41,7 @@ class SkillLibraryDialog(
     private val scrollPane = JBScrollPane(listPanel).apply {
         border = JBUI.Borders.empty()
         viewport.background = LlamatikTheme.background
-        preferredSize = Dimension(680, 460)
+        preferredSize = Dimension(780, 580)
     }
 
     init {
@@ -212,8 +212,10 @@ class SkillLibraryDialog(
 
         when (status) {
             SkillStatus.NOT_DOWNLOADED -> {
-                panel.add(buildButton(Strings.Skills.ACTION_DOWNLOAD, primary = true) {
+                // Built-in skills are bundled — no real download needed; activate directly
+                panel.add(buildButton(Strings.Skills.ACTION_ACTIVATE, primary = true) {
                     skillService.download(skill.id)
+                    skillService.activate(skill.id)
                     onChanged()
                     rebuildList(searchField.text.trim())
                 })
@@ -224,20 +226,10 @@ class SkillLibraryDialog(
                     onChanged()
                     rebuildList(searchField.text.trim())
                 })
-                panel.add(buildButton(Strings.Skills.ACTION_DELETE, primary = false) {
-                    skillService.delete(skill.id)
-                    onChanged()
-                    rebuildList(searchField.text.trim())
-                })
             }
             SkillStatus.ACTIVE -> {
                 panel.add(buildButton(Strings.Skills.ACTION_DEACTIVATE, primary = false) {
                     skillService.deactivate(skill.id)
-                    onChanged()
-                    rebuildList(searchField.text.trim())
-                })
-                panel.add(buildButton(Strings.Skills.ACTION_DELETE, primary = false) {
-                    skillService.delete(skill.id)
                     onChanged()
                     rebuildList(searchField.text.trim())
                 })

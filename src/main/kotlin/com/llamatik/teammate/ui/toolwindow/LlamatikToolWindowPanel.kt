@@ -442,6 +442,7 @@ class LlamatikToolWindowPanel(
 
         agentTabPanel.setComposerEnabled(composerEnabled)
         agentTabPanel.refreshModelPicker()
+        agentTabPanel.refreshActiveSkills()
         chatTabPanel.setComposerEnabled(composerEnabled)
         chatTabPanel.refreshModelPicker()
 

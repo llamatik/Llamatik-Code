@@ -1,6 +1,7 @@
 package com.llamatik.teammate.ui.toolwindow
 
 import com.intellij.icons.AllIcons
+import com.intellij.openapi.components.service
 import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
@@ -11,6 +12,7 @@ import com.llamatik.teammate.model.AgentPhase
 import com.llamatik.teammate.model.AgentTaskState
 import com.llamatik.teammate.model.EditProposal
 import com.llamatik.teammate.model.PluginReadinessState
+import com.llamatik.teammate.skills.SkillService
 import com.llamatik.teammate.ui.LlamatikTheme
 import com.llamatik.teammate.ui.Strings
 import java.awt.BorderLayout
@@ -342,6 +344,18 @@ class AgentTabPanel(
     private var currentGenerationId = 0
     private val blockedPrefixes = listOf("<tool_call", "<edit_proposal")
 
+    // ── Skills info label (read-only, response card bottom bar) ──────────────
+    private val skillService = service<SkillService>()
+    private val activeSkillsLabel = JBLabel("").apply {
+        foreground = LlamatikTheme.onSurfaceVariant
+        font = font.deriveFont(java.awt.Font.PLAIN, font.size2D - 1f)
+        border = JBUI.Borders.compound(
+            BorderFactory.createLineBorder(LlamatikTheme.outline, 1, true),
+            JBUI.Borders.empty(3, 8),
+        )
+        isVisible = false
+    }
+
     // ── Model picker ──────────────────────────────────────────────────────────
     private val modelPickerButton = ModelPickerButton(onModelChanged = onModelChanged)
 
@@ -430,6 +444,19 @@ class AgentTabPanel(
     // ── Public API ────────────────────────────────────────────────────────────
 
     fun refreshModelPicker() = modelPickerButton.refresh()
+
+    fun refreshActiveSkills() = refreshActiveSkillsLabel()
+
+    private fun refreshActiveSkillsLabel() {
+        val active = skillService.activeSkills()
+        if (active.isEmpty()) {
+            activeSkillsLabel.isVisible = false
+        } else {
+            val names = active.joinToString(", ") { it.displayName }
+            activeSkillsLabel.text = "<html><span style='color:${LlamatikTheme.htmlOnSurfaceVariant};'>Skills: $names</span></html>"
+            activeSkillsLabel.isVisible = true
+        }
+    }
 
     fun prefill(text: String) {
         composerInput.text = text
@@ -874,13 +901,15 @@ class AgentTabPanel(
         addItem(proposalsPanel)
         conversationPanel.add(verificationPanel.also { it.alignmentX = LEFT_ALIGNMENT })
 
-        // Fixed bottom bar: single compact button opens options popup
+        // Fixed bottom bar: run options popup + active skills info label
         updateRunOptionsButton()
+        refreshActiveSkillsLabel()
         val bottomBar = JPanel(FlowLayout(FlowLayout.LEFT, 8, 6)).apply {
             isOpaque = true
             background = cardBackground
             border = BorderFactory.createMatteBorder(1, 0, 0, 0, panelStroke)
             add(runOptionsButton)
+            add(activeSkillsLabel)
         }
 
         return JPanel(BorderLayout()).apply {

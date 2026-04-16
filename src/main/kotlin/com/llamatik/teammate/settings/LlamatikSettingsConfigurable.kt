@@ -316,9 +316,12 @@ class LlamatikSettingsConfigurable : Configurable {
 
     private fun reloadActiveSkills() {
         val active = skillService.activeSkills()
-        activeSkillsCountLabel.text = Strings.Skills.activeCount(active.size)
-        if (active.isNotEmpty()) {
-            activeSkillsCountLabel.toolTipText = active.joinToString(", ") { it.displayName }
+        if (active.isEmpty()) {
+            activeSkillsCountLabel.text = Strings.Skills.activeCount(0)
+            activeSkillsCountLabel.toolTipText = null
+        } else {
+            activeSkillsCountLabel.text = active.joinToString(", ") { it.displayName }
+            activeSkillsCountLabel.toolTipText = null
         }
     }
 
