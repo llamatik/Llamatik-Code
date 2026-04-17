@@ -262,7 +262,7 @@ class AgentTabPanel(
 
     // ── Spinner ───────────────────────────────────────────────────────────────
     private val loadingSpinner = AsyncProcessIcon("agent-loading").apply { isVisible = false }
-    private val spinnerPanel = JPanel(FlowLayout(FlowLayout.LEFT, 4, 0)).apply {
+    private val spinnerPanel = JPanel(FlowLayout(FlowLayout.LEFT, 0, 0)).apply {
         isOpaque = false
         isVisible = false
         add(loadingSpinner)
@@ -867,25 +867,22 @@ class AgentTabPanel(
             }
         }
 
-        val rightButtons = JPanel(FlowLayout(FlowLayout.RIGHT, 4, 0)).apply {
+        val rightButtons = JPanel(FlowLayout(FlowLayout.RIGHT, 4, 8)).apply {
             isOpaque = false
             add(clearButton); add(copyButton)
         }
 
         // Spinner sits inline next to the elapsed timer in the top bar
-        val timerRow = JPanel(FlowLayout(FlowLayout.LEFT, 6, 0)).apply {
+        val timerRow = JPanel(FlowLayout(FlowLayout.LEFT, 16, 16)).apply {
             isOpaque = false
-            add(elapsedLabel)
             add(spinnerPanel)
+            add(elapsedLabel)
         }
 
         val topBar = JPanel(BorderLayout(8, 0)).apply {
             background = cardBackground
             isOpaque = true
-            border = JBUI.Borders.compound(
-                BorderFactory.createMatteBorder(0, 0, 1, 0, panelStroke),
-                JBUI.Borders.empty(10, 16, 8, 16),
-            )
+            border = BorderFactory.createMatteBorder(0, 0, 1, 0, panelStroke)
             add(timerRow, BorderLayout.WEST)
             add(rightButtons, BorderLayout.EAST)
         }
