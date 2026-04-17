@@ -6,7 +6,11 @@ data class BackendConfig(
     val modelIdOrPath: String,
     val temperature: Double,
     val maxTokens: Int,
-    val contextSize: Int,
+    val contextLength: Int,
+    val numThreads: Int,
+    val useMmap: Boolean,
+    val flashAttention: Boolean,
+    val batchSize: Int,
     val localOnly: Boolean,
 )
 
@@ -14,6 +18,7 @@ data class GenerationRequest(
     val systemPrompt: String,
     val messages: List<ChatMessage>,
     val config: BackendConfig,
+    val noThink: Boolean = false,
 )
 
 interface GenerationHandle {

@@ -139,7 +139,11 @@ class AgentOrchestrator(private val project: Project) {
             modelIdOrPath = settings.modelPath.ifBlank { settings.modelIdentifier },
             temperature = settings.temperature,
             maxTokens = settings.maxTokens,
-            contextSize = settings.contextSize,
+            contextLength = settings.contextSize,
+            numThreads = settings.numThreads,
+            useMmap = settings.useMmap,
+            flashAttention = settings.flashAttention,
+            batchSize = settings.batchSize,
             localOnly = settings.localOnly,
         )
 
@@ -152,10 +156,11 @@ class AgentOrchestrator(private val project: Project) {
 
                 override fun onCompleted(fullText: String) {
                     if (cancelled.get()) return
-                    val toolCalls = ToolCallParser.parse(fullText).take(6)
+                    val answerText = ToolCallParser.stripThinking(fullText)
+                    val toolCalls = ToolCallParser.parse(answerText).take(6)
                     if (toolCalls.isEmpty()) {
-                        val proposals = extractEditProposals(fullText)
-                        val clean = ToolCallParser.cleanForDisplay(fullText)
+                        val proposals = extractEditProposals(answerText)
+                        val clean = ToolCallParser.cleanForDisplay(answerText)
                         onFinished(
                             ChatMessage(role = ChatRole.ASSISTANT, content = clean, editProposalId = proposals.firstOrNull()?.id),
                             proposals,
@@ -203,6 +208,7 @@ class AgentOrchestrator(private val project: Project) {
                             systemPrompt = buildSecondPassSystemPrompt(),
                             messages = secondPassMessages,
                             config = config,
+                            noThink = true,
                         ),
                         object : GenerationCallbacks {
                             override fun onToken(token: String) {
@@ -211,8 +217,9 @@ class AgentOrchestrator(private val project: Project) {
 
                             override fun onCompleted(fullText: String) {
                                 if (cancelled.get()) return
-                                val proposals = extractEditProposals(fullText)
-                                val answer = ToolCallParser.cleanForDisplay(fullText)
+                                val answerText = ToolCallParser.stripThinking(fullText)
+                                val proposals = extractEditProposals(answerText)
+                                val answer = ToolCallParser.cleanForDisplay(answerText)
                                 onFinished(
                                     ChatMessage(role = ChatRole.ASSISTANT, content = answer, editProposalId = proposals.firstOrNull()?.id),
                                     proposals,

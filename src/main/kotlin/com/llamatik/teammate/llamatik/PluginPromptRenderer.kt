@@ -16,6 +16,7 @@ object PluginPromptRenderer {
     fun render(
         system: String,
         messages: List<ChatMessage>,
+        noThink: Boolean = false,
     ): String = buildString {
         val sys = system.trim()
         if (sys.isNotBlank()) {
@@ -41,7 +42,13 @@ object PluginPromptRenderer {
             append("\n<|im_end|>\n")
         }
 
-        append("<|im_start|>assistant\n")
+        // Qwen3 soft-disable thinking: pre-fill an empty <think> block so the model
+        // skips reasoning and goes straight to the answer.
+        if (noThink) {
+            append("<|im_start|>assistant\n<think>\n\n</think>\n")
+        } else {
+            append("<|im_start|>assistant\n")
+        }
     }
 
     private fun ChatRole.toQwenRole(): String = when (this) {

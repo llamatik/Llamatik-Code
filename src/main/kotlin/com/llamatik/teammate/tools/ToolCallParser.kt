@@ -9,6 +9,11 @@ object ToolCallParser {
         setOf(RegexOption.DOT_MATCHES_ALL),
     )
 
+    fun stripThinking(text: String): String =
+        text.replace(thinkPattern, "")
+            .replace(Regex("<think>.*$", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)), "")
+            .trimStart()
+
     fun parse(text: String): List<ToolCall> {
         return toolPattern.findAll(text).map { match ->
             val name = match.groupValues[1].trim()
@@ -30,6 +35,7 @@ object ToolCallParser {
      * sees some response rather than a blank panel.
      */
     fun cleanForDisplay(text: String): String {
+        val hasEditProposals = editProposalPattern.containsMatchIn(text)
         val withoutTools = text
             .replace(toolPattern, "")
             .replace(editProposalPattern, "")
@@ -42,6 +48,8 @@ object ToolCallParser {
             .replace(Regex("<tool_call\\b.*$", RegexOption.DOT_MATCHES_ALL), "")
             .trim()
         if (withoutThink.isNotEmpty()) return withoutThink
+        // Edit proposals were present — they surface via the edit UI, so show nothing here.
+        if (hasEditProposals) return ""
         // Only thinking, no answer — extract and show the think content as a fallback.
         val thinkContent = thinkPattern.findAll(withoutTools)
             .joinToString("\n\n") { match ->

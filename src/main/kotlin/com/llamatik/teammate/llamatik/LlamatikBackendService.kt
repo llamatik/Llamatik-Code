@@ -20,6 +20,10 @@ class LlamatikBackendService : AssistantBackend {
     private val modelLock = Any()
 
     @Volatile private var initializedModel: String? = null
+    @Volatile private var lastContextLength: Int = -1
+    @Volatile private var lastBatchSize: Int = -1
+    @Volatile private var lastNumThreads: Int = -1
+    @Volatile private var lastFlashAttention: Boolean = false
 
     /**
      * Captured once on first use. If the native library fails to load (e.g. missing @rpath dylib),
@@ -60,11 +64,25 @@ class LlamatikBackendService : AssistantBackend {
 
         executor.submit {
             try {
+                invalidateIfContextParamsChanged(request.config)
+                com.llamatik.library.platform.LlamaBridge.updateGenerateParams(
+                    temperature = request.config.temperature.toFloat(),
+                    maxTokens = request.config.maxTokens,
+                    topP = 0.95f,
+                    topK = 40,
+                    repeatPenalty = 1.1f,
+                    contextLength = request.config.contextLength,
+                    numThreads = request.config.numThreads,
+                    useMmap = request.config.useMmap,
+                    flashAttention = request.config.flashAttention,
+                    batchSize = request.config.batchSize,
+                )
                 ensureModel(request.config.modelIdOrPath)
 
                 val prompt = PluginPromptRenderer.render(
                     system = request.systemPrompt,
                     messages = request.messages,
+                    noThink = request.noThink,
                 )
                 val stopSequences = PluginPromptRenderer.STOP_SEQUENCES
 
@@ -116,13 +134,6 @@ class LlamatikBackendService : AssistantBackend {
                     }
                 }
 
-                com.llamatik.library.platform.LlamaBridge.updateGenerateParams(
-                    request.config.temperature.toFloat(),
-                    request.config.maxTokens,
-                    0.95f,
-                    40,
-                    1.1f,
-                )
                 com.llamatik.library.platform.LlamaBridge.generateStream(prompt, guard)
                 nativeFinished.set(true)
             } catch (t: Throwable) {
@@ -161,6 +172,22 @@ class LlamatikBackendService : AssistantBackend {
             if (idx >= 0) { out = out.substring(0, idx); break }
         }
         return out
+    }
+
+    private fun invalidateIfContextParamsChanged(config: com.llamatik.teammate.backend.BackendConfig) {
+        if (config.contextLength != lastContextLength ||
+            config.batchSize != lastBatchSize ||
+            config.numThreads != lastNumThreads ||
+            config.flashAttention != lastFlashAttention
+        ) {
+            synchronized(modelLock) {
+                initializedModel = null
+                lastContextLength = config.contextLength
+                lastBatchSize = config.batchSize
+                lastNumThreads = config.numThreads
+                lastFlashAttention = config.flashAttention
+            }
+        }
     }
 
     private fun ensureModel(modelPath: String) {
