@@ -165,53 +165,7 @@ class LlamatikSettingsConfigurable : Configurable {
         }
 
         val aboutButton = JButton(Strings.About.BUTTON).apply {
-            addActionListener {
-                val dialog = object : DialogWrapper(null, true) {
-                    init {
-                        title = Strings.About.DIALOG_TITLE
-                        init()
-                    }
-                    override fun createCenterPanel(): JComponent {
-                        val panel = JPanel(GridBagLayout())
-                        panel.border = JBUI.Borders.empty(16, 24)
-                        val gbc = GridBagConstraints().apply {
-                            gridx = 0; gridy = GridBagConstraints.RELATIVE
-                            anchor = GridBagConstraints.CENTER
-                            fill = GridBagConstraints.NONE
-                            insets = JBUI.insets(4, 0)
-                        }
-
-                        // Logo
-                        val logoUrl = LlamatikSettingsConfigurable::class.java
-                            .getResource("/icons/llamatik.svg")
-                        if (logoUrl != null) {
-                            val raw = ImageIcon(logoUrl)
-                            val scaled = ImageIcon(
-                                raw.image.getScaledInstance(80, 80, java.awt.Image.SCALE_SMOOTH)
-                            )
-                            panel.add(JLabel(scaled), gbc)
-                        }
-
-                        // Title
-                        panel.add(JLabel(Strings.About.TOOL_NAME).apply {
-                            font = font.deriveFont(Font.BOLD, 18f)
-                        }, gbc)
-
-                        // Credits
-                        for (line in listOf(
-                            Strings.About.DEVELOPED_BY,
-                            Strings.About.POWERED_BY,
-                            Strings.About.COPYRIGHT,
-                        )) {
-                            panel.add(JLabel(line), gbc)
-                        }
-
-                        return panel
-                    }
-                    override fun createActions() = arrayOf(okAction)
-                }
-                dialog.show()
-            }
+            addActionListener { showAboutDialog() }
         }
 
         val modelPathPanel = JPanel(BorderLayout(6, 0)).apply {
@@ -332,5 +286,41 @@ class LlamatikSettingsConfigurable : Configurable {
         if (!Files.isRegularFile(nioPath)) return Strings.Settings.validationNotFile(path)
         if (!path.lowercase().endsWith(".gguf")) return Strings.Settings.VALIDATION_NOT_GGUF
         return null
+    }
+
+    companion object {
+        fun showAboutDialog() {
+            val dialog = object : DialogWrapper(null, true) {
+                init {
+                    title = Strings.About.DIALOG_TITLE
+                    init()
+                }
+                override fun createCenterPanel(): JComponent {
+                    val panel = JPanel(GridBagLayout())
+                    panel.border = JBUI.Borders.empty(16, 24)
+                    val gbc = GridBagConstraints().apply {
+                        gridx = 0; gridy = GridBagConstraints.RELATIVE
+                        anchor = GridBagConstraints.CENTER
+                        fill = GridBagConstraints.NONE
+                        insets = JBUI.insets(4, 0)
+                    }
+                    val logoUrl = LlamatikSettingsConfigurable::class.java.getResource("/icons/llamatik.svg")
+                    if (logoUrl != null) {
+                        val raw = ImageIcon(logoUrl)
+                        val scaled = ImageIcon(raw.image.getScaledInstance(80, 80, java.awt.Image.SCALE_SMOOTH))
+                        panel.add(JLabel(scaled), gbc)
+                    }
+                    panel.add(JLabel(Strings.About.TOOL_NAME).apply {
+                        font = font.deriveFont(Font.BOLD, 18f)
+                    }, gbc)
+                    for (line in listOf(Strings.About.DEVELOPED_BY, Strings.About.POWERED_BY, Strings.About.COPYRIGHT)) {
+                        panel.add(JLabel(line), gbc)
+                    }
+                    return panel
+                }
+                override fun createActions() = arrayOf(okAction)
+            }
+            dialog.show()
+        }
     }
 }

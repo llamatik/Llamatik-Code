@@ -3,6 +3,8 @@ package com.llamatik.teammate.ui.toolwindow
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.options.ShowSettingsUtil
 import com.intellij.openapi.components.service
+import com.intellij.openapi.util.IconLoader
+import com.intellij.util.IconUtil
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.wm.ToolWindow
@@ -204,10 +206,13 @@ class LlamatikToolWindowPanel(
             //add(rightActions, BorderLayout.EAST)
         }
 
+        val logoButton = buildLogoButton()
+
         val modeRow = JPanel(BorderLayout()).apply {
             isOpaque = false
             border = JBUI.Borders.empty(0, 12, 10, 12)
             add(segmented, BorderLayout.WEST)
+            add(logoButton, BorderLayout.EAST)
         }
 
         val header = JPanel(BorderLayout()).apply {
@@ -572,6 +577,25 @@ class LlamatikToolWindowPanel(
         ApplicationManager.getApplication().invokeLater {
             sendPromptFromTab(fixPrompt, isAgent = true)
         }
+    }
+
+    private fun buildLogoButton(): JButton {
+        val btn = JButton()
+        runCatching {
+            val icon = IconLoader.getIcon("/icons/llamatik.svg", LlamatikToolWindowPanel::class.java)
+            val scaled = IconUtil.scale(icon, null, 48f / icon.iconWidth)
+            btn.icon = scaled
+        }
+        btn.isFocusPainted = false
+        btn.isContentAreaFilled = false
+        btn.isBorderPainted = false
+        btn.border = JBUI.Borders.empty(0, 4)
+        btn.cursor = java.awt.Cursor(java.awt.Cursor.HAND_CURSOR)
+        btn.toolTipText = Strings.About.BUTTON
+        btn.addActionListener {
+            LlamatikSettingsConfigurable.showAboutDialog()
+        }
+        return btn
     }
 
     private fun buildModeToggle(label: String): JToggleButton =
