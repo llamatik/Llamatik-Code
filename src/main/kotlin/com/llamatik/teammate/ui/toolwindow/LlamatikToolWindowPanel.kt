@@ -105,7 +105,7 @@ class LlamatikToolWindowPanel(
         diffService = diffService,
         pendingEdits = pendingEdits,
         onApplyEdit = { applyEdit(it) },
-        onSuggestionSelected = { text -> prefillComposer(text) },
+        onSuggestionSelected = { text -> sendPromptFromTab(text, isAgent = false) },
         onSend = { text -> sendPromptFromTab(text, isAgent = false) },
         onStop = { currentHandle?.cancel(); setGenerating(false) },
         onSettingsClicked = {
@@ -115,7 +115,7 @@ class LlamatikToolWindowPanel(
     )
 
     private val agentTabPanel = AgentTabPanel(
-        onSuggestionSelected = { text -> prefillComposer(text) },
+        onSuggestionSelected = { text -> sendPromptFromTab(text, isAgent = true) },
         onApprove = {},
         onReject = {},
         onSend = { text -> sendPromptFromTab(text, isAgent = true) },
