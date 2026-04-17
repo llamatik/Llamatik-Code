@@ -766,14 +766,7 @@ class AgentTabPanel(
             font = font.deriveFont(Font.BOLD, font.size2D + 4f)
             border = JBUI.Borders.emptyBottom(24)
         }
-        val activityCard = JPanel(BorderLayout(0, 10)).apply {
-            isOpaque = true
-            background = cardBackground
-            border = JBUI.Borders.compound(
-                BorderFactory.createLineBorder(accent, 1, true),
-                JBUI.Borders.empty(14, 16),
-            )
-        }
+        val activityCard = roundedCard(cardBackground, accent)
         val activityTitle = JBLabel(
             "<html><span style='color:${LlamatikTheme.htmlOnSurface};'>${Strings.Agent.WORKFLOW_TITLE}</span></html>",
         ).apply { font = font.deriveFont(Font.BOLD, font.size2D + 1f) }
@@ -889,7 +882,10 @@ class AgentTabPanel(
         val topBar = JPanel(BorderLayout(8, 0)).apply {
             background = cardBackground
             isOpaque = true
-            border = JBUI.Borders.empty(10, 16, 8, 16)
+            border = JBUI.Borders.compound(
+                BorderFactory.createMatteBorder(0, 0, 1, 0, panelStroke),
+                JBUI.Borders.empty(10, 16, 8, 16),
+            )
             add(timerRow, BorderLayout.WEST)
             add(rightButtons, BorderLayout.EAST)
         }
@@ -1028,16 +1024,24 @@ class AgentTabPanel(
     }
 
     private fun buildPromptCard(text: String): JButton =
-        JButton("<html><span style='color:${LlamatikTheme.htmlOnSurface};'>$text</span></html>").apply {
+        object : JButton("<html><span style='color:${LlamatikTheme.htmlOnSurface};'>$text</span></html>") {
+            private val arc = 12
+            override fun paintComponent(g: Graphics) {
+                val g2 = g.create() as Graphics2D
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+                g2.color = cardBackground
+                g2.fill(java.awt.geom.RoundRectangle2D.Float(0f, 0f, width.toFloat(), height.toFloat(), arc.toFloat(), arc.toFloat()))
+                g2.color = accent
+                g2.draw(java.awt.geom.RoundRectangle2D.Float(0.5f, 0.5f, width - 1f, height - 1f, arc.toFloat(), arc.toFloat()))
+                g2.dispose()
+                super.paintComponent(g)
+            }
+        }.apply {
             horizontalAlignment = JButton.LEFT
             isFocusPainted = false
-            isContentAreaFilled = true
-            isOpaque = true
-            background = cardBackground
-            border = JBUI.Borders.compound(
-                BorderFactory.createLineBorder(accent, 1, true),
-                JBUI.Borders.empty(10, 14),
-            )
+            isContentAreaFilled = false
+            isOpaque = false
+            border = JBUI.Borders.empty(10, 14)
             addActionListener { onSuggestionSelected(text) }
         }
 
@@ -1203,6 +1207,22 @@ class AgentTabPanel(
         val mins = secs / 60
         return if (mins > 0) "${mins}m ${secs % 60}s" else "${secs}s"
     }
+
+    private fun roundedCard(bg: java.awt.Color, borderColor: java.awt.Color, arc: Int = 12, layout: java.awt.LayoutManager = BorderLayout(0, 8)): JPanel =
+        object : JPanel(layout) {
+            override fun paintComponent(g: Graphics) {
+                val g2 = g.create() as Graphics2D
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+                g2.color = bg
+                g2.fill(java.awt.geom.RoundRectangle2D.Float(0f, 0f, width.toFloat(), height.toFloat(), arc.toFloat(), arc.toFloat()))
+                g2.color = borderColor
+                g2.draw(java.awt.geom.RoundRectangle2D.Float(0.5f, 0.5f, width - 1f, height - 1f, arc.toFloat(), arc.toFloat()))
+                g2.dispose()
+            }
+        }.apply {
+            isOpaque = false
+            border = JBUI.Borders.empty(14, 16)
+        }
 
     private fun showInferenceDialog(anchor: java.awt.Component) {
         val settings = com.intellij.openapi.components.service<com.llamatik.teammate.settings.LlamatikAppSettings>()

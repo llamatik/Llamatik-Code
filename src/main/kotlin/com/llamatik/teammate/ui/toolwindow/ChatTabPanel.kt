@@ -339,13 +339,20 @@ class ChatTabPanel(
             border = JBUI.Borders.emptyBottom(28)
         }
 
-        val infoCard = JPanel(BorderLayout(0, 8)).apply {
-            isOpaque = true
-            background = LlamatikTheme.tertiaryContainer
-            border = JBUI.Borders.compound(
-                BorderFactory.createLineBorder(LlamatikTheme.primary, 1, true),
-                JBUI.Borders.empty(14, 16),
-            )
+        val infoCard = object : JPanel(BorderLayout(0, 8)) {
+            private val arc = 12
+            override fun paintComponent(g: Graphics) {
+                val g2 = g.create() as Graphics2D
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+                g2.color = LlamatikTheme.tertiaryContainer
+                g2.fill(RoundRectangle2D.Float(0f, 0f, width.toFloat(), height.toFloat(), arc.toFloat(), arc.toFloat()))
+                g2.color = LlamatikTheme.primary
+                g2.draw(RoundRectangle2D.Float(0.5f, 0.5f, width - 1f, height - 1f, arc.toFloat(), arc.toFloat()))
+                g2.dispose()
+            }
+        }.apply {
+            isOpaque = false
+            border = JBUI.Borders.empty(14, 16)
         }
 
         val infoTitle = JBLabel(
@@ -411,24 +418,30 @@ class ChatTabPanel(
             })
         }
 
-    private fun promptChip(text: String): JButton =
-        JButton("<html><span style='color:${LlamatikTheme.htmlOnSurface};'>$text</span></html>").apply {
+    private fun promptChip(text: String): JButton {
+        val borderColor = if (entryMode == EntryMode.ASK) heroSecondary else heroAccent
+        return object : JButton("<html><span style='color:${LlamatikTheme.htmlOnSurface};'>$text</span></html>") {
+            private val arc = 12
+            override fun paintComponent(g: Graphics) {
+                val g2 = g.create() as Graphics2D
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+                g2.color = cardBackground
+                g2.fill(RoundRectangle2D.Float(0f, 0f, width.toFloat(), height.toFloat(), arc.toFloat(), arc.toFloat()))
+                g2.color = borderColor
+                g2.draw(RoundRectangle2D.Float(0.5f, 0.5f, width - 1f, height - 1f, arc.toFloat(), arc.toFloat()))
+                g2.dispose()
+                super.paintComponent(g)
+            }
+        }.apply {
             horizontalAlignment = JButton.LEFT
             isFocusPainted = false
-            isContentAreaFilled = true
-            isOpaque = true
-            background = cardBackground
-            border = JBUI.Borders.compound(
-                BorderFactory.createLineBorder(
-                    if (entryMode == EntryMode.ASK) heroSecondary else heroAccent,
-                    1,
-                    true,
-                ),
-                JBUI.Borders.empty(10, 14),
-            )
+            isContentAreaFilled = false
+            isOpaque = false
+            border = JBUI.Borders.empty(10, 14)
             preferredSize = Dimension(preferredSize.width, 38)
             addActionListener { onSuggestionSelected(text) }
         }
+    }
 
     private fun toolbarButton(icon: Icon, tooltip: String): JButton =
         JButton(icon).apply {
