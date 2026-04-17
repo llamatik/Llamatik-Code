@@ -1,4 +1,14 @@
 import org.jetbrains.intellij.platform.gradle.extensions.intellijPlatform
+import proguard.gradle.ProGuardTask
+
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath("com.guardsquare:proguard-gradle:7.9.1")
+    }
+}
 
 plugins {
     id("java")
@@ -48,5 +58,51 @@ tasks {
 kotlin {
     compilerOptions {
         jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
+    }
+}
+
+// ── ProGuard obfuscation ──────────────────────────────────────────────────────
+
+val proguardJar = layout.buildDirectory.file("libs/${rootProject.name}-${version}-obfuscated.jar")
+
+val obfuscate by tasks.registering(ProGuardTask::class) {
+    dependsOn(tasks.named("composedJar"))
+
+    // Input: the assembled plugin JAR
+    injars(tasks.named("composedJar").flatMap { task ->
+        (task as org.gradle.api.tasks.bundling.AbstractArchiveTask).archiveFile
+    })
+
+    // Output: obfuscated JAR
+    outjars(proguardJar)
+
+    // Library JARs from runtime classpath (IntelliJ platform + dependencies)
+    libraryjars(provider {
+        configurations.runtimeClasspath.get().resolvedConfiguration.resolvedArtifacts
+            .map { it.file }
+            .filter { it.extension == "jar" }
+    })
+
+    // JDK libs
+    libraryjars(provider {
+        fileTree("${System.getProperty("java.home")}/lib") { include("*.jar") }.files
+    })
+
+    configuration(file("proguard-rules.pro"))
+    allowaccessmodification()
+    verbose()
+}
+
+// After obfuscation, overwrite the composedJar with the obfuscated version so
+// buildPlugin and prepareSandbox transparently pick up obfuscated bytecode.
+tasks.named("prepareSandbox") {
+    dependsOn(obfuscate)
+    doFirst {
+        val obfuscatedFile = proguardJar.get().asFile
+        val originalJar = (tasks.named("composedJar").get() as org.gradle.api.tasks.bundling.AbstractArchiveTask)
+            .archiveFile.get().asFile
+        if (obfuscatedFile.exists()) {
+            obfuscatedFile.copyTo(originalJar, overwrite = true)
+        }
     }
 }
