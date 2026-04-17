@@ -457,16 +457,25 @@ class ChatTabPanel(
         composerInput.isOpaque = false
         composerInput.background = cardBackground
 
+        val buttonBorder = JBUI.Borders.compound(
+            BorderFactory.createLineBorder(LlamatikTheme.outline, 1, true),
+            JBUI.Borders.empty(5, 10),
+        )
         val settingsButton = JButton(AllIcons.General.Settings).apply {
             toolTipText = Strings.Settings.PAGE_NAME
             isFocusPainted = false
             isContentAreaFilled = false
             preferredSize = Dimension(38, 32)
-            border = JBUI.Borders.compound(
-                BorderFactory.createLineBorder(LlamatikTheme.outline, 1, true),
-                JBUI.Borders.empty(5, 10),
-            )
+            border = buttonBorder
             addActionListener { onSettingsClicked() }
+        }
+        val inferenceButton = JButton(AllIcons.Actions.Properties).apply {
+            toolTipText = Strings.Inference.BUTTON_TOOLTIP
+            isFocusPainted = false
+            isContentAreaFilled = false
+            preferredSize = Dimension(38, 32)
+            border = buttonBorder
+            addActionListener { showInferenceDialog() }
         }
 
         val footerLeft = JPanel(FlowLayout(FlowLayout.LEFT, 8, 0)).apply {
@@ -475,6 +484,7 @@ class ChatTabPanel(
         }
         val footerRight = JPanel(FlowLayout(FlowLayout.RIGHT, 8, 0)).apply {
             isOpaque = false
+            add(inferenceButton)
             add(settingsButton)
             add(composerStopButton)
             add(composerSendButton)
@@ -541,5 +551,21 @@ class ChatTabPanel(
 
         val bar = scrollPane.verticalScrollBar
         bar.value = bar.maximum
+    }
+
+    private fun showInferenceDialog() {
+        val settings = com.intellij.openapi.components.service<com.llamatik.teammate.settings.LlamatikAppSettings>()
+        val panel = com.llamatik.teammate.settings.InferenceSettingsPanel()
+        panel.loadFrom(settings.data())
+        val dialog = object : com.intellij.openapi.ui.DialogWrapper(false) {
+            init {
+                title = Strings.Inference.DIALOG_TITLE
+                init()
+            }
+            override fun createCenterPanel() = panel.panel
+        }
+        if (dialog.showAndGet()) {
+            panel.applyTo(settings.data())
+        }
     }
 }

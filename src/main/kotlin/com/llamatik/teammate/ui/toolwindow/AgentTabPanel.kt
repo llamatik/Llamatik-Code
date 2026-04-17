@@ -947,16 +947,25 @@ class AgentTabPanel(
         composerInput.isOpaque = false
         composerInput.background = cardBackground
 
+        val buttonBorder = JBUI.Borders.compound(
+            BorderFactory.createLineBorder(LlamatikTheme.outline, 1, true),
+            JBUI.Borders.empty(5, 10),
+        )
         val settingsButton = JButton(AllIcons.General.Settings).apply {
             toolTipText = Strings.Settings.PAGE_NAME
             isFocusPainted = false
             isContentAreaFilled = false
             preferredSize = Dimension(38, 32)
-            border = JBUI.Borders.compound(
-                BorderFactory.createLineBorder(LlamatikTheme.outline, 1, true),
-                JBUI.Borders.empty(5, 10),
-            )
+            border = buttonBorder
             addActionListener { onSettingsClicked() }
+        }
+        val inferenceButton = JButton(AllIcons.Actions.Properties).apply {
+            toolTipText = Strings.Inference.BUTTON_TOOLTIP
+            isFocusPainted = false
+            isContentAreaFilled = false
+            preferredSize = Dimension(38, 32)
+            border = buttonBorder
+            addActionListener { showInferenceDialog(this) }
         }
 
         val footerLeft = JPanel(FlowLayout(FlowLayout.LEFT, 8, 0)).apply {
@@ -965,6 +974,7 @@ class AgentTabPanel(
         }
         val footerRight = JPanel(FlowLayout(FlowLayout.RIGHT, 8, 0)).apply {
             isOpaque = false
+            add(inferenceButton)
             add(settingsButton)
             add(composerStopButton)
             add(composerSendButton)
@@ -1192,5 +1202,21 @@ class AgentTabPanel(
         val secs = ms / 1000
         val mins = secs / 60
         return if (mins > 0) "${mins}m ${secs % 60}s" else "${secs}s"
+    }
+
+    private fun showInferenceDialog(anchor: java.awt.Component) {
+        val settings = com.intellij.openapi.components.service<com.llamatik.teammate.settings.LlamatikAppSettings>()
+        val panel = com.llamatik.teammate.settings.InferenceSettingsPanel()
+        panel.loadFrom(settings.data())
+        val dialog = object : com.intellij.openapi.ui.DialogWrapper(false) {
+            init {
+                title = com.llamatik.teammate.ui.Strings.Inference.DIALOG_TITLE
+                init()
+            }
+            override fun createCenterPanel() = panel.panel
+        }
+        if (dialog.showAndGet()) {
+            panel.applyTo(settings.data())
+        }
     }
 }

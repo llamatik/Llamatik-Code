@@ -64,6 +64,7 @@ class LlamatikBackendService : AssistantBackend {
 
         executor.submit {
             try {
+                validateConfig(request.config)
                 invalidateIfContextParamsChanged(request.config)
                 com.llamatik.library.platform.LlamaBridge.updateGenerateParams(
                     temperature = request.config.temperature.toFloat(),
@@ -172,6 +173,24 @@ class LlamatikBackendService : AssistantBackend {
             if (idx >= 0) { out = out.substring(0, idx); break }
         }
         return out
+    }
+
+    private fun validateConfig(config: com.llamatik.teammate.backend.BackendConfig) {
+        require(config.contextLength >= 512) {
+            "Context size must be at least 512 tokens (current: ${config.contextLength}). Adjust it in Inference Settings."
+        }
+        require(config.batchSize >= 64) {
+            "Batch size must be at least 64 (current: ${config.batchSize}). Adjust it in Inference Settings."
+        }
+        require(config.batchSize <= config.contextLength) {
+            "Batch size (${config.batchSize}) must not exceed context size (${config.contextLength}). Adjust in Inference Settings."
+        }
+        require(config.maxTokens >= 1) {
+            "Max tokens must be at least 1 (current: ${config.maxTokens}). Adjust it in Inference Settings."
+        }
+        require(config.numThreads >= 1) {
+            "CPU threads must be at least 1 (current: ${config.numThreads}). Adjust it in Inference Settings."
+        }
     }
 
     private fun invalidateIfContextParamsChanged(config: com.llamatik.teammate.backend.BackendConfig) {

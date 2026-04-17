@@ -100,6 +100,11 @@
                 displayName="Llamatik Code"
                 id="llamatik.code.settings"
                 instance="com.llamatik.teammate.settings.LlamatikSettingsConfigurable"/>
+        <applicationConfigurable
+                displayName="Inference"
+                id="llamatik.code.settings.inference"
+                parentId="llamatik.code.settings"
+                instance="com.llamatik.teammate.settings.InferenceSettingsConfigurable"/>
 
     </extensions>
 

@@ -237,6 +237,30 @@ object Strings {
         const val VALIDATION_NOT_GGUF = "File must end with .gguf"
     }
 
+    // ── Inference settings ────────────────────────────────────────────────────
+    object Inference {
+        const val BUTTON_TOOLTIP       = "Inference settings"
+        const val DIALOG_TITLE         = "Inference Settings"
+        const val SECTION_GENERATION   = "<html><b>Generation</b></html>"
+        const val SECTION_CONTEXT      = "<html><b>Context</b></html>"
+        const val SECTION_RUNTIME      = "<html><b>Runtime</b></html>"
+        const val TEMPERATURE          = "Temperature:"
+        const val TEMPERATURE_TOOLTIP  = "Sampling temperature (0 = deterministic, higher = more creative)"
+        const val MAX_TOKENS           = "Max tokens:"
+        const val MAX_TOKENS_TOOLTIP   = "Maximum number of tokens to generate per response"
+        const val CONTEXT_SIZE         = "Context size (tokens):"
+        const val CONTEXT_SIZE_TOOLTIP = "KV cache size — larger allows longer conversations but uses more VRAM"
+        const val BATCH_SIZE           = "Batch size:"
+        const val BATCH_SIZE_TOOLTIP   = "Prompt evaluation batch size — must be ≥ prompt token count"
+        const val NUM_THREADS          = "CPU threads:"
+        const val NUM_THREADS_TOOLTIP  = "Number of CPU threads used for inference"
+        const val USE_MMAP             = "Use memory-mapped I/O (mmap)"
+        const val USE_MMAP_TOOLTIP     = "Load model weights via mmap — faster startup, shares memory across processes"
+        const val FLASH_ATTENTION      = "Enable Flash Attention"
+        const val FLASH_ATTENTION_TOOLTIP = "Use Flash Attention kernel — reduces VRAM usage on supported hardware"
+        const val RESET_DEFAULTS       = "Reset to defaults"
+    }
+
     // ── Onboarding ────────────────────────────────────────────────────────────
     object Onboarding {
         const val DIALOG_TITLE = "Welcome to Llamatik Code"
