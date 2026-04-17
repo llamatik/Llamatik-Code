@@ -176,16 +176,23 @@ class ChatTabPanel(
         }
         composerStopButton.addActionListener { onStop() }
 
-        composerInput.getInputMap(JComponent.WHEN_FOCUSED).put(
-            KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, InputEvent.CTRL_DOWN_MASK),
-            "send",
-        )
-        composerInput.actionMap.put("send", object : AbstractAction() {
-            override fun actionPerformed(e: java.awt.event.ActionEvent?) {
-                val text = composerInput.text.trim()
-                if (text.isNotEmpty()) onSend(text)
-            }
-        })
+        composerInput.getInputMap(JComponent.WHEN_FOCUSED).apply {
+            put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), "send")
+            put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, InputEvent.SHIFT_DOWN_MASK), "newline")
+        }
+        composerInput.actionMap.apply {
+            put("send", object : AbstractAction() {
+                override fun actionPerformed(e: java.awt.event.ActionEvent?) {
+                    val text = composerInput.text.trim()
+                    if (text.isNotEmpty()) onSend(text)
+                }
+            })
+            put("newline", object : AbstractAction() {
+                override fun actionPerformed(e: java.awt.event.ActionEvent?) {
+                    composerInput.document.insertString(composerInput.caretPosition, "\n", null)
+                }
+            })
+        }
 
         AtMentionHandler(composerInput, project)
 
