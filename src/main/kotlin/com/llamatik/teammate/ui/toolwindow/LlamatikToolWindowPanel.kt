@@ -403,7 +403,7 @@ class LlamatikToolWindowPanel(
         )
         chatTabPanel.appendStreamingPanel(streamPanel)
 
-        currentHandle = agent.submit(
+        currentHandle = agent.chat(
             session = session,
             userPrompt = submittedPrompt,
             onToken = { token ->
@@ -411,19 +411,10 @@ class LlamatikToolWindowPanel(
                     streamPanel.appendToken(token)
                 }
             },
-            onFinished = { msg, proposals ->
+            onFinished = { answer ->
                 ApplicationManager.getApplication().invokeLater {
-                    proposals.forEach { pendingEdits[it.id] = it }
-                    val clean = ToolCallParser.cleanForDisplay(msg.content)
-                    sessionController.appendMessage(session.id, msg.copy(content = clean))
-                    streamPanel.setContent(clean)
-                    val firstProposal = proposals.firstOrNull()
-                    if (firstProposal != null) {
-                        streamPanel.attachEditProposal(
-                            onApply = { applyEdit(firstProposal) },
-                            onViewDiff = { diffService.showDiff(firstProposal) },
-                        )
-                    }
+                    sessionController.appendMessage(session.id, ChatMessage(role = ChatRole.ASSISTANT, content = answer))
+                    streamPanel.setContent(answer)
                     chatTabPanel.rebuildTabs()
                     setGenerating(false)
                 }

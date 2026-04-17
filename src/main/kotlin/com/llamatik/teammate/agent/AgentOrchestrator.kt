@@ -384,4 +384,109 @@ class AgentOrchestrator(private val project: Project) {
         val oldContent = runCatching { contextService.readFile(trimmedPath) }.getOrDefault("")
         return EditProposal(filePath = trimmedPath, oldContent = oldContent, newContent = newContent, summary = summary)
     }
+
+    /**
+     * Simple chat-only generation — no tools, no second pass, no edit proposals.
+     * Used by the Ask tab.
+     */
+    fun chat(
+        session: ChatSession,
+        userPrompt: String,
+        onToken: (String) -> Unit,
+        onFinished: (String) -> Unit,
+        onError: (String) -> Unit,
+    ): GenerationHandle {
+        val settings = service<LlamatikAppSettings>().data()
+        val (cleanInstruction, fileContext) = resolveFileReferences(userPrompt)
+
+        val systemPrompt = buildString {
+            appendLine("You are Llamatik Code, a local AI coding assistant inside IntelliJ.")
+            appendLine("Answer the user's question clearly and concisely. You may include code snippets.")
+            appendLine("Do not use tool calls or edit proposals — only provide text answers.")
+            val currentFilePath = contextService.getCurrentFile()
+            if (currentFilePath != null) {
+                appendLine("Current file: $currentFilePath")
+                val content = runCatching { contextService.readFile(currentFilePath) }.getOrNull()
+                if (!content.isNullOrBlank()) {
+                    appendLine("File content:")
+                    appendLine(content.take(800))
+                }
+            }
+            val selected = contextService.getSelectedText()?.take(300)
+            if (!selected.isNullOrBlank()) appendLine("Selected text: $selected")
+            val pinned = contextService.pinnedInstructions()
+            if (pinned.isNotBlank()) appendLine("Project instructions: ${pinned.take(200)}")
+            if (fileContext.isNotBlank()) {
+                appendLine("=== Attached files ===")
+                append(fileContext.take(3000))
+                appendLine("=== End attached files ===")
+            }
+        }
+
+        val recentMessages = fitMessagesInBudget(session.messages, 1200) +
+            ChatMessage(role = ChatRole.USER, content = cleanInstruction.take(800))
+
+        val config = BackendConfig(
+            modelIdOrPath = settings.modelPath.ifBlank { settings.modelIdentifier },
+            temperature = settings.temperature,
+            maxTokens = settings.maxTokens,
+            contextLength = settings.contextSize,
+            numThreads = settings.numThreads,
+            useMmap = settings.useMmap,
+            flashAttention = settings.flashAttention,
+            batchSize = settings.batchSize,
+            localOnly = settings.localOnly,
+        )
+
+        val tokenBuffer = StringBuilder()
+        val inThink = java.util.concurrent.atomic.AtomicBoolean(false)
+        fun filteredChatToken(token: String) {
+            tokenBuffer.append(token)
+            while (tokenBuffer.isNotEmpty()) {
+                val buf = tokenBuffer.toString()
+                if (!inThink.get()) {
+                    val openIdx = buf.indexOf("<think>")
+                    if (openIdx >= 0) {
+                        if (openIdx > 0) onToken(buf.substring(0, openIdx))
+                        inThink.set(true)
+                        tokenBuffer.clear()
+                        tokenBuffer.append(buf.substring(openIdx + "<think>".length))
+                        continue
+                    }
+                    val thinkOpen = "<think>"
+                    val holdLen = (1..minOf(thinkOpen.length, buf.length)).reversed()
+                        .firstOrNull { len -> buf.endsWith(thinkOpen.take(len)) } ?: 0
+                    val safeEnd = buf.length - holdLen
+                    if (safeEnd > 0) {
+                        onToken(buf.substring(0, safeEnd))
+                        tokenBuffer.clear()
+                        tokenBuffer.append(buf.substring(safeEnd))
+                    }
+                    break
+                } else {
+                    val closeIdx = buf.indexOf("</think>")
+                    if (closeIdx >= 0) {
+                        inThink.set(false)
+                        tokenBuffer.clear()
+                        tokenBuffer.append(buf.substring(closeIdx + "</think>".length))
+                        continue
+                    }
+                    tokenBuffer.clear()
+                    break
+                }
+            }
+        }
+
+        return backend.generate(
+            GenerationRequest(systemPrompt = systemPrompt, messages = recentMessages, config = config),
+            object : GenerationCallbacks {
+                override fun onToken(token: String) = filteredChatToken(token)
+                override fun onCompleted(fullText: String) {
+                    val answer = ToolCallParser.stripThinking(fullText).trim()
+                    onFinished(answer)
+                }
+                override fun onError(message: String, throwable: Throwable?) = onError(message)
+            },
+        )
+    }
 }
