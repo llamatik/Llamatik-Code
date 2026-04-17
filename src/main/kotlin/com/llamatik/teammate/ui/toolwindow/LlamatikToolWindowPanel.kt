@@ -77,6 +77,12 @@ class LlamatikToolWindowPanel(
 
     private val rootBackground = LlamatikTheme.background
 
+    private val pluginVersion: String = runCatching {
+        com.intellij.ide.plugins.PluginManagerCore.getPlugin(
+            com.intellij.openapi.extensions.PluginId.getId("com.llamatik.teammate.LlamatikTeammate")
+        )?.version
+    }.getOrNull() ?: ""
+
     private val trialBannerPanel = JPanel(BorderLayout(8, 0)).apply {
         background = LlamatikTheme.warningBackground
         border = JBUI.Borders.compound(
@@ -202,8 +208,6 @@ class LlamatikToolWindowPanel(
         val titleRow = JPanel(BorderLayout(8, 0)).apply {
             isOpaque = false
             border = JBUI.Borders.empty(10, 12, 8, 12)
-            //add(titleLabel, BorderLayout.WEST)
-            //add(rightActions, BorderLayout.EAST)
         }
 
         val logoButton = buildLogoButton()
@@ -236,6 +240,12 @@ class LlamatikToolWindowPanel(
             background = rootBackground
             border = JBUI.Borders.empty(0, 12, 6, 12)
             add(disclaimerLabel, BorderLayout.CENTER)
+            if (pluginVersion.isNotBlank()) {
+                add(JBLabel("v$pluginVersion").apply {
+                    font = font.deriveFont(Font.PLAIN, font.size2D - 1f)
+                    foreground = LlamatikTheme.onSurfaceVariant
+                }, BorderLayout.EAST)
+            }
         }
 
     private fun bindActions() {
