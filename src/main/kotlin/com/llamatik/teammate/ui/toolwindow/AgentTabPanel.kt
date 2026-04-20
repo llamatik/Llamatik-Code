@@ -8,8 +8,12 @@ import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTextArea
 import com.intellij.util.ui.AsyncProcessIcon
 import com.intellij.util.ui.JBUI
+import com.intellij.openapi.components.service
+import com.llamatik.teammate.licensing.LicenseChecker
+import com.llamatik.teammate.llamatik.MultimodalBackendService
 import com.llamatik.teammate.model.AgentPhase
 import com.llamatik.teammate.model.AgentTaskState
+import com.llamatik.teammate.model.AttachedImage
 import com.llamatik.teammate.model.EditProposal
 import com.llamatik.teammate.model.PluginReadinessState
 import com.llamatik.teammate.skills.SkillService
@@ -50,7 +54,7 @@ class AgentTabPanel(
     private val onSuggestionSelected: (String) -> Unit,
     private val onApprove: () -> Unit,
     private val onReject: () -> Unit,
-    private val onSend: (String) -> Unit = {},
+    private val onSend: (String, List<AttachedImage>) -> Unit = { _, _ -> },
     private val onStop: () -> Unit = {},
     private val onSettingsClicked: () -> Unit = {},
     private val onModelChanged: () -> Unit = {},
@@ -360,6 +364,15 @@ class AgentTabPanel(
     // ── Model picker ──────────────────────────────────────────────────────────
     private val modelPickerButton = ModelPickerButton(onModelChanged = onModelChanged)
 
+    // ── Image attachment bar ──────────────────────────────────────────────────
+    private val multimodalBackend = service<MultimodalBackendService>()
+    private val isMultimodalEnabled: () -> Boolean = {
+        LicenseChecker.isLicensed() == true && multimodalBackend.isConfigured()
+    }
+    private val imageBar = project?.let {
+        ImageAttachmentBar(it, isMultimodalEnabled) { /* onChange — no-op, we read on send */ }
+    }
+
     // ── Composer ──────────────────────────────────────────────────────────────
     private val composerInput = JBTextArea(3, 40).apply {
         lineWrap = true
@@ -426,7 +439,10 @@ class AgentTabPanel(
 
         composerSendButton.addActionListener {
             val text = composerInput.text.trim()
-            if (text.isNotEmpty()) onSend(text)
+            if (text.isNotEmpty()) {
+                val images = imageBar?.currentAttachments() ?: emptyList()
+                onSend(text, images)
+            }
         }
         composerStopButton.addActionListener { onStop() }
 
@@ -438,7 +454,10 @@ class AgentTabPanel(
             put("send", object : AbstractAction() {
                 override fun actionPerformed(e: java.awt.event.ActionEvent?) {
                     val text = composerInput.text.trim()
-                    if (text.isNotEmpty()) onSend(text)
+                    if (text.isNotEmpty()) {
+                        val images = imageBar?.currentAttachments() ?: emptyList()
+                        onSend(text, images)
+                    }
                 }
             })
             put("newline", object : AbstractAction() {
@@ -448,7 +467,7 @@ class AgentTabPanel(
             })
         }
 
-        if (project != null) AtMentionHandler(composerInput, project)
+        if (project != null) AtMentionHandler(composerInput, project, imageBar)
     }
 
     // ── Public API ────────────────────────────────────────────────────────────
@@ -478,6 +497,7 @@ class AgentTabPanel(
 
     fun clearComposer() {
         composerInput.text = ""
+        imageBar?.clear()
     }
 
     fun setGenerating(generating: Boolean) {
@@ -964,6 +984,7 @@ class AgentTabPanel(
         val footerLeft = JPanel(FlowLayout(FlowLayout.LEFT, 8, 0)).apply {
             isOpaque = false
             add(modelPickerButton)
+            if (imageBar != null) add(imageBar.attachButton)
         }
         val footerRight = JPanel(FlowLayout(FlowLayout.RIGHT, 8, 0)).apply {
             isOpaque = false
@@ -997,8 +1018,10 @@ class AgentTabPanel(
         }.apply {
             isOpaque = false
             border = JBUI.Borders.empty(10, 10, 8, 10)
+            if (imageBar != null) add(imageBar, BorderLayout.NORTH)
             add(inputScroll, BorderLayout.CENTER)
             add(footer, BorderLayout.SOUTH)
+            if (imageBar != null) imageBar.installDropTarget(this)
         }
 
         return JPanel(BorderLayout()).apply {

@@ -29,6 +29,9 @@ import javax.swing.text.JTextComponent
  * user types `@` followed by characters. The popup is a non-focusable [JWindow] so
  * keyboard focus stays in the text field the whole time.
  *
+ * When [imageBar] is provided, selecting an image file path (png/jpg/…) routes the
+ * file to the attachment bar instead of inserting a text token.
+ *
  * Keyboard behaviour (while popup is visible):
  *  - Arrow Up/Down  — navigate the list
  *  - Enter/Tab      — confirm selection
@@ -37,6 +40,7 @@ import javax.swing.text.JTextComponent
 class AtMentionHandler(
     private val textComponent: JTextComponent,
     private val project: Project,
+    private val imageBar: ImageAttachmentBar? = null,
 ) {
     private val contextService = ProjectContextService(project)
 
@@ -209,9 +213,39 @@ class AtMentionHandler(
 
     private fun confirmSelection() {
         val selected = resultList.selectedValue ?: return
-        insertFileReference(selected)
         dismissPopup()
+
+        // If the selected file is an image and an attachment bar is available, route
+        // it there instead of inserting a text token.
+        if (imageBar != null && com.llamatik.teammate.model.AttachedImage.isImagePath(selected)) {
+            val absolutePath = resolveAbsolutePath(selected)
+            if (absolutePath != null) {
+                imageBar.notifyImageMention(absolutePath)
+                // Remove the @-prefix the user typed from the text input
+                removeAtPrefix()
+                textComponent.requestFocusInWindow()
+                return
+            }
+        }
+
+        insertFileReference(selected)
         textComponent.requestFocusInWindow()
+    }
+
+    private fun removeAtPrefix() {
+        val doc = textComponent.document
+        val caret = textComponent.caretPosition.coerceIn(0, doc.length)
+        val replaceStart = atStartOffset
+        val replaceEnd = caret
+        if (replaceStart < 0 || replaceStart > replaceEnd) return
+        suppressDocumentListener = true
+        try { doc.remove(replaceStart, replaceEnd - replaceStart) } finally { suppressDocumentListener = false }
+    }
+
+    private fun resolveAbsolutePath(relativePath: String): String? {
+        val base = project.basePath ?: return null
+        val file = java.io.File(base, relativePath)
+        return if (file.exists()) file.absolutePath else null
     }
 
     private fun insertFileReference(path: String) {

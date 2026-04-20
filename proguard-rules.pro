@@ -10,6 +10,7 @@
 -keep class com.llamatik.teammate.settings.InferenceSettingsConfigurable { *; }
 
 -keep class com.llamatik.teammate.llamatik.LlamatikBackendService { *; }
+-keep class com.llamatik.teammate.llamatik.MultimodalBackendService { *; }
 -keep class com.llamatik.teammate.licensing.TrialService { *; }
 -keep class com.llamatik.teammate.licensing.LicenseChecker { *; }
 -keep class com.llamatik.teammate.infrastructure.ModelDownloadManager { *; }

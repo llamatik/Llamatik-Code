@@ -15,6 +15,7 @@ import com.llamatik.teammate.agent.BuildVerificationService
 import com.llamatik.teammate.backend.GenerationHandle
 import com.llamatik.teammate.diff.DiffPreviewService
 import com.llamatik.teammate.licensing.TrialService
+import com.llamatik.teammate.model.AttachedImage
 import com.llamatik.teammate.model.ChatMessage
 import com.llamatik.teammate.model.ChatRole
 import com.llamatik.teammate.model.EditProposal
@@ -114,7 +115,7 @@ class LlamatikToolWindowPanel(
         pendingEdits = pendingEdits,
         onApplyEdit = { applyEdit(it) },
         onSuggestionSelected = { text -> sendPromptFromTab(text, isAgent = false) },
-        onSend = { text -> sendPromptFromTab(text, isAgent = false) },
+        onSend = { text, images -> sendPromptFromTab(text, isAgent = false, images = images) },
         onStop = { currentHandle?.cancel(); setGenerating(false) },
         onSettingsClicked = {
             ShowSettingsUtil.getInstance().showSettingsDialog(project, LlamatikSettingsConfigurable::class.java)
@@ -126,7 +127,7 @@ class LlamatikToolWindowPanel(
         onSuggestionSelected = { text -> sendPromptFromTab(text, isAgent = true) },
         onApprove = {},
         onReject = {},
-        onSend = { text -> sendPromptFromTab(text, isAgent = true) },
+        onSend = { text, images -> sendPromptFromTab(text, isAgent = true, images = images) },
         onStop = { currentHandle?.cancel(); setGenerating(false) },
         onSettingsClicked = {
             ShowSettingsUtil.getInstance().showSettingsDialog(project, LlamatikSettingsConfigurable::class.java)
@@ -278,7 +279,7 @@ class LlamatikToolWindowPanel(
         }
     }
 
-    private fun sendPromptFromTab(prompt: String, isAgent: Boolean) {
+    private fun sendPromptFromTab(prompt: String, isAgent: Boolean, images: List<AttachedImage> = emptyList()) {
         if (!isAutoFix) autoFixCount = 0
         isAutoFix = false
         if (prompt.isEmpty()) return
@@ -312,6 +313,7 @@ class LlamatikToolWindowPanel(
             currentHandle = agent.submit(
                 session = chatTabPanel.currentSession(),
                 userPrompt = submittedPrompt,
+                images = images,
                 onToken = { token ->
                     SwingUtilities.invokeLater {
                         when {
@@ -406,6 +408,7 @@ class LlamatikToolWindowPanel(
         currentHandle = agent.chat(
             session = session,
             userPrompt = submittedPrompt,
+            images = images,
             onToken = { token ->
                 SwingUtilities.invokeLater {
                     streamPanel.appendToken(token)

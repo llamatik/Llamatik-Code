@@ -10,6 +10,8 @@ import com.llamatik.teammate.backend.GenerationHandle
 import com.llamatik.teammate.backend.GenerationRequest
 import com.llamatik.teammate.context.ProjectContextService
 import com.llamatik.teammate.llamatik.LlamatikBackendService
+import com.llamatik.teammate.llamatik.MultimodalBackendService
+import com.llamatik.teammate.model.AttachedImage
 import com.llamatik.teammate.model.ChatMessage
 import com.llamatik.teammate.model.ChatRole
 import com.llamatik.teammate.model.ChatSession
@@ -25,6 +27,7 @@ import java.util.concurrent.atomic.AtomicReference
 @Service(Service.Level.PROJECT)
 class AgentOrchestrator(private val project: Project) {
     private val backend: AssistantBackend = service<LlamatikBackendService>()
+    private val multimodalBackend = service<MultimodalBackendService>()
     private val toolRegistry = project.service<ToolRegistry>()
     private val contextService = ProjectContextService(project)
     private val skillService = service<SkillService>()
@@ -39,7 +42,18 @@ class AgentOrchestrator(private val project: Project) {
         onThinkingToken: ((String) -> Unit)? = null,
         onFinished: (ChatMessage, List<EditProposal>) -> Unit,
         onError: (String) -> Unit,
+        images: List<AttachedImage> = emptyList(),
     ): GenerationHandle {
+        // Route to multimodal pipeline when images are attached
+        if (images.isNotEmpty()) {
+            return submitMultimodal(
+                userPrompt = userPrompt,
+                images = images,
+                onToken = onToken,
+                onFinished = { text -> onFinished(ChatMessage(role = ChatRole.ASSISTANT, content = text), emptyList()) },
+                onError = onError,
+            )
+        }
         val settings = service<LlamatikAppSettings>().data()
         val cancelled = AtomicBoolean(false)
         // Tracks whichever backend call is currently active so cancel() always reaches the live handle.
@@ -395,7 +409,17 @@ class AgentOrchestrator(private val project: Project) {
         onToken: (String) -> Unit,
         onFinished: (String) -> Unit,
         onError: (String) -> Unit,
+        images: List<AttachedImage> = emptyList(),
     ): GenerationHandle {
+        if (images.isNotEmpty()) {
+            return submitMultimodal(
+                userPrompt = userPrompt,
+                images = images,
+                onToken = onToken,
+                onFinished = onFinished,
+                onError = onError,
+            )
+        }
         val settings = service<LlamatikAppSettings>().data()
         val (cleanInstruction, fileContext) = resolveFileReferences(userPrompt)
 
@@ -485,6 +509,34 @@ class AgentOrchestrator(private val project: Project) {
                     val answer = ToolCallParser.stripThinking(fullText).trim()
                     onFinished(answer)
                 }
+                override fun onError(message: String, throwable: Throwable?) = onError(message)
+            },
+        )
+    }
+
+    private fun submitMultimodal(
+        userPrompt: String,
+        images: List<AttachedImage>,
+        onToken: (String) -> Unit,
+        onFinished: (String) -> Unit,
+        onError: (String) -> Unit,
+    ): GenerationHandle {
+        val contextHint = buildContextHint()
+        val systemPrompt = buildString {
+            appendLine("You are a helpful coding assistant integrated in an IDE.")
+            if (contextHint.isNotBlank()) {
+                appendLine()
+                appendLine(contextHint)
+            }
+        }.trim()
+
+        return multimodalBackend.generateWithImages(
+            systemPrompt = systemPrompt,
+            userPrompt = userPrompt,
+            images = images,
+            callbacks = object : GenerationCallbacks {
+                override fun onToken(token: String) = onToken(token)
+                override fun onCompleted(fullText: String) = onFinished(fullText.trim())
                 override fun onError(message: String, throwable: Throwable?) = onError(message)
             },
         )

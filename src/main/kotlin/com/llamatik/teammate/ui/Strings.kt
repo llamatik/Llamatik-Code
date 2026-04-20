@@ -361,6 +361,22 @@ object Strings {
         const val COPYRIGHT = "Copyright 2026"
     }
 
+    // ── Multimodal / image attachment ─────────────────────────────────────────
+    object Multimodal {
+        const val ATTACH_IMAGE_TOOLTIP = "Attach image"
+        const val REMOVE_IMAGE_TOOLTIP = "Remove"
+        const val FILE_CHOOSER_TITLE = "Select Image"
+        const val FILE_FILTER_DESC = "Image files (PNG, JPG, BMP, WebP, GIF)"
+        const val UPGRADE_MESSAGE =
+            "Image attachments require a Llamatik Code Pro licence. Upgrade to attach images and use multimodal models."
+        const val NO_VLM_CONFIGURED =
+            "Multimodal inference requires a vision model (VLM). Configure the model and mmproj paths in Settings → Llamatik Code."
+        const val IMAGES_LABEL = "Attached images"
+        const val MMPROJ_PATH_LABEL = "Multimodal projector (mmproj) path:"
+        const val MMPROJ_PATH_TOOLTIP =
+            "Path to the companion .gguf mmproj file required for vision/multimodal inference"
+    }
+
     // ── Trial / Licensing ─────────────────────────────────────────────────────
     object Trial {
         const val STATUS_LICENSED = "Licensed"

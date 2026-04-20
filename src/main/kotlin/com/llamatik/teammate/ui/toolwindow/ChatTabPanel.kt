@@ -1,6 +1,7 @@
 package com.llamatik.teammate.ui.toolwindow
 
 import com.intellij.icons.AllIcons
+import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
@@ -8,6 +9,9 @@ import com.intellij.ui.components.JBTabbedPane
 import com.intellij.ui.components.JBTextArea
 import com.intellij.util.ui.JBUI
 import com.llamatik.teammate.diff.DiffPreviewService
+import com.llamatik.teammate.licensing.LicenseChecker
+import com.llamatik.teammate.llamatik.MultimodalBackendService
+import com.llamatik.teammate.model.AttachedImage
 import com.llamatik.teammate.model.EditProposal
 import com.llamatik.teammate.ui.LlamatikTheme
 import com.llamatik.teammate.ui.Strings
@@ -46,7 +50,7 @@ class ChatTabPanel(
     private val pendingEdits: LinkedHashMap<String, EditProposal>,
     private val onApplyEdit: (EditProposal) -> Unit,
     private val onSuggestionSelected: (String) -> Unit,
-    private val onSend: (String) -> Unit = {},
+    private val onSend: (String, List<AttachedImage>) -> Unit = { _, _ -> },
     private val onStop: () -> Unit = {},
     private val onSettingsClicked: () -> Unit = {},
     private val onModelChanged: () -> Unit = {},
@@ -133,6 +137,13 @@ class ChatTabPanel(
     // ── Model picker ──────────────────────────────────────────────────────────
     private val modelPickerButton = ModelPickerButton(onModelChanged = onModelChanged)
 
+    // ── Image attachment bar ──────────────────────────────────────────────────
+    private val multimodalBackend = service<MultimodalBackendService>()
+    private val isMultimodalEnabled: () -> Boolean = {
+        LicenseChecker.isLicensed() == true && multimodalBackend.isConfigured()
+    }
+    private val imageBar = ImageAttachmentBar(project, isMultimodalEnabled) { /* onChange — read on send */ }
+
     // ── Composer ──────────────────────────────────────────────────────────────
     private val composerInput = JBTextArea(3, 40).apply {
         lineWrap = true
@@ -172,7 +183,7 @@ class ChatTabPanel(
 
         composerSendButton.addActionListener {
             val text = composerInput.text.trim()
-            if (text.isNotEmpty()) onSend(text)
+            if (text.isNotEmpty()) onSend(text, imageBar.currentAttachments())
         }
         composerStopButton.addActionListener { onStop() }
 
@@ -184,7 +195,7 @@ class ChatTabPanel(
             put("send", object : AbstractAction() {
                 override fun actionPerformed(e: java.awt.event.ActionEvent?) {
                     val text = composerInput.text.trim()
-                    if (text.isNotEmpty()) onSend(text)
+                    if (text.isNotEmpty()) onSend(text, imageBar.currentAttachments())
                 }
             })
             put("newline", object : AbstractAction() {
@@ -194,7 +205,7 @@ class ChatTabPanel(
             })
         }
 
-        AtMentionHandler(composerInput, project)
+        AtMentionHandler(composerInput, project, imageBar)
 
         bindActions()
         rebuildTabs()
@@ -214,6 +225,7 @@ class ChatTabPanel(
 
     fun clearComposer() {
         composerInput.text = ""
+        imageBar.clear()
     }
 
     fun setGenerating(generating: Boolean) {
@@ -494,6 +506,7 @@ class ChatTabPanel(
         val footerLeft = JPanel(FlowLayout(FlowLayout.LEFT, 8, 0)).apply {
             isOpaque = false
             add(modelPickerButton)
+            add(imageBar.attachButton)
         }
         val footerRight = JPanel(FlowLayout(FlowLayout.RIGHT, 8, 0)).apply {
             isOpaque = false
@@ -527,8 +540,10 @@ class ChatTabPanel(
         }.apply {
             isOpaque = false
             border = JBUI.Borders.empty(10, 10, 8, 10)
+            add(imageBar, BorderLayout.NORTH)
             add(inputScroll, BorderLayout.CENTER)
             add(footer, BorderLayout.SOUTH)
+            imageBar.installDropTarget(this)
         }
 
         return JPanel(BorderLayout()).apply {

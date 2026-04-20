@@ -41,6 +41,8 @@ class LlamatikAppSettings : PersistentStateComponent<LlamatikAppSettings.State> 
         var modelStoragePath: String = "",
         var downloadedSkillIds: MutableList<String> = mutableListOf(),
         var activeSkillIds: MutableList<String> = mutableListOf(),
+        /** Path to the companion mmproj GGUF file for multimodal/VLM inference. Empty = not configured. */
+        var mmprojPath: String = "",
     )
 
     private var myState = State()
