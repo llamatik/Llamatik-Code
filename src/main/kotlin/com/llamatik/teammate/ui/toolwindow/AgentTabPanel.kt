@@ -365,9 +365,10 @@ class AgentTabPanel(
     private val modelPickerButton = ModelPickerButton(onModelChanged = onModelChanged)
 
     // ── Image attachment bar ──────────────────────────────────────────────────
-    private val multimodalBackend = service<MultimodalBackendService>()
     private val isMultimodalEnabled: () -> Boolean = {
-        LicenseChecker.isLicensed() == true && multimodalBackend.isConfigured()
+        runCatching {
+            LicenseChecker.isLicensed() == true && service<MultimodalBackendService>().isConfigured()
+        }.getOrElse { false }
     }
     private val imageBar = project?.let {
         ImageAttachmentBar(it, isMultimodalEnabled) { /* onChange — no-op, we read on send */ }

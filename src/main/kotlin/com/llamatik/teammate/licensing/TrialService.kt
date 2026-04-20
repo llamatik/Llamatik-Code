@@ -26,7 +26,8 @@ class TrialService {
      *              should treat this as "allow" and re-check later.
      */
     fun licenseStatus(): LicenseStatus {
-        return when (LicenseChecker.isLicensed()) {
+        val licensed = runCatching { LicenseChecker.isLicensed() }.getOrNull()
+        return when (licensed) {
             true  -> LicenseStatus.LICENSED
             false -> if (isTrialActive()) LicenseStatus.TRIAL else LicenseStatus.EXPIRED
             null  -> LicenseStatus.UNKNOWN
