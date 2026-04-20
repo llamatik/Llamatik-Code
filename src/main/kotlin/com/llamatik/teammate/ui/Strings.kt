@@ -361,9 +361,11 @@ object Strings {
         const val COPYRIGHT = "Copyright 2026"
     }
 
-    // ── Trial ─────────────────────────────────────────────────────────────────
+    // ── Trial / Licensing ─────────────────────────────────────────────────────
     object Trial {
+        const val STATUS_LICENSED = "Licensed"
         const val STATUS_ACTIVE = "Trial active"
         const val STATUS_EXPIRED = "Trial expired"
+        const val REQUEST_LICENSE_MESSAGE = "Upgrade to Llamatik Code Pro to unlock Agent mode and advanced features."
     }
 }

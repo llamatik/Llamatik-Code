@@ -11,6 +11,7 @@
 
 -keep class com.llamatik.teammate.llamatik.LlamatikBackendService { *; }
 -keep class com.llamatik.teammate.licensing.TrialService { *; }
+-keep class com.llamatik.teammate.licensing.LicenseChecker { *; }
 -keep class com.llamatik.teammate.infrastructure.ModelDownloadManager { *; }
 -keep class com.llamatik.teammate.infrastructure.ModelRuntimeTracker { *; }
 -keep class com.llamatik.teammate.skills.SkillService { *; }

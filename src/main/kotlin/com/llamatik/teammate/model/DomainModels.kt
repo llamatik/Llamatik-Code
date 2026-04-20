@@ -65,6 +65,13 @@ data class AgentTaskState(
 
 enum class PluginReadinessState { NO_MODEL, LOADING_MODEL, MODEL_LOADED, INDEXING, READY }
 
+enum class LicenseStatus {
+    LICENSED,  // valid JetBrains Marketplace licence
+    TRIAL,     // no licence, local trial still active
+    EXPIRED,   // no licence and trial has ended
+    UNKNOWN,   // LicensingFacade not yet initialised
+}
+
 data class TrialState(
     val trialStartMs: Long,
     val daysRemaining: Int,
