@@ -31,7 +31,7 @@
 -keep class com.llamatik.teammate.actions.EditWithPromptAction { *; }
 
 # ── Kotlin enums ─────────────────────────────────────────────────────────────
-# ordinal(), name(), hashCode(), values() are called by the compiler-generated
+# ordinal(), name(), hashCode(), values() are called by compiler-generated
 # when-mapping tables and must be preserved on all enums.
 -keepclassmembers enum * {
     public static **[] values();
@@ -62,7 +62,8 @@
 }
 
 # ── Serialisation (PersistentStateComponent) ─────────────────────────────────
-# IntelliJ uses XmlSerializer to persist state by field name.
+# IntelliJ XmlSerializer persists state by field name — renaming fields breaks
+# settings persistence.
 -keepclassmembers class * implements com.intellij.openapi.components.PersistentStateComponent {
     public *;
     <fields>;
@@ -76,11 +77,30 @@
 -keepclassmembers class * extends com.intellij.openapi.ui.DialogWrapper { *; }
 -keepclassmembers class * extends com.intellij.openapi.ui.DialogBuilder { *; }
 
-# ── General safety ───────────────────────────────────────────────────────────
+# ── JetBrains Marketplace recommendations ────────────────────────────────────
+# https://plugins.jetbrains.com/docs/marketplace/obfuscate-the-plugin.html
+#
+# 1. Aggressive overloading: reuse the same short names (a, b …) for methods
+#    with different signatures, maximising name collision and making
+#    decompiled output harder to follow.
+#    NOTE: disabled for Kotlin — the Kotlin compiler generates overloads
+#    (e.g. default-argument bridges) that share parameter counts, which
+#    can clash under -overloadaggressively and cause VerifyErrors at runtime.
+#    Re-enable only if the plugin is ever converted to pure Java.
+# -overloadaggressively
+#
+# 2. Optimisation: the doc says to enable all four default operations (shrink,
+#    optimise, obfuscate, preverify).  ProGuard's bytecode optimiser can
+#    corrupt Kotlin metadata in some edge cases, so we disable it here and
+#    rely on shrinking + obfuscation + preverification for a safe result.
 -dontoptimize
--dontpreverify
+#
+# 3. Preverification: re-enabled per JetBrains recommendation.  ProGuard adds
+#    StackMapTable attributes required by the JVM verifier on Java 7+.
+# (removed -dontpreverify — preverify is now ON)
 
-# Suppress all warnings — cross-class references within our own code are safe,
+# ── General safety ───────────────────────────────────────────────────────────
+# Suppress warnings — cross-class references within our own code are safe,
 # and IntelliJ platform classes are provided at runtime but not in libraryjars.
 -ignorewarnings
 
@@ -93,6 +113,8 @@
 -dontwarn com.sun.**
 -dontwarn com.llamatik.**
 
-# Keep source file and line numbers for readable stack traces.
+# Keep source file and line numbers so stack traces in crash reports remain
+# readable even after obfuscation.  The mapping file written by ProGuard
+# (proguard-mapping.txt) lets you de-obfuscate them offline.
 -keepattributes SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile

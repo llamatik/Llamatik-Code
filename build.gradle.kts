@@ -65,6 +65,12 @@ kotlin {
 
 val proguardJar = layout.buildDirectory.file("libs/${rootProject.name}-${version}-obfuscated.jar")
 
+// Stable symbol mapping kept across releases.  Committing this file means that
+// obfuscated names stay consistent between versions, so stack traces from older
+// releases can still be decoded with the matching mapping file.
+// See: https://plugins.jetbrains.com/docs/marketplace/obfuscate-the-plugin.html
+val proguardMappingFile = rootProject.file("proguard-mapping.txt")
+
 val obfuscate by tasks.registering(ProGuardTask::class) {
     dependsOn(tasks.named("composedJar"))
 
@@ -90,6 +96,15 @@ val obfuscate by tasks.registering(ProGuardTask::class) {
 
     configuration(file("proguard-rules.pro"))
     allowaccessmodification()
+
+    // Write the mapping file so obfuscated names can be decoded in crash reports.
+    // On subsequent builds, re-apply the existing mapping to keep names stable
+    // across releases (JetBrains Marketplace recommendation).
+    printmapping(proguardMappingFile)
+    if (proguardMappingFile.exists()) {
+        applymapping(proguardMappingFile)
+    }
+
     verbose()
 }
 

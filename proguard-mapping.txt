@@ -1,0 +1,1615 @@
+com.llamatik.teammate.actions.AddDocumentationAction -> com.llamatik.teammate.actions.AddDocumentationAction:
+# {"fileName":"PluginActions.kt","id":"sourceFile"}
+    26:26:void <init>() -> <init>
+    27:27:java.lang.String _init_$lambda$0(com.intellij.openapi.project.Project,com.intellij.openapi.actionSystem.AnActionEvent) -> _init_$lambda$0
+com.llamatik.teammate.actions.AskAboutSelectionAction -> com.llamatik.teammate.actions.AskAboutSelectionAction:
+# {"fileName":"PluginActions.kt","id":"sourceFile"}
+    6:6:void <init>() -> <init>
+    7:7:java.lang.String _init_$lambda$0(com.intellij.openapi.project.Project,com.intellij.openapi.actionSystem.AnActionEvent) -> _init_$lambda$0
+com.llamatik.teammate.actions.BasePromptAction -> com.llamatik.teammate.actions.a:
+# {"fileName":"BasePromptAction.kt","id":"sourceFile"}
+    kotlin.jvm.functions.Function2 promptBuilder -> promptBuilder
+    10:10:void <init>(kotlin.jvm.functions.Function2) -> <init>
+    12:14:void actionPerformed(com.intellij.openapi.actionSystem.AnActionEvent) -> actionPerformed
+    17:18:void update(com.intellij.openapi.actionSystem.AnActionEvent) -> update
+    20:20:java.lang.String selectedText(com.intellij.openapi.actionSystem.AnActionEvent) -> selectedText
+    22:22:java.lang.String currentFilePath(com.intellij.openapi.project.Project) -> currentFilePath
+com.llamatik.teammate.actions.EditWithPromptAction -> com.llamatik.teammate.actions.EditWithPromptAction:
+# {"fileName":"PluginActions.kt","id":"sourceFile"}
+    30:30:void <init>() -> <init>
+    31:31:java.lang.String _init_$lambda$0(com.intellij.openapi.project.Project,com.intellij.openapi.actionSystem.AnActionEvent) -> _init_$lambda$0
+com.llamatik.teammate.actions.ExplainFileAction -> com.llamatik.teammate.actions.ExplainFileAction:
+# {"fileName":"PluginActions.kt","id":"sourceFile"}
+    10:10:void <init>() -> <init>
+    11:11:java.lang.String _init_$lambda$0(com.intellij.openapi.project.Project,com.intellij.openapi.actionSystem.AnActionEvent) -> _init_$lambda$0
+com.llamatik.teammate.actions.FixSelectedCodeAction -> com.llamatik.teammate.actions.FixSelectedCodeAction:
+# {"fileName":"PluginActions.kt","id":"sourceFile"}
+    18:18:void <init>() -> <init>
+    19:19:java.lang.String _init_$lambda$0(com.intellij.openapi.project.Project,com.intellij.openapi.actionSystem.AnActionEvent) -> _init_$lambda$0
+com.llamatik.teammate.actions.GenerateTestsAction -> com.llamatik.teammate.actions.GenerateTestsAction:
+# {"fileName":"PluginActions.kt","id":"sourceFile"}
+    22:22:void <init>() -> <init>
+    23:23:java.lang.String _init_$lambda$0(com.intellij.openapi.project.Project,com.intellij.openapi.actionSystem.AnActionEvent) -> _init_$lambda$0
+com.llamatik.teammate.actions.RefactorSelectionAction -> com.llamatik.teammate.actions.RefactorSelectionAction:
+# {"fileName":"PluginActions.kt","id":"sourceFile"}
+    14:14:void <init>() -> <init>
+    15:15:java.lang.String _init_$lambda$0(com.intellij.openapi.project.Project,com.intellij.openapi.actionSystem.AnActionEvent) -> _init_$lambda$0
+com.llamatik.teammate.agent.AgentOrchestrator -> com.llamatik.teammate.agent.AgentOrchestrator:
+# {"fileName":"AgentOrchestrator.kt","id":"sourceFile"}
+    com.intellij.openapi.project.Project project -> project
+    com.llamatik.teammate.backend.AssistantBackend backend -> backend
+    com.llamatik.teammate.tools.ToolRegistry toolRegistry -> toolRegistry
+    com.llamatik.teammate.context.ProjectContextService contextService -> contextService
+    com.llamatik.teammate.skills.SkillService skillService -> skillService
+    kotlin.text.Regex editRegex -> editRegex
+    kotlin.text.Regex editHeaderRegex -> editHeaderRegex
+    25:501:void <init>(com.intellij.openapi.project.Project) -> <init>
+    32:32:java.lang.String selectedModelLabel() -> selectedModelLabel
+    33:33:boolean isModelLoaded() -> isModelLoaded
+    43:505:com.llamatik.teammate.backend.GenerationHandle submit(com.llamatik.teammate.model.ChatSession,java.lang.String,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function2,kotlin.jvm.functions.Function1) -> submit
+    35:39:com.llamatik.teammate.backend.GenerationHandle submit$default(com.llamatik.teammate.agent.AgentOrchestrator,com.llamatik.teammate.model.ChatSession,java.lang.String,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function2,kotlin.jvm.functions.Function1,int,java.lang.Object) -> submit$default
+    254:260:java.lang.String buildSecondPassSystemPrompt() -> buildSecondPassSystemPrompt
+    262:505:java.lang.String buildContextHint() -> buildContextHint
+    286:296:java.util.List fitMessagesInBudget(java.util.List,int) -> fitMessagesInBudget
+    299:314:java.lang.String buildSystemPrompt() -> buildSystemPrompt
+    326:507:kotlin.Pair resolveFileReferences(java.lang.String) -> resolveFileReferences
+    361:378:java.util.List extractEditProposals(java.lang.String) -> extractEditProposals
+    382:505:com.llamatik.teammate.model.EditProposal buildProposal(java.lang.String,java.lang.String,java.lang.String) -> buildProposal
+    399:510:com.llamatik.teammate.backend.GenerationHandle chat(com.llamatik.teammate.model.ChatSession,java.lang.String,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function1) -> chat
+    53:54:void submit$flushAnswerBuffer(kotlin.jvm.functions.Function1,java.lang.String) -> submit$flushAnswerBuffer
+    56:512:void submit$filteredToken(java.lang.StringBuilder,java.util.concurrent.atomic.AtomicBoolean,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function1,java.lang.String) -> submit$filteredToken
+    258:258:java.lang.CharSequence buildSecondPassSystemPrompt$lambda$0$0(com.llamatik.teammate.skills.SkillDescriptor) -> buildSecondPassSystemPrompt$lambda$0$0
+    345:345:java.lang.CharSequence resolveFileReferences$lambda$1(kotlin.text.MatchResult) -> resolveFileReferences$lambda$1
+    362:362:com.llamatik.teammate.model.EditProposal extractEditProposals$lambda$0(com.llamatik.teammate.agent.AgentOrchestrator,kotlin.text.MatchResult) -> extractEditProposals$lambda$0
+    368:377:com.llamatik.teammate.model.EditProposal extractEditProposals$lambda$1(java.lang.String,com.llamatik.teammate.agent.AgentOrchestrator,kotlin.text.MatchResult) -> extractEditProposals$lambda$1
+    444:514:void chat$filteredChatToken(java.lang.StringBuilder,java.util.concurrent.atomic.AtomicBoolean,kotlin.jvm.functions.Function1,java.lang.String) -> chat$filteredChatToken
+    25:25:void access$submit$filteredToken(java.lang.StringBuilder,java.util.concurrent.atomic.AtomicBoolean,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function1,java.lang.String) -> access$submit$filteredToken
+    25:25:java.util.List access$extractEditProposals(com.llamatik.teammate.agent.AgentOrchestrator,java.lang.String) -> access$extractEditProposals
+    25:25:com.llamatik.teammate.tools.ToolRegistry access$getToolRegistry$p(com.llamatik.teammate.agent.AgentOrchestrator) -> access$getToolRegistry$p
+    25:25:com.intellij.openapi.project.Project access$getProject$p(com.llamatik.teammate.agent.AgentOrchestrator) -> access$getProject$p
+    25:25:com.llamatik.teammate.context.ProjectContextService access$getContextService$p(com.llamatik.teammate.agent.AgentOrchestrator) -> access$getContextService$p
+    25:25:com.llamatik.teammate.backend.AssistantBackend access$getBackend$p(com.llamatik.teammate.agent.AgentOrchestrator) -> access$getBackend$p
+    25:25:java.lang.String access$buildSecondPassSystemPrompt(com.llamatik.teammate.agent.AgentOrchestrator) -> access$buildSecondPassSystemPrompt
+    25:25:void access$chat$filteredChatToken(java.lang.StringBuilder,java.util.concurrent.atomic.AtomicBoolean,kotlin.jvm.functions.Function1,java.lang.String) -> access$chat$filteredChatToken
+com.llamatik.teammate.agent.AgentOrchestrator$chat$1 -> com.llamatik.teammate.agent.AgentOrchestrator$a:
+# {"fileName":"AgentOrchestrator.kt","id":"sourceFile"}
+    java.lang.StringBuilder $tokenBuffer -> a
+    java.util.concurrent.atomic.AtomicBoolean $inThink -> b
+    kotlin.jvm.functions.Function1 $onToken -> c
+    kotlin.jvm.functions.Function1 $onFinished -> d
+    kotlin.jvm.functions.Function1 $onError -> e
+    482:482:void <init>(java.lang.StringBuilder,java.util.concurrent.atomic.AtomicBoolean,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function1) -> <init>
+    483:483:void onToken(java.lang.String) -> a
+    485:487:void onCompleted(java.lang.String) -> b
+    488:488:void onError(java.lang.String,java.lang.Throwable) -> a
+    482:482:void onStarted() -> a
+com.llamatik.teammate.agent.AgentOrchestrator$submit$compositeHandle$1 -> com.llamatik.teammate.agent.AgentOrchestrator$b:
+# {"fileName":"AgentOrchestrator.kt","id":"sourceFile"}
+    java.util.concurrent.atomic.AtomicBoolean $cancelled -> a
+    java.util.concurrent.atomic.AtomicReference $activeHandle -> b
+    101:101:void <init>(java.util.concurrent.atomic.AtomicBoolean,java.util.concurrent.atomic.AtomicReference) -> <init>
+    103:105:void cancel() -> a
+com.llamatik.teammate.agent.AgentOrchestrator$submit$firstHandle$1 -> com.llamatik.teammate.agent.AgentOrchestrator$c:
+# {"fileName":"AgentOrchestrator.kt","id":"sourceFile"}
+    java.util.concurrent.atomic.AtomicBoolean $cancelled -> a
+    java.lang.StringBuilder $tokenBuffer -> b
+    java.util.concurrent.atomic.AtomicBoolean $inThink -> c
+    kotlin.jvm.functions.Function1 $onThinkingToken -> d
+    kotlin.jvm.functions.Function1 $onToken -> e
+    com.llamatik.teammate.agent.AgentOrchestrator this$0 -> f
+    kotlin.jvm.functions.Function2 $onFinished -> g
+    java.lang.String $cleanInstruction -> h
+    com.llamatik.teammate.backend.BackendConfig $config -> i
+    java.util.concurrent.atomic.AtomicReference $activeHandle -> j
+    kotlin.jvm.functions.Function1 $onError -> k
+    152:152:void <init>(java.util.concurrent.atomic.AtomicBoolean,java.lang.StringBuilder,java.util.concurrent.atomic.AtomicBoolean,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function1,com.llamatik.teammate.agent.AgentOrchestrator,kotlin.jvm.functions.Function2,java.lang.String,com.llamatik.teammate.backend.BackendConfig,java.util.concurrent.atomic.AtomicReference,kotlin.jvm.functions.Function1) -> <init>
+    154:155:void onToken(java.lang.String) -> a
+    158:497:void onCompleted(java.lang.String) -> b
+    240:241:void onError(java.lang.String,java.lang.Throwable) -> a
+    152:152:void onStarted() -> a
+    191:191:java.lang.CharSequence onCompleted$lambda$1(com.llamatik.teammate.model.ChatMessage) -> a
+com.llamatik.teammate.agent.AgentOrchestrator$submit$firstHandle$1$onCompleted$secondHandle$1 -> com.llamatik.teammate.agent.AgentOrchestrator$c$a:
+# {"fileName":"AgentOrchestrator.kt","id":"sourceFile"}
+    java.util.concurrent.atomic.AtomicBoolean $cancelled -> a
+    java.lang.StringBuilder $tokenBuffer -> b
+    java.util.concurrent.atomic.AtomicBoolean $inThink -> c
+    kotlin.jvm.functions.Function1 $onThinkingToken -> d
+    kotlin.jvm.functions.Function1 $onToken -> e
+    com.llamatik.teammate.agent.AgentOrchestrator this$0 -> f
+    kotlin.jvm.functions.Function2 $onFinished -> g
+    kotlin.jvm.functions.Function1 $onError -> h
+    213:213:void <init>(java.util.concurrent.atomic.AtomicBoolean,java.lang.StringBuilder,java.util.concurrent.atomic.AtomicBoolean,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function1,com.llamatik.teammate.agent.AgentOrchestrator,kotlin.jvm.functions.Function2,kotlin.jvm.functions.Function1) -> <init>
+    215:216:void onToken(java.lang.String) -> a
+    219:227:void onCompleted(java.lang.String) -> b
+    230:231:void onError(java.lang.String,java.lang.Throwable) -> a
+    213:213:void onStarted() -> a
+com.llamatik.teammate.agent.BuildVerificationService -> com.llamatik.teammate.agent.BuildVerificationService:
+# {"fileName":"BuildVerificationService.kt","id":"sourceFile"}
+    com.llamatik.teammate.agent.BuildVerificationService$Companion Companion -> Companion
+    com.intellij.openapi.project.Project project -> project
+    int COMPILE_TIMEOUT_MS -> COMPILE_TIMEOUT_MS
+    int TEST_TIMEOUT_MS -> TEST_TIMEOUT_MS
+    14:15:void <init>(com.intellij.openapi.project.Project) -> <init>
+    27:48:void compile(kotlin.jvm.functions.Function2) -> compile
+    56:73:void runTests(java.util.List,kotlin.jvm.functions.Function2) -> runTests
+    77:80:boolean isTestFile(java.lang.String) -> isTestFile
+    88:139:java.util.List detectTestClasses(java.util.List) -> detectTestClasses
+    96:149:java.util.List parseErrors(java.lang.String) -> parseErrors
+    108:153:java.lang.String summariseTestOutput(java.lang.String,int) -> summariseTestOutput
+    123:126:java.lang.String findGradlew(java.lang.String) -> findGradlew
+    31:153:void compile$lambda$0(java.lang.String,java.lang.String,kotlin.jvm.functions.Function2,com.llamatik.teammate.agent.BuildVerificationService) -> compile$lambda$0
+    60:155:void runTests$lambda$0(java.lang.String,java.util.List,java.lang.String,com.llamatik.teammate.agent.BuildVerificationService,kotlin.jvm.functions.Function2) -> runTests$lambda$0
+    void <clinit>() -> <clinit>
+com.llamatik.teammate.agent.BuildVerificationService$Companion -> com.llamatik.teammate.agent.BuildVerificationService$a:
+# {"fileName":"BuildVerificationService.kt","id":"sourceFile"}
+    17:17:void <init>() -> <init>
+    void <init>(kotlin.jvm.internal.DefaultConstructorMarker) -> <init>
+com.llamatik.teammate.backend.AssistantBackend -> com.llamatik.teammate.a.a:
+# {"fileName":"AssistantBackend.kt","id":"sourceFile"}
+    boolean isModelLoaded() -> isModelLoaded
+    java.lang.String selectedModelLabel() -> selectedModelLabel
+    com.llamatik.teammate.backend.GenerationHandle generate(com.llamatik.teammate.backend.GenerationRequest,com.llamatik.teammate.backend.GenerationCallbacks) -> generate
+com.llamatik.teammate.backend.BackendConfig -> com.llamatik.teammate.a.b:
+# {"fileName":"AssistantBackend.kt","id":"sourceFile"}
+    java.lang.String modelIdOrPath -> a
+    double temperature -> b
+    int maxTokens -> c
+    int contextLength -> d
+    int numThreads -> e
+    boolean useMmap -> f
+    boolean flashAttention -> g
+    int batchSize -> h
+    boolean localOnly -> i
+    5:14:void <init>(java.lang.String,double,int,int,int,boolean,boolean,int,boolean) -> <init>
+    6:6:java.lang.String getModelIdOrPath() -> a
+    7:7:double getTemperature() -> b
+    8:8:int getMaxTokens() -> c
+    9:9:int getContextLength() -> d
+    10:10:int getNumThreads() -> e
+    11:11:boolean getUseMmap() -> f
+    12:12:boolean getFlashAttention() -> g
+    13:13:int getBatchSize() -> h
+com.llamatik.teammate.backend.GenerationCallbacks -> com.llamatik.teammate.a.c:
+# {"fileName":"AssistantBackend.kt","id":"sourceFile"}
+    30:30:void onStarted() -> a
+    void onToken(java.lang.String) -> a
+    void onCompleted(java.lang.String) -> b
+    void onError(java.lang.String,java.lang.Throwable) -> a
+com.llamatik.teammate.backend.GenerationHandle -> com.llamatik.teammate.a.d:
+# {"fileName":"AssistantBackend.kt","id":"sourceFile"}
+    void cancel() -> a
+com.llamatik.teammate.backend.GenerationRequest -> com.llamatik.teammate.a.e:
+# {"fileName":"AssistantBackend.kt","id":"sourceFile"}
+    java.lang.String systemPrompt -> a
+    java.util.List messages -> b
+    com.llamatik.teammate.backend.BackendConfig config -> c
+    boolean noThink -> d
+    17:21:void <init>(java.lang.String,java.util.List,com.llamatik.teammate.backend.BackendConfig,boolean) -> <init>
+    17:22:void <init>(java.lang.String,java.util.List,com.llamatik.teammate.backend.BackendConfig,boolean,int,kotlin.jvm.internal.DefaultConstructorMarker) -> <init>
+    18:18:java.lang.String getSystemPrompt() -> a
+    19:19:java.util.List getMessages() -> b
+    20:20:com.llamatik.teammate.backend.BackendConfig getConfig() -> c
+    21:21:boolean getNoThink() -> d
+com.llamatik.teammate.context.ProjectContextService -> com.llamatik.teammate.context.a:
+# {"fileName":"ProjectContextService.kt","id":"sourceFile"}
+    com.intellij.openapi.project.Project project -> a
+    java.util.List defaultDeniedGlobs -> b
+    13:20:void <init>(com.intellij.openapi.project.Project) -> <init>
+    23:23:java.lang.String projectName() -> a
+    34:122:java.lang.String pinnedInstructions() -> b
+    37:40:java.util.List listFiles(java.lang.String) -> a
+    44:124:void collectFiles(com.intellij.openapi.vfs.VirtualFile,java.util.List) -> a
+    53:128:java.lang.String readFile(java.lang.String) -> b
+    61:131:java.util.List searchFilenames(java.lang.String) -> c
+    66:133:java.util.List searchCode(java.lang.String) -> d
+    76:125:java.lang.String getCurrentFile() -> c
+    77:77:java.lang.String getSelectedText() -> d
+    80:82:com.intellij.openapi.vfs.VirtualFile resolveFile(java.lang.String) -> e
+    85:85:com.intellij.openapi.vfs.VirtualFile resolveRequiredFile(java.lang.String) -> f
+    88:89:java.lang.String relativePath(com.intellij.openapi.vfs.VirtualFile) -> a
+    93:145:boolean isIgnored(com.intellij.openapi.vfs.VirtualFile) -> b
+    102:148:boolean isSafe(com.intellij.openapi.vfs.VirtualFile) -> c
+    109:109:boolean globMatches(java.lang.String,java.lang.String) -> a
+    98:98:com.intellij.openapi.vfs.VirtualFile isIgnored$lambda$2(com.intellij.openapi.vfs.VirtualFile) -> d
+com.llamatik.teammate.context.ProjectIndexingState -> com.llamatik.teammate.context.ProjectIndexingState:
+# {"fileName":"ProjectIndexingState.kt","id":"sourceFile"}
+    com.llamatik.teammate.context.ProjectIndexingState$State state -> state
+    int indexedFileCount -> indexedFileCount
+    int totalFileCount -> totalFileCount
+    5:9:void <init>() -> <init>
+    9:9:com.llamatik.teammate.context.ProjectIndexingState$State getState() -> getState
+    9:9:void setState(com.llamatik.teammate.context.ProjectIndexingState$State) -> setState
+    10:10:int getIndexedFileCount() -> getIndexedFileCount
+    10:10:void setIndexedFileCount(int) -> setIndexedFileCount
+    11:11:int getTotalFileCount() -> getTotalFileCount
+    11:11:void setTotalFileCount(int) -> setTotalFileCount
+    13:13:void startIndexing() -> startIndexing
+    14:14:void finishIndexing(int) -> finishIndexing
+    15:15:void failIndexing() -> failIndexing
+    16:16:boolean isReady() -> isReady
+com.llamatik.teammate.context.ProjectIndexingState$State -> com.llamatik.teammate.context.ProjectIndexingState$a:
+# {"fileName":"ProjectIndexingState.kt","id":"sourceFile"}
+    com.llamatik.teammate.context.ProjectIndexingState$State IDLE -> IDLE
+    com.llamatik.teammate.context.ProjectIndexingState$State INDEXING -> INDEXING
+    com.llamatik.teammate.context.ProjectIndexingState$State READY -> READY
+    com.llamatik.teammate.context.ProjectIndexingState$State FAILED -> FAILED
+    com.llamatik.teammate.context.ProjectIndexingState$State[] $VALUES -> $VALUES
+    kotlin.enums.EnumEntries $ENTRIES -> $ENTRIES
+    7:7:void <init>(java.lang.String,int) -> <init>
+    com.llamatik.teammate.context.ProjectIndexingState$State[] values() -> values
+    com.llamatik.teammate.context.ProjectIndexingState$State valueOf(java.lang.String) -> valueOf
+    kotlin.enums.EnumEntries getEntries() -> getEntries
+    com.llamatik.teammate.context.ProjectIndexingState$State[] $values() -> $values
+    7:7:void <clinit>() -> <clinit>
+com.llamatik.teammate.diff.DiffPreviewService -> com.llamatik.teammate.diff.DiffPreviewService:
+# {"fileName":"DiffPreviewService.kt","id":"sourceFile"}
+    com.intellij.openapi.project.Project project -> project
+    13:14:void <init>(com.intellij.openapi.project.Project) -> <init>
+    16:25:void showDiff(com.llamatik.teammate.model.EditProposal) -> showDiff
+    28:43:void applyProposal(com.llamatik.teammate.model.EditProposal) -> applyProposal
+    39:46:void applyProposal$lambda$0(java.nio.file.Path,com.llamatik.teammate.model.EditProposal) -> applyProposal$lambda$0
+com.llamatik.teammate.infrastructure.ModelDownloadManager -> com.llamatik.teammate.infrastructure.ModelDownloadManager:
+# {"fileName":"ModelDownloadManager.kt","id":"sourceFile"}
+    com.intellij.openapi.diagnostic.Logger logger -> logger
+    java.util.concurrent.ConcurrentHashMap progressMap -> progressMap
+    java.util.concurrent.ConcurrentHashMap listeners -> listeners
+    java.util.concurrent.ExecutorService executor -> executor
+    java.util.concurrent.ConcurrentHashMap activeFutures -> activeFutures
+    21:232:void <init>() -> <init>
+    31:31:com.llamatik.teammate.model.DownloadProgressState getProgress(java.lang.String) -> getProgress
+    34:235:void addProgressListener(java.lang.String,kotlin.jvm.functions.Function1) -> addProgressListener
+    38:39:void removeProgressListener(java.lang.String,kotlin.jvm.functions.Function1) -> removeProgressListener
+    54:163:void startDownload(java.lang.String,java.lang.String,java.nio.file.Path,java.lang.String,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function1) -> startDownload
+    46:52:void startDownload$default(com.llamatik.teammate.infrastructure.ModelDownloadManager,java.lang.String,java.lang.String,java.nio.file.Path,java.lang.String,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function1,int,java.lang.Object) -> startDownload$default
+    166:175:void cancelDownload(java.lang.String) -> cancelDownload
+    178:184:void markFailed(java.lang.String) -> markFailed
+    187:238:void markDownloaded(java.lang.String,java.lang.String) -> markDownloaded
+    205:224:java.net.HttpURLConnection openFollowingRedirects(java.lang.String,int) -> openFollowingRedirects
+    204:204:java.net.HttpURLConnection openFollowingRedirects$default(com.llamatik.teammate.infrastructure.ModelDownloadManager,java.lang.String,int,int,java.lang.Object) -> openFollowingRedirects$default
+    228:240:void notifyListeners(java.lang.String,com.llamatik.teammate.model.DownloadProgressState) -> notifyListeners
+    51:51:kotlin.Unit startDownload$lambda$0(java.lang.String) -> startDownload$lambda$0
+    52:52:kotlin.Unit startDownload$lambda$1(java.lang.String) -> startDownload$lambda$1
+    75:241:void startDownload$lambda$2(com.llamatik.teammate.infrastructure.ModelDownloadManager,java.lang.String,java.lang.String,com.llamatik.teammate.model.DownloadProgressState,java.nio.file.Path,java.nio.file.Path,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function1) -> startDownload$lambda$2
+com.llamatik.teammate.infrastructure.ModelRuntimeTracker -> com.llamatik.teammate.infrastructure.ModelRuntimeTracker:
+# {"fileName":"ModelRuntimeTracker.kt","id":"sourceFile"}
+    com.llamatik.teammate.model.LoadedModelState loadedState -> loadedState
+    6:6:void <init>() -> <init>
+    11:12:void recordLoaded(java.lang.String,java.lang.String) -> recordLoaded
+    15:16:void recordUnloaded() -> recordUnloaded
+    18:18:com.llamatik.teammate.model.LoadedModelState loadedModel() -> loadedModel
+    19:19:boolean isModelLoaded() -> isModelLoaded
+com.llamatik.teammate.licensing.TrialService -> com.llamatik.teammate.licensing.TrialService:
+# {"fileName":"TrialService.kt","id":"sourceFile"}
+    13:13:void <init>() -> <init>
+    18:56:java.time.Instant getTrialStart() -> getTrialStart
+    25:25:boolean isTrialActive() -> isTrialActive
+    27:27:java.lang.String statusLabel() -> statusLabel
+    29:29:int daysRemaining() -> daysRemaining
+    32:33:boolean isInWarningPeriod() -> isInWarningPeriod
+    37:59:com.llamatik.teammate.model.TrialState trialState() -> trialState
+    48:48:boolean isAgentAllowed() -> isAgentAllowed
+    49:49:boolean isChatAllowed() -> isChatAllowed
+com.llamatik.teammate.llamatik.LlamatikBackendService -> com.llamatik.teammate.llamatik.LlamatikBackendService:
+# {"fileName":"LlamatikBackendService.kt","id":"sourceFile"}
+    com.intellij.openapi.diagnostic.Logger logger -> logger
+    java.util.concurrent.ExecutorService executor -> executor
+    java.lang.Object modelLock -> modelLock
+    java.lang.String initializedModel -> initializedModel
+    int lastContextLength -> lastContextLength
+    int lastBatchSize -> lastBatchSize
+    int lastNumThreads -> lastNumThreads
+    boolean lastFlashAttention -> lastFlashAttention
+    java.lang.String nativeLoadError -> nativeLoadError
+    16:286:void <init>() -> <init>
+    34:34:boolean isModelLoaded() -> isModelLoaded
+    36:287:java.lang.String selectedModelLabel() -> selectedModelLabel
+    42:149:com.llamatik.teammate.backend.GenerationHandle generate(com.llamatik.teammate.backend.GenerationRequest,com.llamatik.teammate.backend.GenerationCallbacks) -> generate
+    164:290:boolean shouldStop(java.lang.StringBuilder,java.util.List) -> shouldStop
+    170:175:java.lang.String trimAtStop(java.lang.String,java.util.List) -> trimAtStop
+    179:194:void validateConfig(com.llamatik.teammate.backend.BackendConfig) -> validateConfig
+    197:210:void invalidateIfContextParamsChanged(com.llamatik.teammate.backend.BackendConfig) -> invalidateIfContextParamsChanged
+    213:222:void ensureModel(java.lang.String) -> ensureModel
+    225:287:java.lang.String validateModelPath(java.lang.String) -> validateModelPath
+    247:292:java.lang.String friendlyError(java.lang.Throwable) -> friendlyError
+    257:295:boolean looksLikeRemoteIdentifier(java.lang.String) -> looksLikeRemoteIdentifier
+    264:266:java.lang.String displayModelLabel(java.lang.String) -> displayModelLabel
+    48:53:void generate$lambda$0(com.llamatik.teammate.backend.GenerationCallbacks,java.lang.String) -> generate$lambda$0
+    66:147:void generate$lambda$1(com.llamatik.teammate.llamatik.LlamatikBackendService,com.llamatik.teammate.backend.GenerationRequest,java.util.concurrent.atomic.AtomicBoolean,java.util.concurrent.atomic.AtomicBoolean,com.llamatik.teammate.backend.GenerationCallbacks,java.util.concurrent.atomic.AtomicBoolean) -> generate$lambda$1
+    247:247:java.lang.Throwable friendlyError$lambda$0(java.lang.Throwable) -> friendlyError$lambda$0
+    16:16:boolean access$shouldStop(com.llamatik.teammate.llamatik.LlamatikBackendService,java.lang.StringBuilder,java.util.List) -> access$shouldStop
+    16:16:java.lang.String access$trimAtStop(com.llamatik.teammate.llamatik.LlamatikBackendService,java.lang.String,java.util.List) -> access$trimAtStop
+com.llamatik.teammate.llamatik.LlamatikBackendService$NoOpHandle -> com.llamatik.teammate.llamatik.LlamatikBackendService$a:
+# {"fileName":"LlamatikBackendService.kt","id":"sourceFile"}
+    java.util.concurrent.atomic.AtomicBoolean cancelled -> a
+    268:268:void <init>(java.util.concurrent.atomic.AtomicBoolean) -> <init>
+    270:271:void cancel() -> a
+com.llamatik.teammate.llamatik.LlamatikBackendService$generate$2$guard$1 -> com.llamatik.teammate.llamatik.LlamatikBackendService$b:
+# {"fileName":"LlamatikBackendService.kt","id":"sourceFile"}
+    java.util.concurrent.atomic.AtomicBoolean $generationDone -> a
+    java.util.concurrent.atomic.AtomicBoolean $cancelled -> b
+    java.lang.StringBuilder $acc -> c
+    kotlin.jvm.internal.Ref$IntRef $tokenCount -> d
+    com.llamatik.teammate.llamatik.LlamatikBackendService this$0 -> e
+    java.util.List $stopSequences -> f
+    com.llamatik.teammate.backend.GenerationCallbacks $callbacks -> g
+    com.llamatik.teammate.backend.GenerationRequest $request -> h
+    java.util.concurrent.atomic.AtomicBoolean $nativeFinished -> i
+    93:93:void <init>(java.util.concurrent.atomic.AtomicBoolean,java.util.concurrent.atomic.AtomicBoolean,java.lang.StringBuilder,kotlin.jvm.internal.Ref$IntRef,com.llamatik.teammate.llamatik.LlamatikBackendService,java.util.List,com.llamatik.teammate.backend.GenerationCallbacks,com.llamatik.teammate.backend.GenerationRequest,java.util.concurrent.atomic.AtomicBoolean) -> <init>
+    95:119:void onDelta(java.lang.String) -> onDelta
+    124:128:void onComplete() -> onComplete
+    131:135:void onError(java.lang.String) -> onError
+com.llamatik.teammate.llamatik.LlamatikBackendService$generate$3 -> com.llamatik.teammate.llamatik.LlamatikBackendService$c:
+# {"fileName":"LlamatikBackendService.kt","id":"sourceFile"}
+    java.util.concurrent.atomic.AtomicBoolean $cancelled -> a
+    java.util.concurrent.atomic.AtomicBoolean $nativeFinished -> b
+    149:149:void <init>(java.util.concurrent.atomic.AtomicBoolean,java.util.concurrent.atomic.AtomicBoolean) -> <init>
+    151:157:void cancel() -> a
+com.llamatik.teammate.llamatik.LlamatikBackendServiceKt -> com.llamatik.teammate.llamatik.a:
+# {"fileName":"LlamatikBackendService.kt","id":"sourceFile"}
+    278:287:java.lang.String tryLoadNative() -> b
+    282:282:java.lang.Throwable tryLoadNative$lambda$1$0(java.lang.Throwable) -> a
+    1:1:java.lang.String access$tryLoadNative() -> a
+com.llamatik.teammate.llamatik.PluginPromptRenderer -> com.llamatik.teammate.llamatik.b:
+# {"fileName":"PluginPromptRenderer.kt","id":"sourceFile"}
+    com.llamatik.teammate.llamatik.PluginPromptRenderer INSTANCE -> INSTANCE
+    java.util.List STOP_SEQUENCES -> a
+    12:12:void <init>() -> <init>
+    14:14:java.util.List getSTOP_SEQUENCES() -> a
+    20:52:java.lang.String render(java.lang.String,java.util.List,boolean) -> a
+    54:59:java.lang.String toQwenRole(com.llamatik.teammate.model.ChatRole) -> a
+    14:14:void <clinit>() -> <clinit>
+com.llamatik.teammate.llamatik.PluginPromptRenderer$WhenMappings -> com.llamatik.teammate.llamatik.b$a:
+# {"fileName":"PluginPromptRenderer.kt","id":"sourceFile"}
+    int[] $EnumSwitchMapping$0 -> a
+    void <clinit>() -> <clinit>
+com.llamatik.teammate.model.AgentRole -> com.llamatik.teammate.b.a:
+# {"fileName":"ChatModels.kt","id":"sourceFile"}
+    com.llamatik.teammate.model.AgentRole GENERAL -> GENERAL
+    com.llamatik.teammate.model.AgentRole PLANNER -> PLANNER
+    com.llamatik.teammate.model.AgentRole DESIGNER -> DESIGNER
+    com.llamatik.teammate.model.AgentRole IMPLEMENTER -> IMPLEMENTER
+    com.llamatik.teammate.model.AgentRole REVIEWER -> REVIEWER
+    com.llamatik.teammate.model.AgentRole[] $VALUES -> $VALUES
+    kotlin.enums.EnumEntries $ENTRIES -> $ENTRIES
+    21:21:void <init>(java.lang.String,int) -> <init>
+    com.llamatik.teammate.model.AgentRole[] values() -> values
+    com.llamatik.teammate.model.AgentRole valueOf(java.lang.String) -> valueOf
+    kotlin.enums.EnumEntries getEntries() -> getEntries
+    com.llamatik.teammate.model.AgentRole[] $values() -> $values
+    22:26:void <clinit>() -> <clinit>
+com.llamatik.teammate.model.ChatMessage -> com.llamatik.teammate.b.b:
+# {"fileName":"ChatModels.kt","id":"sourceFile"}
+    java.lang.String id -> a
+    com.llamatik.teammate.model.ChatRole role -> b
+    java.lang.String content -> c
+    long timestamp -> d
+    java.lang.String toolName -> e
+    java.lang.String editProposalId -> f
+    12:18:void <init>(java.lang.String,com.llamatik.teammate.model.ChatRole,java.lang.String,long,java.lang.String,java.lang.String) -> <init>
+    12:19:void <init>(java.lang.String,com.llamatik.teammate.model.ChatRole,java.lang.String,long,java.lang.String,java.lang.String,int,kotlin.jvm.internal.DefaultConstructorMarker) -> <init>
+    13:13:java.lang.String getId() -> a
+    14:14:com.llamatik.teammate.model.ChatRole getRole() -> b
+    15:15:java.lang.String getContent() -> c
+    16:16:long getTimestamp() -> d
+    17:17:java.lang.String getToolName() -> e
+    18:18:java.lang.String getEditProposalId() -> f
+com.llamatik.teammate.model.ChatRole -> com.llamatik.teammate.b.c:
+# {"fileName":"ChatModels.kt","id":"sourceFile"}
+    com.llamatik.teammate.model.ChatRole SYSTEM -> SYSTEM
+    com.llamatik.teammate.model.ChatRole USER -> USER
+    com.llamatik.teammate.model.ChatRole ASSISTANT -> ASSISTANT
+    com.llamatik.teammate.model.ChatRole TOOL -> TOOL
+    com.llamatik.teammate.model.ChatRole[] $VALUES -> $VALUES
+    kotlin.enums.EnumEntries $ENTRIES -> $ENTRIES
+    5:5:void <init>(java.lang.String,int) -> <init>
+    com.llamatik.teammate.model.ChatRole[] values() -> values
+    com.llamatik.teammate.model.ChatRole valueOf(java.lang.String) -> valueOf
+    kotlin.enums.EnumEntries getEntries() -> getEntries
+    com.llamatik.teammate.model.ChatRole[] $values() -> $values
+    6:9:void <clinit>() -> <clinit>
+com.llamatik.teammate.model.ChatSession -> com.llamatik.teammate.b.d:
+# {"fileName":"ChatModels.kt","id":"sourceFile"}
+    java.lang.String id -> a
+    java.lang.String title -> b
+    com.llamatik.teammate.model.AgentRole agentRole -> c
+    java.util.List messages -> d
+    29:33:void <init>(java.lang.String,java.lang.String,com.llamatik.teammate.model.AgentRole,java.util.List) -> <init>
+    29:34:void <init>(java.lang.String,java.lang.String,com.llamatik.teammate.model.AgentRole,java.util.List,int,kotlin.jvm.internal.DefaultConstructorMarker) -> <init>
+    30:30:java.lang.String getId() -> a
+    31:31:java.lang.String getTitle() -> b
+    32:32:com.llamatik.teammate.model.AgentRole getAgentRole() -> c
+    33:33:java.util.List getMessages() -> d
+    void <init>() -> <init>
+com.llamatik.teammate.model.DownloadProgressState -> com.llamatik.teammate.b.e:
+# {"fileName":"DomainModels.kt","id":"sourceFile"}
+    java.lang.String modelId -> a
+    long bytesDownloaded -> b
+    long totalBytes -> c
+    long speedBytesPerSec -> d
+    long etaSeconds -> e
+    com.llamatik.teammate.model.ModelStatus status -> f
+    26:32:void <init>(java.lang.String,long,long,long,long,com.llamatik.teammate.model.ModelStatus) -> <init>
+    29:29:long getTotalBytes() -> a
+    32:32:com.llamatik.teammate.model.ModelStatus getStatus() -> b
+    com.llamatik.teammate.model.DownloadProgressState copy(java.lang.String,long,long,long,long,com.llamatik.teammate.model.ModelStatus) -> a
+    com.llamatik.teammate.model.DownloadProgressState copy$default(com.llamatik.teammate.model.DownloadProgressState,java.lang.String,long,long,long,long,com.llamatik.teammate.model.ModelStatus,int,java.lang.Object) -> a$default
+com.llamatik.teammate.model.EditProposal -> com.llamatik.teammate.b.f:
+# {"fileName":"ChatModels.kt","id":"sourceFile"}
+    java.lang.String id -> a
+    java.lang.String filePath -> b
+    java.lang.String oldContent -> c
+    java.lang.String newContent -> d
+    java.lang.String summary -> e
+    36:41:void <init>(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String) -> <init>
+    36:42:void <init>(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,int,kotlin.jvm.internal.DefaultConstructorMarker) -> <init>
+    37:37:java.lang.String getId() -> a
+    38:38:java.lang.String getFilePath() -> b
+    39:39:java.lang.String getOldContent() -> c
+    40:40:java.lang.String getNewContent() -> d
+    41:41:java.lang.String getSummary() -> e
+com.llamatik.teammate.model.LoadedModelState -> com.llamatik.teammate.b.g:
+# {"fileName":"DomainModels.kt","id":"sourceFile"}
+    java.lang.String modelId -> a
+    java.lang.String modelPath -> b
+    long loadedAtMs -> c
+    46:49:void <init>(java.lang.String,java.lang.String,long) -> <init>
+com.llamatik.teammate.model.ModelDescriptor -> com.llamatik.teammate.b.h:
+# {"fileName":"ChatModels.kt","id":"sourceFile"}
+    java.lang.String id -> a
+    java.lang.String displayName -> b
+    java.lang.String source -> c
+    java.lang.String description -> d
+    44:48:void <init>(java.lang.String,java.lang.String,java.lang.String,java.lang.String) -> <init>
+    45:45:java.lang.String getId() -> a
+    46:46:java.lang.String getDisplayName() -> b
+    47:47:java.lang.String getSource() -> c
+    48:48:java.lang.String getDescription() -> d
+com.llamatik.teammate.model.ModelStatus -> com.llamatik.teammate.b.i:
+# {"fileName":"DomainModels.kt","id":"sourceFile"}
+    com.llamatik.teammate.model.ModelStatus NOT_DOWNLOADED -> NOT_DOWNLOADED
+    com.llamatik.teammate.model.ModelStatus DOWNLOADING -> DOWNLOADING
+    com.llamatik.teammate.model.ModelStatus PAUSED -> PAUSED
+    com.llamatik.teammate.model.ModelStatus FAILED -> FAILED
+    com.llamatik.teammate.model.ModelStatus DOWNLOADED -> DOWNLOADED
+    com.llamatik.teammate.model.ModelStatus LOADING -> LOADING
+    com.llamatik.teammate.model.ModelStatus LOADED -> LOADED
+    com.llamatik.teammate.model.ModelStatus UNLOADED -> UNLOADED
+    com.llamatik.teammate.model.ModelStatus CORRUPTED -> CORRUPTED
+    com.llamatik.teammate.model.ModelStatus[] $VALUES -> $VALUES
+    kotlin.enums.EnumEntries $ENTRIES -> $ENTRIES
+    8:8:void <init>(java.lang.String,int) -> <init>
+    com.llamatik.teammate.model.ModelStatus[] values() -> values
+    com.llamatik.teammate.model.ModelStatus valueOf(java.lang.String) -> valueOf
+    kotlin.enums.EnumEntries getEntries() -> getEntries
+    com.llamatik.teammate.model.ModelStatus[] $values() -> $values
+    9:10:void <clinit>() -> <clinit>
+com.llamatik.teammate.model.PluginReadinessState -> com.llamatik.teammate.b.j:
+# {"fileName":"DomainModels.kt","id":"sourceFile"}
+    com.llamatik.teammate.model.PluginReadinessState NO_MODEL -> NO_MODEL
+    com.llamatik.teammate.model.PluginReadinessState LOADING_MODEL -> LOADING_MODEL
+    com.llamatik.teammate.model.PluginReadinessState MODEL_LOADED -> MODEL_LOADED
+    com.llamatik.teammate.model.PluginReadinessState INDEXING -> INDEXING
+    com.llamatik.teammate.model.PluginReadinessState READY -> READY
+    com.llamatik.teammate.model.PluginReadinessState[] $VALUES -> $VALUES
+    kotlin.enums.EnumEntries $ENTRIES -> $ENTRIES
+    66:66:void <init>(java.lang.String,int) -> <init>
+    com.llamatik.teammate.model.PluginReadinessState[] values() -> values
+    com.llamatik.teammate.model.PluginReadinessState valueOf(java.lang.String) -> valueOf
+    kotlin.enums.EnumEntries getEntries() -> getEntries
+    com.llamatik.teammate.model.PluginReadinessState[] $values() -> $values
+    66:66:void <clinit>() -> <clinit>
+com.llamatik.teammate.model.TrialState -> com.llamatik.teammate.b.k:
+# {"fileName":"DomainModels.kt","id":"sourceFile"}
+    long trialStartMs -> a
+    int daysRemaining -> b
+    boolean isExpired -> c
+    boolean isInWarningPeriod -> d
+    boolean warningDismissed -> e
+    68:73:void <init>(long,int,boolean,boolean,boolean) -> <init>
+    70:70:int getDaysRemaining() -> a
+    72:72:boolean isInWarningPeriod() -> b
+    73:73:boolean getWarningDismissed() -> c
+com.llamatik.teammate.persistence.ChatSessionStore -> com.llamatik.teammate.persistence.ChatSessionStore:
+# {"fileName":"ChatSessionStore.kt","id":"sourceFile"}
+    com.intellij.openapi.project.Project project -> project
+    com.llamatik.teammate.persistence.LlamatikProjectState stateService -> stateService
+    12:74:void <init>(com.intellij.openapi.project.Project) -> <init>
+    17:83:java.util.List loadSessions() -> loadSessions
+    43:91:void saveSessions(java.util.List,java.lang.String) -> saveSessions
+    64:64:java.lang.String selectedSessionId() -> selectedSessionId
+    66:66:java.lang.String pinnedInstructions() -> pinnedInstructions
+    69:70:void setPinnedInstructions(java.lang.String) -> setPinnedInstructions
+com.llamatik.teammate.persistence.LlamatikProjectState -> com.llamatik.teammate.persistence.LlamatikProjectState:
+# {"fileName":"LlamatikProjectState.kt","id":"sourceFile"}
+    com.intellij.openapi.project.Project project -> project
+    com.llamatik.teammate.persistence.LlamatikProjectState$State myState -> myState
+    12:37:void <init>(com.intellij.openapi.project.Project) -> <init>
+    39:39:com.llamatik.teammate.persistence.LlamatikProjectState$State getState() -> getState
+    40:40:void loadState(com.llamatik.teammate.persistence.LlamatikProjectState$State) -> loadState
+    42:42:com.llamatik.teammate.persistence.LlamatikProjectState$State mutableState() -> mutableState
+    12:12:java.lang.Object getState() -> getState
+    12:12:void loadState(java.lang.Object) -> loadState
+com.llamatik.teammate.persistence.LlamatikProjectState$State -> com.llamatik.teammate.persistence.LlamatikProjectState$a:
+# {"fileName":"LlamatikProjectState.kt","id":"sourceFile"}
+    java.util.List sessions -> a
+    java.lang.String selectedSessionId -> b
+    java.lang.String pinnedInstructions -> c
+    31:34:void <init>(java.util.List,java.lang.String,java.lang.String) -> <init>
+    31:35:void <init>(java.util.List,java.lang.String,java.lang.String,int,kotlin.jvm.internal.DefaultConstructorMarker) -> <init>
+    32:32:java.util.List getSessions() -> a
+    32:32:void setSessions(java.util.List) -> a
+    33:33:java.lang.String getSelectedSessionId() -> b
+    33:33:void setSelectedSessionId(java.lang.String) -> a
+    34:34:java.lang.String getPinnedInstructions() -> c
+    34:34:void setPinnedInstructions(java.lang.String) -> b
+    void <init>() -> <init>
+com.llamatik.teammate.persistence.LlamatikProjectState$StoredMessage -> com.llamatik.teammate.persistence.LlamatikProjectState$b:
+# {"fileName":"LlamatikProjectState.kt","id":"sourceFile"}
+    java.lang.String id -> a
+    java.lang.String role -> b
+    java.lang.String content -> c
+    long timestamp -> d
+    java.lang.String toolName -> e
+    java.lang.String editProposalId -> f
+    15:21:void <init>(java.lang.String,java.lang.String,java.lang.String,long,java.lang.String,java.lang.String) -> <init>
+    15:22:void <init>(java.lang.String,java.lang.String,java.lang.String,long,java.lang.String,java.lang.String,int,kotlin.jvm.internal.DefaultConstructorMarker) -> <init>
+    16:16:java.lang.String getId() -> a
+    17:17:java.lang.String getRole() -> b
+    18:18:java.lang.String getContent() -> c
+    19:19:long getTimestamp() -> d
+    20:20:java.lang.String getToolName() -> e
+    21:21:java.lang.String getEditProposalId() -> f
+    void <init>() -> <init>
+com.llamatik.teammate.persistence.LlamatikProjectState$StoredSession -> com.llamatik.teammate.persistence.LlamatikProjectState$c:
+# {"fileName":"LlamatikProjectState.kt","id":"sourceFile"}
+    java.lang.String id -> a
+    java.lang.String title -> b
+    java.lang.String agentRole -> c
+    java.util.List messages -> d
+    24:28:void <init>(java.lang.String,java.lang.String,java.lang.String,java.util.List) -> <init>
+    24:29:void <init>(java.lang.String,java.lang.String,java.lang.String,java.util.List,int,kotlin.jvm.internal.DefaultConstructorMarker) -> <init>
+    25:25:java.lang.String getId() -> a
+    26:26:java.lang.String getTitle() -> b
+    27:27:java.lang.String getAgentRole() -> c
+    28:28:java.util.List getMessages() -> d
+    void <init>() -> <init>
+com.llamatik.teammate.settings.DownloadedModelService -> com.llamatik.teammate.settings.DownloadedModelService:
+# {"fileName":"DownloadedModelService.kt","id":"sourceFile"}
+    java.util.concurrent.CopyOnWriteArrayList onRegisteredListeners -> onRegisteredListeners
+    15:18:void <init>() -> <init>
+    20:20:void addOnRegisteredListener(kotlin.jvm.functions.Function0) -> addOnRegisteredListener
+    21:21:void removeOnRegisteredListener(kotlin.jvm.functions.Function0) -> removeOnRegisteredListener
+    22:110:void notifyRegistered() -> notifyRegistered
+    24:128:java.util.List listDownloaded() -> listDownloaded
+    54:131:void registerLocalModel(java.lang.String) -> registerLocalModel
+    63:134:void deleteModel(java.lang.String) -> deleteModel
+    76:136:void deleteAll() -> deleteAll
+    80:141:void downloadPredefined(com.intellij.openapi.project.Project,java.lang.String,kotlin.jvm.functions.Function1) -> downloadPredefined
+    100:125:java.lang.String normalizeLocalModelPath(java.lang.String) -> normalizeLocalModelPath
+    94:96:void downloadPredefined$lambda$2(com.intellij.openapi.project.Project,java.lang.String,kotlin.jvm.functions.Function1) -> downloadPredefined$lambda$2
+com.llamatik.teammate.settings.InferenceSettingsConfigurable -> com.llamatik.teammate.settings.InferenceSettingsConfigurable:
+# {"fileName":"InferenceSettingsConfigurable.kt","id":"sourceFile"}
+    com.llamatik.teammate.settings.LlamatikAppSettings settings -> settings
+    com.llamatik.teammate.settings.InferenceSettingsPanel inferencePanel -> inferencePanel
+    7:29:void <init>() -> <init>
+    12:12:java.lang.String getDisplayName() -> getDisplayName
+    14:14:javax.swing.JComponent createComponent() -> createComponent
+    16:16:boolean isModified() -> isModified
+    19:20:void apply() -> apply
+    23:24:void reset() -> reset
+com.llamatik.teammate.settings.InferenceSettingsPanel -> com.llamatik.teammate.settings.a:
+# {"fileName":"InferenceSettingsPanel.kt","id":"sourceFile"}
+    javax.swing.JSpinner temperatureSpinner -> a
+    javax.swing.JSpinner maxTokensSpinner -> b
+    javax.swing.JSpinner contextSizeSpinner -> c
+    javax.swing.JSpinner batchSizeSpinner -> d
+    javax.swing.JSpinner numThreadsSpinner -> e
+    com.intellij.ui.components.JBCheckBox useMmapCheck -> f
+    com.intellij.ui.components.JBCheckBox flashAttentionCheck -> g
+    kotlin.Lazy panel$delegate -> h
+    14:24:void <init>() -> <init>
+    24:24:javax.swing.JPanel getPanel() -> a
+    58:65:void loadFrom(com.llamatik.teammate.settings.LlamatikAppSettings$State) -> a
+    68:75:void applyTo(com.llamatik.teammate.settings.LlamatikAppSettings$State) -> b
+    78:84:boolean isModified(com.llamatik.teammate.settings.LlamatikAppSettings$State) -> c
+    87:95:void resetToDefaults() -> b
+    26:26:void panel_delegate$lambda$0$0$0(com.llamatik.teammate.settings.InferenceSettingsPanel,java.awt.event.ActionEvent) -> a
+    25:98:javax.swing.JPanel panel_delegate$lambda$0(com.llamatik.teammate.settings.InferenceSettingsPanel) -> a
+com.llamatik.teammate.settings.LlamatikAppSettings -> com.llamatik.teammate.settings.LlamatikAppSettings:
+# {"fileName":"LlamatikAppSettings.kt","id":"sourceFile"}
+    com.llamatik.teammate.settings.LlamatikAppSettings$State myState -> myState
+    10:46:void <init>() -> <init>
+    48:48:com.llamatik.teammate.settings.LlamatikAppSettings$State getState() -> getState
+    51:52:void loadState(com.llamatik.teammate.settings.LlamatikAppSettings$State) -> loadState
+    54:54:com.llamatik.teammate.settings.LlamatikAppSettings$State data() -> data
+    56:56:java.nio.file.Path storageDir() -> storageDir
+    58:83:java.util.List predefinedModels() -> predefinedModels
+    10:10:java.lang.Object getState() -> getState
+    10:10:void loadState(java.lang.Object) -> loadState
+com.llamatik.teammate.settings.LlamatikAppSettings$State -> com.llamatik.teammate.settings.LlamatikAppSettings$a:
+# {"fileName":"LlamatikAppSettings.kt","id":"sourceFile"}
+    java.lang.String modelPath -> h
+    java.lang.String modelIdentifier -> i
+    double temperature -> j
+    int maxTokens -> k
+    int contextSize -> l
+    int numThreads -> m
+    boolean useMmap -> n
+    boolean flashAttention -> o
+    int batchSize -> p
+    boolean localOnly -> q
+    java.lang.String backendId -> a
+    java.lang.String ignoredDirectories -> r
+    java.lang.String projectRules -> s
+    boolean autoApply -> b
+    int maxFileSizeKb -> t
+    int maxContextChars -> c
+    int maxChangedFiles -> d
+    java.util.List downloadedModels -> u
+    long trialStartedAtEpoch -> v
+    boolean onboardingCompleted -> w
+    boolean unloadModelOnIdle -> e
+    boolean trialWarningDismissed -> x
+    java.lang.String indexingExcludedFolders -> f
+    boolean agentAutoApprove -> y
+    boolean agentAutoBuild -> z
+    boolean agentAutoFix -> A
+    java.lang.String modelStoragePath -> g
+    java.util.List downloadedSkillIds -> B
+    java.util.List activeSkillIds -> C
+    13:43:void <init>(java.lang.String,java.lang.String,double,int,int,int,boolean,boolean,int,boolean,java.lang.String,java.lang.String,java.lang.String,boolean,int,int,int,java.util.List,long,boolean,boolean,boolean,java.lang.String,boolean,boolean,boolean,java.lang.String,java.util.List,java.util.List) -> <init>
+    13:44:void <init>(java.lang.String,java.lang.String,double,int,int,int,boolean,boolean,int,boolean,java.lang.String,java.lang.String,java.lang.String,boolean,int,int,int,java.util.List,long,boolean,boolean,boolean,java.lang.String,boolean,boolean,boolean,java.lang.String,java.util.List,java.util.List,int,kotlin.jvm.internal.DefaultConstructorMarker) -> <init>
+    14:14:java.lang.String getModelPath() -> a
+    14:14:void setModelPath(java.lang.String) -> a
+    15:15:java.lang.String getModelIdentifier() -> b
+    16:16:double getTemperature() -> c
+    16:16:void setTemperature(double) -> a
+    17:17:int getMaxTokens() -> d
+    17:17:void setMaxTokens(int) -> a
+    18:18:int getContextSize() -> e
+    18:18:void setContextSize(int) -> b
+    19:19:int getNumThreads() -> f
+    19:19:void setNumThreads(int) -> c
+    20:20:boolean getUseMmap() -> g
+    20:20:void setUseMmap(boolean) -> a
+    21:21:boolean getFlashAttention() -> h
+    21:21:void setFlashAttention(boolean) -> b
+    22:22:int getBatchSize() -> i
+    22:22:void setBatchSize(int) -> d
+    23:23:boolean getLocalOnly() -> j
+    25:25:java.lang.String getIgnoredDirectories() -> k
+    25:25:void setIgnoredDirectories(java.lang.String) -> b
+    26:26:java.lang.String getProjectRules() -> l
+    26:26:void setProjectRules(java.lang.String) -> c
+    28:28:int getMaxFileSizeKb() -> m
+    31:31:java.util.List getDownloadedModels() -> n
+    33:33:long getTrialStartedAtEpoch() -> o
+    33:33:void setTrialStartedAtEpoch(long) -> a
+    34:34:boolean getOnboardingCompleted() -> p
+    34:34:void setOnboardingCompleted(boolean) -> c
+    36:36:boolean getTrialWarningDismissed() -> q
+    36:36:void setTrialWarningDismissed(boolean) -> d
+    38:38:boolean getAgentAutoApprove() -> r
+    38:38:void setAgentAutoApprove(boolean) -> e
+    39:39:boolean getAgentAutoBuild() -> s
+    39:39:void setAgentAutoBuild(boolean) -> f
+    40:40:boolean getAgentAutoFix() -> t
+    40:40:void setAgentAutoFix(boolean) -> g
+    42:42:java.util.List getDownloadedSkillIds() -> u
+    43:43:java.util.List getActiveSkillIds() -> v
+    void <init>() -> <init>
+com.llamatik.teammate.settings.LlamatikSettingsConfigurable -> com.llamatik.teammate.settings.LlamatikSettingsConfigurable:
+# {"fileName":"LlamatikSettingsConfigurable.kt","id":"sourceFile"}
+    com.llamatik.teammate.settings.LlamatikSettingsConfigurable$Companion Companion -> Companion
+    com.llamatik.teammate.settings.LlamatikAppSettings settings -> settings
+    com.llamatik.teammate.settings.DownloadedModelService downloadedModelService -> downloadedModelService
+    com.llamatik.teammate.skills.SkillService skillService -> skillService
+    kotlin.jvm.functions.Function0 onModelRegistered -> onModelRegistered
+    com.intellij.ui.components.JBLabel activeSkillsCountLabel -> activeSkillsCountLabel
+    com.intellij.ui.components.JBTextField modelPathField -> modelPathField
+    com.intellij.ui.components.JBCheckBox agentAutoApproveCheck -> agentAutoApproveCheck
+    com.intellij.ui.components.JBCheckBox agentAutoBuildCheck -> agentAutoBuildCheck
+    com.intellij.ui.components.JBCheckBox agentAutoFixCheck -> agentAutoFixCheck
+    com.intellij.ui.components.JBTextArea ignoredDirectoriesArea -> ignoredDirectoriesArea
+    com.intellij.ui.components.JBTextArea projectRulesArea -> projectRulesArea
+    javax.swing.DefaultListModel downloadedListModel -> downloadedListModel
+    com.intellij.ui.components.JBList downloadedList -> downloadedList
+    37:336:void <init>() -> <init>
+    65:65:java.lang.String getDisplayName() -> getDisplayName
+    68:337:javax.swing.JComponent createComponent() -> createComponent
+    219:220:void disposeUIResources() -> disposeUIResources
+    223:229:boolean isModified() -> isModified
+    233:339:void apply() -> apply
+    255:264:void reset() -> reset
+    267:341:void reloadDownloadedModels() -> reloadDownloadedModels
+    272:280:void reloadActiveSkills() -> reloadActiveSkills
+    283:337:java.lang.String validateLocalModelPath(java.lang.String) -> validateLocalModelPath
+    44:44:void onModelRegistered$lambda$0$0(com.llamatik.teammate.settings.LlamatikSettingsConfigurable) -> onModelRegistered$lambda$0$0
+    43:45:kotlin.Unit onModelRegistered$lambda$0(com.llamatik.teammate.settings.LlamatikSettingsConfigurable) -> onModelRegistered$lambda$0
+    72:79:void createComponent$lambda$0$0(com.llamatik.teammate.settings.LlamatikSettingsConfigurable,java.awt.event.ActionEvent) -> createComponent$lambda$0$0
+    85:98:void createComponent$lambda$1$0(com.llamatik.teammate.settings.LlamatikSettingsConfigurable,java.awt.event.ActionEvent) -> createComponent$lambda$1$0
+    104:110:void createComponent$lambda$2$0(com.llamatik.teammate.settings.LlamatikSettingsConfigurable,java.awt.event.ActionEvent) -> createComponent$lambda$2$0
+    116:130:void createComponent$lambda$3$0(com.llamatik.teammate.settings.LlamatikSettingsConfigurable,java.awt.event.ActionEvent) -> createComponent$lambda$3$0
+    135:147:void createComponent$lambda$4$0(java.awt.event.ActionEvent) -> createComponent$lambda$4$0
+    152:152:kotlin.Unit createComponent$lambda$5$0$0(com.llamatik.teammate.settings.LlamatikSettingsConfigurable) -> createComponent$lambda$5$0$0
+    152:153:void createComponent$lambda$5$0(com.llamatik.teammate.settings.LlamatikSettingsConfigurable,java.awt.event.ActionEvent) -> createComponent$lambda$5$0
+    159:164:void createComponent$lambda$6$0(com.llamatik.teammate.settings.LlamatikSettingsConfigurable,java.awt.event.ActionEvent) -> createComponent$lambda$6$0
+    168:168:void createComponent$lambda$7$0(java.awt.event.ActionEvent) -> createComponent$lambda$7$0
+    277:277:java.lang.CharSequence reloadActiveSkills$lambda$0(com.llamatik.teammate.skills.SkillDescriptor) -> reloadActiveSkills$lambda$0
+    void <clinit>() -> <clinit>
+com.llamatik.teammate.settings.LlamatikSettingsConfigurable$Companion -> com.llamatik.teammate.settings.LlamatikSettingsConfigurable$a:
+# {"fileName":"LlamatikSettingsConfigurable.kt","id":"sourceFile"}
+    291:291:void <init>() -> <init>
+    293:324:void showAboutDialog() -> showAboutDialog
+    void <init>(kotlin.jvm.internal.DefaultConstructorMarker) -> <init>
+com.llamatik.teammate.settings.LlamatikSettingsConfigurable$Companion$showAboutDialog$dialog$1 -> com.llamatik.teammate.settings.LlamatikSettingsConfigurable$a$a:
+# {"fileName":"LlamatikSettingsConfigurable.kt","id":"sourceFile"}
+    293:297:void <init>() -> <init>
+com.llamatik.teammate.settings.LlamatikSettingsConfigurable$createComponent$openModelLibraryButton$1$1$dialog$1 -> com.llamatik.teammate.settings.LlamatikSettingsConfigurable$b:
+# {"fileName":"LlamatikSettingsConfigurable.kt","id":"sourceFile"}
+    135:139:void <init>() -> <init>
+com.llamatik.teammate.skills.BuiltinSkillCatalog -> com.llamatik.teammate.skills.a:
+# {"fileName":"BuiltinSkillCatalog.kt","id":"sourceFile"}
+    com.llamatik.teammate.skills.BuiltinSkillCatalog INSTANCE -> INSTANCE
+    java.util.List all -> a
+    3:3:void <init>() -> <init>
+    5:5:java.util.List getAll() -> a
+    291:297:com.llamatik.teammate.skills.SkillDescriptor findById(java.lang.String) -> a
+    5:287:void <clinit>() -> <clinit>
+com.llamatik.teammate.skills.SkillDescriptor -> com.llamatik.teammate.skills.b:
+# {"fileName":"SkillDescriptor.kt","id":"sourceFile"}
+    java.lang.String id -> a
+    java.lang.String displayName -> b
+    java.lang.String description -> c
+    java.lang.String category -> d
+    java.lang.String prompt -> e
+    java.lang.String version -> f
+    java.lang.String author -> g
+    java.util.List tags -> h
+    java.lang.String sourceUrl -> i
+    5:14:void <init>(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.util.List,java.lang.String) -> <init>
+    5:15:void <init>(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.util.List,java.lang.String,int,kotlin.jvm.internal.DefaultConstructorMarker) -> <init>
+    6:6:java.lang.String getId() -> a
+    7:7:java.lang.String getDisplayName() -> b
+    10:10:java.lang.String getPrompt() -> c
+com.llamatik.teammate.skills.SkillService -> com.llamatik.teammate.skills.SkillService:
+# {"fileName":"SkillService.kt","id":"sourceFile"}
+    com.llamatik.teammate.settings.LlamatikAppSettings settings -> settings
+    7:73:void <init>() -> <init>
+    12:12:java.util.List catalog() -> catalog
+    14:18:com.llamatik.teammate.skills.SkillStatus skillStatus(java.lang.String) -> skillStatus
+    20:20:boolean isDownloaded(java.lang.String) -> isDownloaded
+    22:22:boolean isActive(java.lang.String) -> isActive
+    25:87:java.util.List downloadedSkills() -> downloadedSkills
+    28:101:java.util.List activeSkills() -> activeSkills
+    32:33:void download(java.lang.String) -> download
+    37:39:void delete(java.lang.String) -> delete
+    43:44:void activate(java.lang.String) -> activate
+    48:49:void deactivate(java.lang.String) -> deactivate
+    56:103:java.lang.String buildSkillsPromptAddition() -> buildSkillsPromptAddition
+com.llamatik.teammate.skills.SkillStatus -> com.llamatik.teammate.skills.c:
+# {"fileName":"SkillDescriptor.kt","id":"sourceFile"}
+    com.llamatik.teammate.skills.SkillStatus NOT_DOWNLOADED -> NOT_DOWNLOADED
+    com.llamatik.teammate.skills.SkillStatus DOWNLOADED -> DOWNLOADED
+    com.llamatik.teammate.skills.SkillStatus ACTIVE -> ACTIVE
+    com.llamatik.teammate.skills.SkillStatus[] $VALUES -> $VALUES
+    kotlin.enums.EnumEntries $ENTRIES -> $ENTRIES
+    3:3:void <init>(java.lang.String,int) -> <init>
+    com.llamatik.teammate.skills.SkillStatus[] values() -> values
+    com.llamatik.teammate.skills.SkillStatus valueOf(java.lang.String) -> valueOf
+    kotlin.enums.EnumEntries getEntries() -> getEntries
+    com.llamatik.teammate.skills.SkillStatus[] $values() -> $values
+    3:3:void <clinit>() -> <clinit>
+com.llamatik.teammate.tools.LlamatikTool -> com.llamatik.teammate.tools.a:
+# {"fileName":"ToolInterfaces.kt","id":"sourceFile"}
+    java.lang.String getName() -> a
+    java.lang.String getDescription() -> b
+    com.llamatik.teammate.tools.ToolResult execute(com.llamatik.teammate.tools.ToolCall,com.llamatik.teammate.tools.ToolExecutionContext) -> a
+com.llamatik.teammate.tools.ToolCall -> com.llamatik.teammate.tools.b:
+# {"fileName":"ToolInterfaces.kt","id":"sourceFile"}
+    java.lang.String name -> a
+    java.util.Map arguments -> b
+    5:7:void <init>(java.lang.String,java.util.Map) -> <init>
+    6:6:java.lang.String getName() -> a
+    7:7:java.util.Map getArguments() -> b
+com.llamatik.teammate.tools.ToolCallParser -> com.llamatik.teammate.tools.c:
+# {"fileName":"ToolCallParser.kt","id":"sourceFile"}
+    com.llamatik.teammate.tools.ToolCallParser INSTANCE -> INSTANCE
+    kotlin.text.Regex toolPattern -> a
+    kotlin.text.Regex argPattern -> b
+    kotlin.text.Regex thinkPattern -> c
+    kotlin.text.Regex editProposalPattern -> d
+    3:3:void <init>() -> <init>
+    13:15:java.lang.String stripThinking(java.lang.String) -> a
+    18:23:java.util.List parse(java.lang.String) -> b
+    38:69:java.lang.String cleanForDisplay(java.lang.String) -> c
+    19:74:com.llamatik.teammate.tools.ToolCall parse$lambda$0(kotlin.text.MatchResult) -> a
+    56:59:java.lang.CharSequence cleanForDisplay$lambda$0(kotlin.text.MatchResult) -> b
+    4:9:void <clinit>() -> <clinit>
+com.llamatik.teammate.tools.ToolExecutionContext -> com.llamatik.teammate.tools.d:
+# {"fileName":"ToolInterfaces.kt","id":"sourceFile"}
+    com.intellij.openapi.project.Project project -> a
+    16:17:void <init>(com.intellij.openapi.project.Project) -> <init>
+com.llamatik.teammate.tools.ToolRegistry -> com.llamatik.teammate.tools.ToolRegistry:
+# {"fileName":"ToolRegistry.kt","id":"sourceFile"}
+    java.util.Map tools -> tools
+    17:47:void <init>(com.intellij.openapi.project.Project) -> <init>
+    33:33:java.lang.String describeTools() -> describeTools
+    36:48:com.llamatik.teammate.tools.ToolResult execute(com.llamatik.teammate.tools.ToolCall,com.llamatik.teammate.tools.ToolExecutionContext) -> execute
+    33:33:java.lang.CharSequence describeTools$lambda$0(com.llamatik.teammate.tools.LlamatikTool) -> describeTools$lambda$0
+com.llamatik.teammate.tools.ToolResult -> com.llamatik.teammate.tools.e:
+# {"fileName":"ToolInterfaces.kt","id":"sourceFile"}
+    java.lang.String name -> a
+    boolean success -> b
+    java.lang.String content -> c
+    10:13:void <init>(java.lang.String,boolean,java.lang.String) -> <init>
+    11:11:java.lang.String getName() -> a
+    13:13:java.lang.String getContent() -> b
+com.llamatik.teammate.tools.impl.ApplyPatchTool -> com.llamatik.teammate.tools.a.a:
+# {"fileName":"ApplyPatchTool.kt","id":"sourceFile"}
+    java.lang.String name -> a
+    java.lang.String description -> b
+    8:10:void <init>(com.intellij.openapi.project.Project) -> <init>
+    9:9:java.lang.String getName() -> a
+    10:10:java.lang.String getDescription() -> b
+    13:14:com.llamatik.teammate.tools.ToolResult execute(com.llamatik.teammate.tools.ToolCall,com.llamatik.teammate.tools.ToolExecutionContext) -> a
+com.llamatik.teammate.tools.impl.BaseProjectTool -> com.llamatik.teammate.tools.a.b:
+# {"fileName":"BaseProjectTool.kt","id":"sourceFile"}
+    com.intellij.openapi.project.Project project -> a
+    com.llamatik.teammate.context.ProjectContextService contextService -> b
+    7:8:void <init>(com.intellij.openapi.project.Project) -> <init>
+    8:8:com.llamatik.teammate.context.ProjectContextService getContextService() -> c
+com.llamatik.teammate.tools.impl.CreateFileTool -> com.llamatik.teammate.tools.a.c:
+# {"fileName":"CreateFileTool.kt","id":"sourceFile"}
+    java.lang.String name -> a
+    java.lang.String description -> b
+    8:10:void <init>(com.intellij.openapi.project.Project) -> <init>
+    9:9:java.lang.String getName() -> a
+    10:10:java.lang.String getDescription() -> b
+    13:15:com.llamatik.teammate.tools.ToolResult execute(com.llamatik.teammate.tools.ToolCall,com.llamatik.teammate.tools.ToolExecutionContext) -> a
+com.llamatik.teammate.tools.impl.GetCurrentFileTool -> com.llamatik.teammate.tools.a.d:
+# {"fileName":"GetCurrentFileTool.kt","id":"sourceFile"}
+    java.lang.String name -> a
+    java.lang.String description -> b
+    8:10:void <init>(com.intellij.openapi.project.Project) -> <init>
+    9:9:java.lang.String getName() -> a
+    10:10:java.lang.String getDescription() -> b
+    13:13:com.llamatik.teammate.tools.ToolResult execute(com.llamatik.teammate.tools.ToolCall,com.llamatik.teammate.tools.ToolExecutionContext) -> a
+com.llamatik.teammate.tools.impl.GetSelectedTextTool -> com.llamatik.teammate.tools.a.e:
+# {"fileName":"GetSelectedTextTool.kt","id":"sourceFile"}
+    java.lang.String name -> a
+    java.lang.String description -> b
+    8:10:void <init>(com.intellij.openapi.project.Project) -> <init>
+    9:9:java.lang.String getName() -> a
+    10:10:java.lang.String getDescription() -> b
+    13:13:com.llamatik.teammate.tools.ToolResult execute(com.llamatik.teammate.tools.ToolCall,com.llamatik.teammate.tools.ToolExecutionContext) -> a
+com.llamatik.teammate.tools.impl.ListFilesTool -> com.llamatik.teammate.tools.a.f:
+# {"fileName":"ListFilesTool.kt","id":"sourceFile"}
+    java.lang.String name -> a
+    java.lang.String description -> b
+    8:10:void <init>(com.intellij.openapi.project.Project) -> <init>
+    9:9:java.lang.String getName() -> a
+    10:10:java.lang.String getDescription() -> b
+    13:14:com.llamatik.teammate.tools.ToolResult execute(com.llamatik.teammate.tools.ToolCall,com.llamatik.teammate.tools.ToolExecutionContext) -> a
+com.llamatik.teammate.tools.impl.ReadFileTool -> com.llamatik.teammate.tools.a.g:
+# {"fileName":"ReadFileTool.kt","id":"sourceFile"}
+    java.lang.String name -> a
+    java.lang.String description -> b
+    8:10:void <init>(com.intellij.openapi.project.Project) -> <init>
+    9:9:java.lang.String getName() -> a
+    10:10:java.lang.String getDescription() -> b
+    13:14:com.llamatik.teammate.tools.ToolResult execute(com.llamatik.teammate.tools.ToolCall,com.llamatik.teammate.tools.ToolExecutionContext) -> a
+com.llamatik.teammate.tools.impl.ReplaceInFileTool -> com.llamatik.teammate.tools.a.h:
+# {"fileName":"ReplaceInFileTool.kt","id":"sourceFile"}
+    java.lang.String name -> a
+    java.lang.String description -> b
+    8:10:void <init>(com.intellij.openapi.project.Project) -> <init>
+    9:9:java.lang.String getName() -> a
+    10:10:java.lang.String getDescription() -> b
+    13:23:com.llamatik.teammate.tools.ToolResult execute(com.llamatik.teammate.tools.ToolCall,com.llamatik.teammate.tools.ToolExecutionContext) -> a
+com.llamatik.teammate.tools.impl.SearchCodeTool -> com.llamatik.teammate.tools.a.i:
+# {"fileName":"SearchCodeTool.kt","id":"sourceFile"}
+    java.lang.String name -> a
+    java.lang.String description -> b
+    8:10:void <init>(com.intellij.openapi.project.Project) -> <init>
+    9:9:java.lang.String getName() -> a
+    10:10:java.lang.String getDescription() -> b
+    13:15:com.llamatik.teammate.tools.ToolResult execute(com.llamatik.teammate.tools.ToolCall,com.llamatik.teammate.tools.ToolExecutionContext) -> a
+com.llamatik.teammate.tools.impl.SearchFilenamesTool -> com.llamatik.teammate.tools.a.j:
+# {"fileName":"SearchFilenamesTool.kt","id":"sourceFile"}
+    java.lang.String name -> a
+    java.lang.String description -> b
+    8:10:void <init>(com.intellij.openapi.project.Project) -> <init>
+    9:9:java.lang.String getName() -> a
+    10:10:java.lang.String getDescription() -> b
+    13:15:com.llamatik.teammate.tools.ToolResult execute(com.llamatik.teammate.tools.ToolCall,com.llamatik.teammate.tools.ToolExecutionContext) -> a
+com.llamatik.teammate.tools.impl.ShowDiffTool -> com.llamatik.teammate.tools.a.k:
+# {"fileName":"ShowDiffTool.kt","id":"sourceFile"}
+    java.lang.String name -> a
+    java.lang.String description -> b
+    8:10:void <init>(com.intellij.openapi.project.Project) -> <init>
+    9:9:java.lang.String getName() -> a
+    10:10:java.lang.String getDescription() -> b
+    13:14:com.llamatik.teammate.tools.ToolResult execute(com.llamatik.teammate.tools.ToolCall,com.llamatik.teammate.tools.ToolExecutionContext) -> a
+com.llamatik.teammate.tools.impl.WriteFileTool -> com.llamatik.teammate.tools.a.l:
+# {"fileName":"WriteFileTool.kt","id":"sourceFile"}
+    java.lang.String name -> a
+    java.lang.String description -> b
+    8:10:void <init>(com.intellij.openapi.project.Project) -> <init>
+    9:9:java.lang.String getName() -> a
+    10:10:java.lang.String getDescription() -> b
+    13:20:com.llamatik.teammate.tools.ToolResult execute(com.llamatik.teammate.tools.ToolCall,com.llamatik.teammate.tools.ToolExecutionContext) -> a
+com.llamatik.teammate.ui.LlamatikTheme -> com.llamatik.teammate.ui.a:
+# {"fileName":"LlamatikTheme.kt","id":"sourceFile"}
+    com.llamatik.teammate.ui.LlamatikTheme INSTANCE -> INSTANCE
+    com.intellij.ui.JBColor background -> a
+    com.intellij.ui.JBColor surface -> b
+    com.intellij.ui.JBColor surfaceVariant -> c
+    com.intellij.ui.JBColor tertiaryContainer -> d
+    com.intellij.ui.JBColor primaryContainer -> e
+    com.intellij.ui.JBColor outline -> f
+    com.intellij.ui.JBColor divider -> g
+    com.intellij.ui.JBColor tertiaryBorder -> h
+    com.intellij.ui.JBColor primary -> i
+    com.intellij.ui.JBColor onPrimary -> j
+    com.intellij.ui.JBColor secondary -> k
+    com.intellij.ui.JBColor onSurface -> l
+    com.intellij.ui.JBColor onSurfaceVariant -> m
+    com.intellij.ui.JBColor success -> n
+    com.intellij.ui.JBColor error -> o
+    com.intellij.ui.JBColor errorBackground -> p
+    com.intellij.ui.JBColor warningBackground -> q
+    com.intellij.ui.JBColor warningBorder -> r
+    com.intellij.ui.JBColor statusBlue -> s
+    com.intellij.ui.JBColor statusGreen -> t
+    com.intellij.ui.JBColor statusOrange -> u
+    10:10:void <init>() -> <init>
+    15:15:com.intellij.ui.JBColor getBackground() -> a
+    18:18:com.intellij.ui.JBColor getSurface() -> b
+    21:21:com.intellij.ui.JBColor getSurfaceVariant() -> c
+    27:27:com.intellij.ui.JBColor getPrimaryContainer() -> d
+    32:32:com.intellij.ui.JBColor getOutline() -> e
+    35:35:com.intellij.ui.JBColor getDivider() -> f
+    43:43:com.intellij.ui.JBColor getPrimary() -> g
+    46:46:com.intellij.ui.JBColor getOnPrimary() -> h
+    49:49:com.intellij.ui.JBColor getSecondary() -> i
+    54:54:com.intellij.ui.JBColor getOnSurface() -> j
+    57:57:com.intellij.ui.JBColor getOnSurfaceVariant() -> k
+    62:62:com.intellij.ui.JBColor getSuccess() -> l
+    65:65:com.intellij.ui.JBColor getError() -> m
+    71:71:com.intellij.ui.JBColor getWarningBackground() -> n
+    74:74:com.intellij.ui.JBColor getWarningBorder() -> o
+    85:85:java.lang.String getHtmlPrimary() -> p
+    88:88:java.lang.String getHtmlOnSurface() -> q
+    91:91:java.lang.String getHtmlOnSurfaceVariant() -> r
+    94:94:java.lang.String getHtmlOnPrimary() -> s
+    15:80:void <clinit>() -> <clinit>
+com.llamatik.teammate.ui.Strings -> com.llamatik.teammate.ui.b:
+# {"fileName":"Strings.kt","id":"sourceFile"}
+    com.llamatik.teammate.ui.Strings INSTANCE -> INSTANCE
+    7:7:void <init>() -> <init>
+    void <clinit>() -> <clinit>
+com.llamatik.teammate.ui.Strings$Agent -> com.llamatik.teammate.ui.b$a:
+# {"fileName":"Strings.kt","id":"sourceFile"}
+    com.llamatik.teammate.ui.Strings$Agent INSTANCE -> INSTANCE
+    java.util.List SUGGESTIONS -> a
+    48:48:void <init>() -> <init>
+    73:73:java.lang.String brewedFor(java.lang.String) -> a
+    75:75:java.util.List getSUGGESTIONS() -> a
+    75:79:void <clinit>() -> <clinit>
+com.llamatik.teammate.ui.Strings$App -> com.llamatik.teammate.ui.b$b:
+# {"fileName":"Strings.kt","id":"sourceFile"}
+    com.llamatik.teammate.ui.Strings$App INSTANCE -> INSTANCE
+    10:10:void <init>() -> <init>
+    24:24:java.lang.String trialDaysLeft(int) -> a
+    void <clinit>() -> <clinit>
+com.llamatik.teammate.ui.Strings$Chat -> com.llamatik.teammate.ui.b$c:
+# {"fileName":"Strings.kt","id":"sourceFile"}
+    com.llamatik.teammate.ui.Strings$Chat INSTANCE -> INSTANCE
+    java.util.List CHAT_SUGGESTIONS -> a
+    java.util.List ASK_SUGGESTIONS -> b
+    84:84:void <init>() -> <init>
+    104:104:java.util.List getCHAT_SUGGESTIONS() -> a
+    110:110:java.util.List getASK_SUGGESTIONS() -> b
+    104:114:void <clinit>() -> <clinit>
+com.llamatik.teammate.ui.Strings$Diff -> com.llamatik.teammate.ui.b$d:
+# {"fileName":"Strings.kt","id":"sourceFile"}
+    com.llamatik.teammate.ui.Strings$Diff INSTANCE -> INSTANCE
+    131:131:void <init>() -> <init>
+    135:135:java.lang.String errorNotFile(java.lang.String) -> a
+    void <clinit>() -> <clinit>
+com.llamatik.teammate.ui.Strings$EditDialog -> com.llamatik.teammate.ui.b$e:
+# {"fileName":"Strings.kt","id":"sourceFile"}
+    com.llamatik.teammate.ui.Strings$EditDialog INSTANCE -> INSTANCE
+    119:119:void <init>() -> <init>
+    120:120:java.lang.String applyMsg(java.lang.String) -> a
+    void <clinit>() -> <clinit>
+com.llamatik.teammate.ui.Strings$ModelSetup -> com.llamatik.teammate.ui.b$f:
+# {"fileName":"Strings.kt","id":"sourceFile"}
+    com.llamatik.teammate.ui.Strings$ModelSetup INSTANCE -> INSTANCE
+    309:309:void <init>() -> <init>
+    317:317:java.lang.String recommendedModel(java.lang.String) -> a
+    318:318:java.lang.String source(java.lang.String) -> b
+    void <clinit>() -> <clinit>
+com.llamatik.teammate.ui.Strings$Session -> com.llamatik.teammate.ui.b$g:
+# {"fileName":"Strings.kt","id":"sourceFile"}
+    com.llamatik.teammate.ui.Strings$Session INSTANCE -> INSTANCE
+    292:292:void <init>() -> <init>
+    295:295:java.lang.String numberedTitle(int) -> a
+    void <clinit>() -> <clinit>
+com.llamatik.teammate.ui.Strings$Settings -> com.llamatik.teammate.ui.b$h:
+# {"fileName":"Strings.kt","id":"sourceFile"}
+    com.llamatik.teammate.ui.Strings$Settings INSTANCE -> INSTANCE
+    197:197:void <init>() -> <init>
+    233:233:java.lang.String confirmDeleteMsg(java.lang.String) -> a
+    235:235:java.lang.String validationNotExists(java.lang.String) -> b
+    236:236:java.lang.String validationNotFile(java.lang.String) -> c
+    void <clinit>() -> <clinit>
+com.llamatik.teammate.ui.Strings$Skills -> com.llamatik.teammate.ui.b$i:
+# {"fileName":"Strings.kt","id":"sourceFile"}
+    com.llamatik.teammate.ui.Strings$Skills INSTANCE -> INSTANCE
+    323:323:void <init>() -> <init>
+    339:339:java.lang.String activeCount(int) -> a
+    void <clinit>() -> <clinit>
+com.llamatik.teammate.ui.chat.ChatMessagePanel -> com.llamatik.teammate.ui.a.a:
+# {"fileName":"ChatMessagePanel.kt","id":"sourceFile"}
+    com.intellij.openapi.project.Project project -> a
+    com.llamatik.teammate.model.ChatRole role -> b
+    kotlin.jvm.functions.Function0 onApplyEdit -> c
+    kotlin.jvm.functions.Function0 onViewDiff -> d
+    com.intellij.ui.JBColor rootBackground -> e
+    com.intellij.ui.JBColor assistantBubble -> f
+    com.intellij.ui.JBColor userBubble -> g
+    com.intellij.ui.JBColor bubbleStroke -> h
+    com.intellij.ui.JBColor userStroke -> i
+    boolean isUser -> j
+    com.intellij.ui.components.JBTextArea textArea -> k
+    javax.swing.JPanel actions -> l
+    com.intellij.util.ui.AsyncProcessIcon spinner -> m
+    24:121:void <init>(com.intellij.openapi.project.Project,com.llamatik.teammate.model.ChatRole,java.lang.String,java.lang.String,kotlin.jvm.functions.Function0,kotlin.jvm.functions.Function0) -> <init>
+    24:31:void <init>(com.intellij.openapi.project.Project,com.llamatik.teammate.model.ChatRole,java.lang.String,java.lang.String,kotlin.jvm.functions.Function0,kotlin.jvm.functions.Function0,int,kotlin.jvm.internal.DefaultConstructorMarker) -> <init>
+    124:130:void appendToken(java.lang.String) -> a
+    133:137:void setContent(java.lang.String) -> b
+    147:154:javax.swing.JButton iconButton(javax.swing.Icon,java.lang.String,kotlin.jvm.functions.Function0) -> a
+    157:162:javax.swing.JButton actionButton(java.lang.String,kotlin.jvm.functions.Function0) -> a
+    77:78:kotlin.Unit _init_$lambda$2(com.llamatik.teammate.ui.chat.ChatMessagePanel) -> a
+    79:79:kotlin.Unit _init_$lambda$3(com.llamatik.teammate.ui.chat.ChatMessagePanel) -> b
+    80:80:kotlin.Unit _init_$lambda$4(com.llamatik.teammate.ui.chat.ChatMessagePanel) -> c
+    153:153:void iconButton$lambda$0$0(kotlin.jvm.functions.Function0,java.awt.event.ActionEvent) -> a
+    161:161:void actionButton$lambda$0$0(kotlin.jvm.functions.Function0,java.awt.event.ActionEvent) -> b
+com.llamatik.teammate.ui.chat.ChatMessagePanel$bubble$1 -> com.llamatik.teammate.ui.a.a$a:
+# {"fileName":"ChatMessagePanel.kt","id":"sourceFile"}
+    com.intellij.ui.JBColor $bubbleColor -> a
+    com.intellij.ui.JBColor $strokeColor -> b
+    87:87:void <init>(com.intellij.ui.JBColor,com.intellij.ui.JBColor,java.awt.BorderLayout) -> <init>
+com.llamatik.teammate.ui.chat.ChatSessionController -> com.llamatik.teammate.ui.a.b:
+# {"fileName":"ChatSessionController.kt","id":"sourceFile"}
+    com.intellij.openapi.project.Project project -> a
+    com.llamatik.teammate.persistence.ChatSessionStore store -> b
+    java.util.List sessions -> c
+    java.lang.String selectedSessionId -> d
+    10:48:void <init>(com.intellij.openapi.project.Project) -> <init>
+    12:12:java.util.List getSessions() -> a
+    13:13:java.lang.String getSelectedSessionId() -> b
+    13:13:void setSelectedSessionId(java.lang.String) -> a
+    18:22:com.llamatik.teammate.model.ChatSession addSession() -> c
+    26:30:void removeSession(java.lang.String) -> b
+    33:52:void appendMessage(java.lang.String,com.llamatik.teammate.model.ChatMessage) -> a
+    38:54:void clearSession(java.lang.String) -> c
+    43:44:void persist() -> d
+    26:26:boolean removeSession$lambda$0(java.lang.String,com.llamatik.teammate.model.ChatSession) -> a
+    26:26:boolean removeSession$lambda$1(kotlin.jvm.functions.Function1,java.lang.Object) -> a
+com.llamatik.teammate.ui.onboarding.OnboardingDialog -> com.llamatik.teammate.ui.b.a:
+# {"fileName":"OnboardingDialog.kt","id":"sourceFile"}
+    com.llamatik.teammate.ui.onboarding.OnboardingDialog$Companion Companion -> Companion
+    com.intellij.openapi.project.Project project -> a
+    java.awt.CardLayout cardLayout -> b
+    javax.swing.JPanel cardPanel -> c
+    java.lang.String currentStep -> d
+    25:42:void <init>(com.intellij.openapi.project.Project) -> <init>
+    void <clinit>() -> <clinit>
+com.llamatik.teammate.ui.onboarding.OnboardingDialog$Companion -> com.llamatik.teammate.ui.b.a$a:
+# {"fileName":"OnboardingDialog.kt","id":"sourceFile"}
+    27:27:void <init>() -> <init>
+    void <init>(kotlin.jvm.internal.DefaultConstructorMarker) -> <init>
+com.llamatik.teammate.ui.onboarding.OnboardingLauncher -> com.llamatik.teammate.ui.b.b:
+# {"fileName":"OnboardingLauncher.kt","id":"sourceFile"}
+    com.llamatik.teammate.ui.onboarding.OnboardingLauncher INSTANCE -> INSTANCE
+    7:7:void <init>() -> <init>
+    9:23:boolean shouldShow(com.intellij.openapi.project.Project) -> a
+    13:14:void launch(com.intellij.openapi.project.Project) -> b
+    void <clinit>() -> <clinit>
+com.llamatik.teammate.ui.skills.SkillLibraryDialog -> com.llamatik.teammate.ui.c.a:
+# {"fileName":"SkillLibraryDialog.kt","id":"sourceFile"}
+    com.llamatik.teammate.skills.SkillService skillService -> a
+    kotlin.jvm.functions.Function0 onChanged -> b
+    com.intellij.ui.SearchTextField searchField -> c
+    javax.swing.JPanel listPanel -> d
+    com.intellij.ui.components.JBScrollPane scrollPane -> e
+    29:51:void <init>(com.llamatik.teammate.skills.SkillService,kotlin.jvm.functions.Function0) -> <init>
+    29:265:void <init>(com.llamatik.teammate.skills.SkillService,kotlin.jvm.functions.Function0,int,kotlin.jvm.internal.DefaultConstructorMarker) -> <init>
+    31:31:kotlin.Unit _init_$lambda$0() -> a
+    void <init>() -> <init>
+com.llamatik.teammate.ui.toolwindow.AgentTabPanel -> com.llamatik.teammate.ui.toolwindow.a:
+# {"fileName":"AgentTabPanel.kt","id":"sourceFile"}
+    kotlin.jvm.functions.Function1 onSuggestionSelected -> a
+    kotlin.jvm.functions.Function0 onApprove -> b
+    kotlin.jvm.functions.Function0 onReject -> c
+    kotlin.jvm.functions.Function1 onSend -> d
+    kotlin.jvm.functions.Function0 onStop -> e
+    kotlin.jvm.functions.Function0 onSettingsClicked -> f
+    kotlin.jvm.functions.Function0 onModelChanged -> g
+    kotlin.jvm.functions.Function0 onClear -> h
+    kotlin.jvm.functions.Function0 isAutoApprove -> i
+    kotlin.jvm.functions.Function1 onAutoApproveChanged -> j
+    kotlin.jvm.functions.Function0 isAutoBuild -> k
+    kotlin.jvm.functions.Function1 onAutoBuildChanged -> l
+    kotlin.jvm.functions.Function0 isAutoFix -> m
+    kotlin.jvm.functions.Function1 onAutoFixChanged -> n
+    com.intellij.openapi.project.Project project -> o
+    com.intellij.ui.JBColor rootBackground -> p
+    com.intellij.ui.JBColor cardBackground -> q
+    com.intellij.ui.JBColor panelStroke -> r
+    com.intellij.ui.JBColor accent -> s
+    com.intellij.ui.JBColor mutedText -> t
+    com.intellij.ui.JBColor success -> u
+    java.awt.CardLayout cardLayout -> v
+    javax.swing.JPanel cardPanel -> w
+    java.util.List suggestions -> x
+    javax.swing.JPanel phaseList -> y
+    javax.swing.JButton approveButton -> z
+    javax.swing.JButton rejectButton -> A
+    long genStartMs -> B
+    com.intellij.ui.components.JBLabel elapsedLabel -> C
+    javax.swing.Timer elapsedTimer -> D
+    javax.swing.JPanel conversationPanel -> E
+    javax.swing.JPanel conversationWrapper -> F
+    com.intellij.ui.components.JBScrollPane conversationScroll -> G
+    com.intellij.ui.components.JBLabel promptLabel -> H
+    javax.swing.JPanel promptBubble -> I
+    com.intellij.ui.components.JBLabel statusPill -> J
+    javax.swing.JPanel statusRow -> K
+    boolean thinkHasContent -> L
+    long thinkStartMs -> M
+    long thinkElapsedMs -> N
+    com.intellij.ui.components.JBTextArea thinkTextArea -> O
+    javax.swing.JPanel thinkContent -> P
+    javax.swing.JButton thinkToggleBtn -> Q
+    javax.swing.JPanel thinkingSection -> R
+    javax.swing.JPanel toolCallsPanel -> S
+    com.intellij.ui.components.JBTextArea responseTextArea -> T
+    javax.swing.JPanel responseContent -> U
+    javax.swing.JPanel proposalsPanel -> V
+    javax.swing.JCheckBoxMenuItem autoApproveItem -> W
+    javax.swing.JCheckBoxMenuItem autoBuildItem -> X
+    javax.swing.JCheckBoxMenuItem autoFixItem -> Y
+    javax.swing.JPopupMenu runOptionsPopup -> Z
+    javax.swing.JButton runOptionsButton -> aa
+    com.intellij.util.ui.AsyncProcessIcon loadingSpinner -> ab
+    javax.swing.JPanel spinnerPanel -> ac
+    com.intellij.ui.components.JBLabel verifyStatusLabel -> ad
+    com.intellij.ui.components.JBTextArea verifyErrorArea -> ae
+    javax.swing.JPanel verifyErrorContent -> af
+    javax.swing.JButton autoFixButton -> ag
+    javax.swing.JPanel verificationPanel -> ah
+    javax.swing.JButton backButton -> ai
+    javax.swing.JButton clearButton -> aj
+    java.lang.StringBuilder streamBuffer -> ak
+    boolean streamingBlocked -> al
+    java.lang.StringBuilder thinkBuffer -> am
+    boolean thinkingBlocked -> an
+    int currentGenerationId -> ao
+    java.util.List blockedPrefixes -> ap
+    com.llamatik.teammate.skills.SkillService skillService -> aq
+    com.intellij.ui.components.JBLabel activeSkillsLabel -> ar
+    com.llamatik.teammate.ui.toolwindow.ModelPickerButton modelPickerButton -> as
+    com.intellij.ui.components.JBTextArea composerInput -> at
+    javax.swing.JButton composerSendButton -> au
+    javax.swing.JButton composerStopButton -> av
+    49:1244:void <init>(kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function0,kotlin.jvm.functions.Function0,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function0,kotlin.jvm.functions.Function0,kotlin.jvm.functions.Function0,kotlin.jvm.functions.Function0,kotlin.jvm.functions.Function0,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function0,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function0,kotlin.jvm.functions.Function1,com.intellij.openapi.project.Project) -> <init>
+    456:456:void refreshModelPicker() -> a
+    458:458:void refreshActiveSkills() -> b
+    461:469:void refreshActiveSkillsLabel() -> g
+    472:475:void prefill(java.lang.String) -> a
+    480:481:void clearComposer() -> c
+    484:488:void setGenerating(boolean) -> a
+    491:496:void stopSpinnerAndTimer() -> h
+    499:501:void setComposerEnabled(boolean) -> b
+    504:505:void setComposerTooltip(java.lang.String) -> b
+    508:556:int startResponse(java.lang.String) -> c
+    560:562:void setStatus(java.lang.String) -> d
+    565:577:void appendThinkingToken(java.lang.String,int) -> a
+    580:590:void appendAnswerToken(java.lang.String,int) -> b
+    593:598:void addToolCall(java.lang.String,java.lang.String) -> a
+    608:1246:void showAnswer(java.lang.String,int,java.util.List,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function1) -> a
+    600:606:void showAnswer$default(com.llamatik.teammate.ui.toolwindow.AgentTabPanel,java.lang.String,int,java.util.List,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function1,int,java.lang.Object) -> a
+    649:659:void showReadinessOverlay(com.llamatik.teammate.model.PluginReadinessState,boolean) -> a
+    662:665:void hideReadinessOverlay() -> d
+    668:669:void hideVerification() -> e
+    672:681:void showVerifying(java.lang.String) -> e
+    684:693:void showBuildSuccess(boolean) -> c
+    696:709:void showBuildErrors(java.lang.String,kotlin.jvm.functions.Function0) -> a
+    712:720:void showAutoFixLimit() -> f
+    762:1252:javax.swing.JPanel buildWelcomeCard() -> i
+    803:830:javax.swing.JPanel buildTaskCard() -> j
+    834:851:javax.swing.JPanel buildOverlayCard(java.lang.String) -> f
+    854:1241:javax.swing.JPanel buildResponseCard() -> k
+    930:1008:javax.swing.JPanel buildComposer() -> l
+    1012:1014:javax.swing.JComponent vStrut(int) -> a
+    1017:1021:void scrollToBottom() -> m
+    1024:1043:javax.swing.JButton buildPromptCard(java.lang.String) -> g
+    1046:1241:javax.swing.JPanel buildToolCallRow(java.lang.String,java.lang.String) -> b
+    1061:1241:javax.swing.JPanel buildProposalCard(com.llamatik.teammate.model.EditProposal,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function1) -> a
+    1158:1271:void flushToArea(java.lang.String,java.lang.StringBuilder,com.intellij.ui.components.JBTextArea) -> a
+    1193:1200:void updateRunOptionsButton() -> n
+    1203:1205:java.lang.String formatElapsed(long) -> a
+    1209:1222:javax.swing.JPanel roundedCard(java.awt.Color,java.awt.Color,int,java.awt.LayoutManager) -> a
+    1208:1208:javax.swing.JPanel roundedCard$default(com.llamatik.teammate.ui.toolwindow.AgentTabPanel,java.awt.Color,java.awt.Color,int,java.awt.LayoutManager,int,java.lang.Object) -> a
+    1225:1274:void showInferenceDialog(java.awt.Component) -> a
+    95:96:void elapsedTimer$lambda$0(com.llamatik.teammate.ui.toolwindow.AgentTabPanel,java.awt.event.ActionEvent) -> a
+    235:235:void autoApproveItem$lambda$0$0(com.llamatik.teammate.ui.toolwindow.AgentTabPanel,javax.swing.JCheckBoxMenuItem,java.awt.event.ActionEvent) -> a
+    239:239:void autoBuildItem$lambda$0$0(com.llamatik.teammate.ui.toolwindow.AgentTabPanel,javax.swing.JCheckBoxMenuItem,java.awt.event.ActionEvent) -> b
+    243:243:void autoFixItem$lambda$0$0(com.llamatik.teammate.ui.toolwindow.AgentTabPanel,javax.swing.JCheckBoxMenuItem,java.awt.event.ActionEvent) -> c
+    259:260:void runOptionsButton$lambda$0$0(com.llamatik.teammate.ui.toolwindow.AgentTabPanel,javax.swing.JButton,java.awt.event.ActionEvent) -> a
+    401:409:void _init_$lambda$12(com.llamatik.teammate.ui.toolwindow.AgentTabPanel,java.awt.event.ActionEvent) -> b
+    420:420:void _init_$lambda$13(com.llamatik.teammate.ui.toolwindow.AgentTabPanel,java.awt.event.ActionEvent) -> c
+    422:425:void _init_$lambda$14(com.llamatik.teammate.ui.toolwindow.AgentTabPanel,java.awt.event.ActionEvent) -> d
+    428:430:void _init_$lambda$15(com.llamatik.teammate.ui.toolwindow.AgentTabPanel,java.awt.event.ActionEvent) -> e
+    431:431:void _init_$lambda$16(com.llamatik.teammate.ui.toolwindow.AgentTabPanel,java.awt.event.ActionEvent) -> f
+    465:465:java.lang.CharSequence refreshActiveSkillsLabel$lambda$0(com.llamatik.teammate.skills.SkillDescriptor) -> a
+    604:604:kotlin.Unit showAnswer$lambda$0(com.llamatik.teammate.model.EditProposal) -> a
+    605:605:kotlin.Unit showAnswer$lambda$1(com.llamatik.teammate.model.EditProposal) -> b
+    606:606:kotlin.Unit showAnswer$lambda$2(com.llamatik.teammate.model.EditProposal) -> c
+    703:703:void showBuildErrors$lambda$0(kotlin.jvm.functions.Function0,java.awt.event.ActionEvent) -> a
+    813:813:void buildTaskCard$lambda$1$0(com.llamatik.teammate.ui.toolwindow.AgentTabPanel,java.awt.event.ActionEvent) -> g
+    814:814:void buildTaskCard$lambda$1$1(com.llamatik.teammate.ui.toolwindow.AgentTabPanel,java.awt.event.ActionEvent) -> h
+    866:867:void buildResponseCard$lambda$0$0(com.llamatik.teammate.ui.toolwindow.AgentTabPanel,java.awt.event.ActionEvent) -> i
+    895:898:void buildResponseCard$addItem(com.llamatik.teammate.ui.toolwindow.AgentTabPanel,javax.swing.JComponent,int) -> a
+    894:894:void buildResponseCard$addItem$default(com.llamatik.teammate.ui.toolwindow.AgentTabPanel,javax.swing.JComponent,int,int,java.lang.Object) -> a
+    953:953:void buildComposer$lambda$1$0(com.llamatik.teammate.ui.toolwindow.AgentTabPanel,java.awt.event.ActionEvent) -> j
+    961:961:void buildComposer$lambda$2$0(com.llamatik.teammate.ui.toolwindow.AgentTabPanel,javax.swing.JButton,java.awt.event.ActionEvent) -> b
+    1018:1020:void scrollToBottom$lambda$0(com.llamatik.teammate.ui.toolwindow.AgentTabPanel) -> a
+    1042:1042:void buildPromptCard$lambda$0$0(com.llamatik.teammate.ui.toolwindow.AgentTabPanel,java.lang.String,java.awt.event.ActionEvent) -> a
+    1095:1095:void buildProposalCard$lambda$6$0(kotlin.jvm.functions.Function1,com.llamatik.teammate.model.EditProposal,java.awt.event.ActionEvent) -> a
+    1115:1123:void buildProposalCard$lambda$8$0(kotlin.jvm.functions.Function1,com.llamatik.teammate.model.EditProposal,com.intellij.ui.components.JBLabel,javax.swing.JButton,javax.swing.JButton,javax.swing.JButton,javax.swing.JPanel,java.awt.event.ActionEvent) -> a
+    1126:1134:void buildProposalCard$lambda$9(kotlin.jvm.functions.Function1,com.llamatik.teammate.model.EditProposal,com.intellij.ui.components.JBLabel,com.llamatik.teammate.ui.toolwindow.AgentTabPanel,javax.swing.JButton,javax.swing.JButton,javax.swing.JButton,javax.swing.JPanel,java.awt.event.ActionEvent) -> a
+com.llamatik.teammate.ui.toolwindow.AgentTabPanel$18$1 -> com.llamatik.teammate.ui.toolwindow.a$a:
+# {"fileName":"AgentTabPanel.kt","id":"sourceFile"}
+    com.llamatik.teammate.ui.toolwindow.AgentTabPanel this$0 -> a
+    438:438:void <init>(com.llamatik.teammate.ui.toolwindow.AgentTabPanel) -> <init>
+com.llamatik.teammate.ui.toolwindow.AgentTabPanel$18$2 -> com.llamatik.teammate.ui.toolwindow.a$b:
+# {"fileName":"AgentTabPanel.kt","id":"sourceFile"}
+    com.llamatik.teammate.ui.toolwindow.AgentTabPanel this$0 -> a
+    444:444:void <init>(com.llamatik.teammate.ui.toolwindow.AgentTabPanel) -> <init>
+com.llamatik.teammate.ui.toolwindow.AgentTabPanel$buildComposer$shell$1 -> com.llamatik.teammate.ui.toolwindow.a$c:
+# {"fileName":"AgentTabPanel.kt","id":"sourceFile"}
+    int $arc -> a
+    com.llamatik.teammate.ui.toolwindow.AgentTabPanel this$0 -> b
+    981:981:void <init>(int,com.llamatik.teammate.ui.toolwindow.AgentTabPanel,java.awt.BorderLayout) -> <init>
+com.llamatik.teammate.ui.toolwindow.AgentTabPanel$buildPromptCard$1 -> com.llamatik.teammate.ui.toolwindow.a$d:
+# {"fileName":"AgentTabPanel.kt","id":"sourceFile"}
+    int arc -> b
+    com.llamatik.teammate.ui.toolwindow.AgentTabPanel this$0 -> a
+    1024:1025:void <init>(com.llamatik.teammate.ui.toolwindow.AgentTabPanel,java.lang.String) -> <init>
+com.llamatik.teammate.ui.toolwindow.AgentTabPanel$roundedCard$1 -> com.llamatik.teammate.ui.toolwindow.a$e:
+# {"fileName":"AgentTabPanel.kt","id":"sourceFile"}
+    java.awt.Color $bg -> a
+    int $arc -> b
+    java.awt.Color $borderColor -> c
+    1209:1209:void <init>(java.awt.LayoutManager,java.awt.Color,int,java.awt.Color) -> <init>
+com.llamatik.teammate.ui.toolwindow.AgentTabPanel$showInferenceDialog$dialog$1 -> com.llamatik.teammate.ui.toolwindow.a$f:
+# {"fileName":"AgentTabPanel.kt","id":"sourceFile"}
+    com.llamatik.teammate.settings.InferenceSettingsPanel $panel -> a
+    1228:1232:void <init>(com.llamatik.teammate.settings.InferenceSettingsPanel) -> <init>
+com.llamatik.teammate.ui.toolwindow.AtMentionHandler -> com.llamatik.teammate.ui.toolwindow.b:
+# {"fileName":"AtMentionHandler.kt","id":"sourceFile"}
+    javax.swing.text.JTextComponent textComponent -> a
+    com.intellij.openapi.project.Project project -> b
+    com.llamatik.teammate.context.ProjectContextService contextService -> c
+    javax.swing.DefaultListModel listModel -> d
+    com.intellij.ui.components.JBList resultList -> e
+    javax.swing.JScrollPane scrollPane -> f
+    javax.swing.JPanel contentPanel -> g
+    com.llamatik.teammate.ui.toolwindow.AtMentionHandler$floatingWindow$1 floatingWindow -> h
+    int atStartOffset -> i
+    com.llamatik.teammate.ui.toolwindow.AtMentionHandler$documentListener$1 documentListener -> j
+    com.llamatik.teammate.ui.toolwindow.AtMentionHandler$keyListener$1 keyListener -> k
+    37:129:void <init>(javax.swing.text.JTextComponent,com.intellij.openapi.project.Project) -> <init>
+com.llamatik.teammate.ui.toolwindow.AtMentionHandler$1 -> com.llamatik.teammate.ui.toolwindow.b$1:
+# {"fileName":"AtMentionHandler.kt","id":"sourceFile"}
+    com.llamatik.teammate.ui.toolwindow.AtMentionHandler this$0 -> a
+    124:124:void <init>(com.llamatik.teammate.ui.toolwindow.AtMentionHandler) -> <init>
+com.llamatik.teammate.ui.toolwindow.AtMentionHandler$documentListener$1 -> com.llamatik.teammate.ui.toolwindow.b$a:
+# {"fileName":"AtMentionHandler.kt","id":"sourceFile"}
+    com.llamatik.teammate.ui.toolwindow.AtMentionHandler this$0 -> a
+    85:85:void <init>(com.llamatik.teammate.ui.toolwindow.AtMentionHandler) -> <init>
+com.llamatik.teammate.ui.toolwindow.AtMentionHandler$floatingWindow$1 -> com.llamatik.teammate.ui.toolwindow.b$b:
+# {"fileName":"AtMentionHandler.kt","id":"sourceFile"}
+    73:73:void <init>() -> <init>
+com.llamatik.teammate.ui.toolwindow.AtMentionHandler$keyListener$1 -> com.llamatik.teammate.ui.toolwindow.b$c:
+# {"fileName":"AtMentionHandler.kt","id":"sourceFile"}
+    com.llamatik.teammate.ui.toolwindow.AtMentionHandler this$0 -> a
+    92:92:void <init>(com.llamatik.teammate.ui.toolwindow.AtMentionHandler) -> <init>
+com.llamatik.teammate.ui.toolwindow.ChatTabPanel -> com.llamatik.teammate.ui.toolwindow.c:
+# {"fileName":"ChatTabPanel.kt","id":"sourceFile"}
+    com.intellij.openapi.project.Project project -> a
+    com.llamatik.teammate.ui.chat.ChatSessionController sessionController -> b
+    com.llamatik.teammate.diff.DiffPreviewService diffService -> c
+    java.util.LinkedHashMap pendingEdits -> d
+    kotlin.jvm.functions.Function1 onApplyEdit -> e
+    kotlin.jvm.functions.Function1 onSuggestionSelected -> f
+    kotlin.jvm.functions.Function1 onSend -> g
+    kotlin.jvm.functions.Function0 onStop -> h
+    kotlin.jvm.functions.Function0 onSettingsClicked -> i
+    kotlin.jvm.functions.Function0 onModelChanged -> j
+    com.intellij.ui.JBColor rootBackground -> k
+    com.intellij.ui.JBColor cardBackground -> l
+    com.intellij.ui.JBColor heroAccent -> m
+    com.intellij.ui.JBColor heroSecondary -> n
+    com.intellij.ui.JBColor mutedText -> o
+    com.llamatik.teammate.ui.toolwindow.ChatTabPanel$EntryMode entryMode -> p
+    java.util.List chatSuggestions -> q
+    java.util.List askSuggestions -> r
+    com.intellij.ui.components.JBTabbedPane tabs -> s
+    javax.swing.JButton newChatButton -> t
+    javax.swing.JButton clearButton -> u
+    com.llamatik.teammate.ui.toolwindow.ModelPickerButton modelPickerButton -> v
+    com.intellij.ui.components.JBTextArea composerInput -> w
+    javax.swing.JButton composerSendButton -> x
+    javax.swing.JButton composerStopButton -> y
+    42:201:void <init>(com.intellij.openapi.project.Project,com.llamatik.teammate.ui.chat.ChatSessionController,com.llamatik.teammate.diff.DiffPreviewService,java.util.LinkedHashMap,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function0,kotlin.jvm.functions.Function0,kotlin.jvm.functions.Function0) -> <init>
+    205:205:void refreshModelPicker() -> a
+    208:211:void prefill(java.lang.String) -> a
+    216:217:void clearComposer() -> b
+    220:223:void setGenerating(boolean) -> a
+    226:228:void setComposerEnabled(boolean) -> b
+    231:232:void setComposerTooltip(java.lang.String) -> b
+    235:237:void setEntryMode(com.llamatik.teammate.ui.toolwindow.ChatTabPanel$EntryMode) -> a
+    240:262:void bindActions() -> e
+    265:597:void rebuildTabs() -> c
+    321:599:javax.swing.JPanel buildWelcomeCard() -> f
+    409:419:javax.swing.JPanel buildTabHeader(java.lang.String,kotlin.jvm.functions.Function0) -> a
+    422:443:javax.swing.JButton promptChip(java.lang.String) -> c
+    447:457:javax.swing.JButton toolbarButton(javax.swing.Icon,java.lang.String) -> a
+    460:538:javax.swing.JPanel buildComposer() -> g
+    542:544:void closeTab(java.lang.String) -> d
+    547:549:com.llamatik.teammate.model.ChatSession currentSession() -> d
+    552:611:void appendStreamingPanel(com.llamatik.teammate.ui.chat.ChatMessagePanel) -> a
+    570:614:void showInferenceDialog() -> h
+    174:176:void _init_$lambda$5(com.llamatik.teammate.ui.toolwindow.ChatTabPanel,java.awt.event.ActionEvent) -> a
+    177:177:void _init_$lambda$6(com.llamatik.teammate.ui.toolwindow.ChatTabPanel,java.awt.event.ActionEvent) -> b
+    241:621:void bindActions$lambda$0(com.llamatik.teammate.ui.toolwindow.ChatTabPanel,java.awt.event.ActionEvent) -> c
+    248:253:void bindActions$lambda$1(com.llamatik.teammate.ui.toolwindow.ChatTabPanel,java.awt.event.ActionEvent) -> d
+    256:261:void bindActions$lambda$2(com.llamatik.teammate.ui.toolwindow.ChatTabPanel,javax.swing.event.ChangeEvent) -> a
+    289:289:kotlin.Unit rebuildTabs$lambda$0$2$2$0(com.llamatik.teammate.ui.toolwindow.ChatTabPanel,com.llamatik.teammate.model.EditProposal) -> a
+    290:290:kotlin.Unit rebuildTabs$lambda$0$2$3$0(com.llamatik.teammate.ui.toolwindow.ChatTabPanel,com.llamatik.teammate.model.EditProposal) -> b
+    310:311:kotlin.Unit rebuildTabs$lambda$0$4(com.llamatik.teammate.ui.toolwindow.ChatTabPanel,com.llamatik.teammate.model.ChatSession) -> a
+    417:417:void buildTabHeader$lambda$0$0$0(kotlin.jvm.functions.Function0,java.awt.event.ActionEvent) -> a
+    442:442:void promptChip$lambda$0$0(com.llamatik.teammate.ui.toolwindow.ChatTabPanel,java.lang.String,java.awt.event.ActionEvent) -> a
+    483:483:void buildComposer$lambda$1$0(com.llamatik.teammate.ui.toolwindow.ChatTabPanel,java.awt.event.ActionEvent) -> e
+    491:491:void buildComposer$lambda$2$0(com.llamatik.teammate.ui.toolwindow.ChatTabPanel,java.awt.event.ActionEvent) -> f
+com.llamatik.teammate.ui.toolwindow.ChatTabPanel$8$1 -> com.llamatik.teammate.ui.toolwindow.c$a:
+# {"fileName":"ChatTabPanel.kt","id":"sourceFile"}
+    com.llamatik.teammate.ui.toolwindow.ChatTabPanel this$0 -> a
+    184:184:void <init>(com.llamatik.teammate.ui.toolwindow.ChatTabPanel) -> <init>
+com.llamatik.teammate.ui.toolwindow.ChatTabPanel$8$2 -> com.llamatik.teammate.ui.toolwindow.c$b:
+# {"fileName":"ChatTabPanel.kt","id":"sourceFile"}
+    com.llamatik.teammate.ui.toolwindow.ChatTabPanel this$0 -> a
+    190:190:void <init>(com.llamatik.teammate.ui.toolwindow.ChatTabPanel) -> <init>
+com.llamatik.teammate.ui.toolwindow.ChatTabPanel$EntryMode -> com.llamatik.teammate.ui.toolwindow.c$c:
+# {"fileName":"ChatTabPanel.kt","id":"sourceFile"}
+    com.llamatik.teammate.ui.toolwindow.ChatTabPanel$EntryMode CHAT -> CHAT
+    com.llamatik.teammate.ui.toolwindow.ChatTabPanel$EntryMode ASK -> ASK
+    com.llamatik.teammate.ui.toolwindow.ChatTabPanel$EntryMode[] $VALUES -> $VALUES
+    kotlin.enums.EnumEntries $ENTRIES -> $ENTRIES
+    55:55:void <init>(java.lang.String,int) -> <init>
+    com.llamatik.teammate.ui.toolwindow.ChatTabPanel$EntryMode[] values() -> values
+    com.llamatik.teammate.ui.toolwindow.ChatTabPanel$EntryMode valueOf(java.lang.String) -> valueOf
+    kotlin.enums.EnumEntries getEntries() -> getEntries
+    com.llamatik.teammate.ui.toolwindow.ChatTabPanel$EntryMode[] $values() -> $values
+    56:57:void <clinit>() -> <clinit>
+com.llamatik.teammate.ui.toolwindow.ChatTabPanel$buildComposer$shell$1 -> com.llamatik.teammate.ui.toolwindow.c$d:
+# {"fileName":"ChatTabPanel.kt","id":"sourceFile"}
+    int $arc -> a
+    com.llamatik.teammate.ui.toolwindow.ChatTabPanel this$0 -> b
+    511:511:void <init>(int,com.llamatik.teammate.ui.toolwindow.ChatTabPanel,java.awt.BorderLayout) -> <init>
+com.llamatik.teammate.ui.toolwindow.ChatTabPanel$buildWelcomeCard$infoCard$1 -> com.llamatik.teammate.ui.toolwindow.c$e:
+# {"fileName":"ChatTabPanel.kt","id":"sourceFile"}
+    int arc -> a
+    342:343:void <init>(java.awt.BorderLayout) -> <init>
+com.llamatik.teammate.ui.toolwindow.ChatTabPanel$promptChip$1 -> com.llamatik.teammate.ui.toolwindow.c$f:
+# {"fileName":"ChatTabPanel.kt","id":"sourceFile"}
+    int arc -> c
+    com.llamatik.teammate.ui.toolwindow.ChatTabPanel this$0 -> a
+    com.intellij.ui.JBColor $borderColor -> b
+    423:424:void <init>(com.llamatik.teammate.ui.toolwindow.ChatTabPanel,com.intellij.ui.JBColor,java.lang.String) -> <init>
+com.llamatik.teammate.ui.toolwindow.ChatTabPanel$showInferenceDialog$dialog$1 -> com.llamatik.teammate.ui.toolwindow.c$g:
+# {"fileName":"ChatTabPanel.kt","id":"sourceFile"}
+    com.llamatik.teammate.settings.InferenceSettingsPanel $panel -> a
+    573:577:void <init>(com.llamatik.teammate.settings.InferenceSettingsPanel) -> <init>
+com.llamatik.teammate.ui.toolwindow.ChatTabPanel$tabs$1$1 -> com.llamatik.teammate.ui.toolwindow.c$h:
+# {"fileName":"ChatTabPanel.kt","id":"sourceFile"}
+    int arc -> b
+    com.llamatik.teammate.ui.toolwindow.ChatTabPanel this$0 -> a
+    75:76:void <init>(com.llamatik.teammate.ui.toolwindow.ChatTabPanel) -> <init>
+com.llamatik.teammate.ui.toolwindow.ErrorBannerPanel -> com.llamatik.teammate.ui.toolwindow.d:
+# {"fileName":"ErrorBannerPanel.kt","id":"sourceFile"}
+    javax.swing.JLabel messageLabel -> a
+    javax.swing.JButton dismissButton -> b
+    kotlin.jvm.functions.Function0 onRetry -> c
+    12:41:void <init>() -> <init>
+    32:36:void showError(java.lang.String,kotlin.jvm.functions.Function0) -> a
+    23:23:void _init_$lambda$1(com.llamatik.teammate.ui.toolwindow.ErrorBannerPanel,java.awt.event.ActionEvent) -> a
+    28:28:void _init_$lambda$2(com.llamatik.teammate.ui.toolwindow.ErrorBannerPanel,java.awt.event.ActionEvent) -> b
+com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowFactory -> com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowFactory:
+# {"fileName":"LlamatikToolWindowFactory.kt","id":"sourceFile"}
+    9:9:void <init>() -> <init>
+    10:10:boolean shouldBeAvailable(com.intellij.openapi.project.Project) -> shouldBeAvailable
+    13:23:void createToolWindowContent(com.intellij.openapi.project.Project,com.intellij.openapi.wm.ToolWindow) -> createToolWindowContent
+    9:9:java.lang.Object isApplicableAsync(com.intellij.openapi.project.Project,kotlin.coroutines.Continuation) -> isApplicableAsync
+    9:9:boolean isApplicable(com.intellij.openapi.project.Project) -> isApplicable
+    9:9:void init(com.intellij.openapi.wm.ToolWindow) -> init
+    9:9:java.lang.Object manage(com.intellij.openapi.wm.ToolWindow,com.intellij.openapi.wm.ToolWindowManager,kotlin.coroutines.Continuation) -> manage
+    9:9:boolean isDoNotActivateOnStart() -> isDoNotActivateOnStart
+    9:9:com.intellij.openapi.wm.ToolWindowAnchor getAnchor() -> getAnchor
+    9:9:javax.swing.Icon getIcon() -> getIcon
+    20:21:void createToolWindowContent$lambda$0(com.intellij.openapi.project.Project) -> createToolWindowContent$lambda$0
+com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel -> com.llamatik.teammate.ui.toolwindow.e:
+# {"fileName":"LlamatikToolWindowPanel.kt","id":"sourceFile"}
+    com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel$Companion Companion -> Companion
+    com.intellij.openapi.project.Project project -> a
+    com.llamatik.teammate.agent.AgentOrchestrator agent -> b
+    com.llamatik.teammate.diff.DiffPreviewService diffService -> c
+    com.llamatik.teammate.agent.BuildVerificationService buildService -> d
+    com.llamatik.teammate.settings.LlamatikAppSettings settings -> e
+    com.llamatik.teammate.licensing.TrialService trialService -> f
+    com.llamatik.teammate.ui.toolwindow.PluginStateController stateController -> g
+    com.llamatik.teammate.ui.chat.ChatSessionController sessionController -> h
+    java.util.LinkedHashMap pendingEdits -> i
+    boolean isActivelyLoading -> j
+    com.llamatik.teammate.backend.GenerationHandle currentHandle -> k
+    com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel$SurfaceMode currentMode -> l
+    int activeGenId -> m
+    int autoFixCount -> n
+    boolean isAutoFix -> o
+    com.intellij.ui.JBColor rootBackground -> p
+    java.lang.String pluginVersion -> q
+    javax.swing.JPanel trialBannerPanel -> r
+    com.intellij.ui.components.JBLabel trialBannerLabel -> s
+    javax.swing.JButton trialDismissBtn -> t
+    com.llamatik.teammate.ui.toolwindow.ErrorBannerPanel errorBanner -> u
+    java.awt.CardLayout contentLayout -> v
+    javax.swing.JPanel contentPanel -> w
+    com.intellij.ui.components.JBLabel disclaimerLabel -> x
+    com.llamatik.teammate.ui.toolwindow.ChatTabPanel chatTabPanel -> y
+    com.llamatik.teammate.ui.toolwindow.AgentTabPanel agentTabPanel -> z
+    com.intellij.ui.JBColor selectedToggleBackground -> A
+    com.intellij.ui.JBColor unselectedToggleBackground -> B
+    javax.swing.JToggleButton agentToggle -> C
+    javax.swing.JToggleButton askToggle -> D
+    boolean isAgentGenerating -> E
+    47:639:void <init>(com.intellij.openapi.project.Project,com.intellij.openapi.wm.ToolWindow) -> <init>
+    174:174:void focusInputWithPrefill(java.lang.String) -> a
+    177:235:javax.swing.JPanel buildTopSection() -> b
+    239:249:javax.swing.JPanel buildDisclaimerStrip() -> c
+    252:254:void bindActions() -> d
+    257:272:void applyMode(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel$SurfaceMode) -> a
+    275:279:void prefillComposer(java.lang.String) -> b
+    282:429:void sendPromptFromTab(java.lang.String,boolean) -> a
+    432:432:com.llamatik.teammate.model.PluginReadinessState computeState() -> e
+    437:441:void setGenerating(boolean) -> a
+    444:479:void syncState() -> f
+    482:483:void refreshState() -> a
+    492:643:void reconcileModelPath() -> g
+    519:529:void applyEdit(com.llamatik.teammate.model.EditProposal) -> a
+    532:566:void startVerification(java.util.List) -> a
+    569:581:void autoFixErrors(java.lang.String) -> c
+    584:599:javax.swing.JButton buildLogoButton() -> h
+    603:624:javax.swing.JToggleButton buildModeToggle(java.lang.String) -> d
+    115:115:kotlin.Unit chatTabPanel$lambda$0(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel,com.llamatik.teammate.model.EditProposal) -> a
+    116:116:kotlin.Unit chatTabPanel$lambda$1(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel,java.lang.String) -> a
+    117:117:kotlin.Unit chatTabPanel$lambda$2(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel,java.lang.String) -> b
+    118:118:kotlin.Unit chatTabPanel$lambda$3(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel) -> a
+    120:121:kotlin.Unit chatTabPanel$lambda$4(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel) -> b
+    122:122:kotlin.Unit chatTabPanel$lambda$5(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel) -> c
+    126:126:kotlin.Unit agentTabPanel$lambda$0(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel,java.lang.String) -> c
+    127:127:kotlin.Unit agentTabPanel$lambda$1() -> i
+    128:128:kotlin.Unit agentTabPanel$lambda$2() -> j
+    129:129:kotlin.Unit agentTabPanel$lambda$3(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel,java.lang.String) -> d
+    130:130:kotlin.Unit agentTabPanel$lambda$4(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel) -> d
+    132:133:kotlin.Unit agentTabPanel$lambda$5(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel) -> e
+    134:134:kotlin.Unit agentTabPanel$lambda$6(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel) -> f
+    135:135:kotlin.Unit agentTabPanel$lambda$7(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel) -> g
+    136:136:boolean agentTabPanel$lambda$8(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel) -> h
+    137:137:kotlin.Unit agentTabPanel$lambda$9(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel,boolean) -> a
+    138:138:boolean agentTabPanel$lambda$10(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel) -> i
+    139:139:kotlin.Unit agentTabPanel$lambda$11(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel,boolean) -> b
+    140:140:boolean agentTabPanel$lambda$12(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel) -> j
+    141:141:kotlin.Unit agentTabPanel$lambda$13(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel,boolean) -> c
+    179:181:void buildTopSection$lambda$0(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel,java.awt.event.ActionEvent) -> a
+    252:252:void bindActions$lambda$0(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel,java.awt.event.ActionEvent) -> b
+    253:253:void bindActions$lambda$1(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel,java.awt.event.ActionEvent) -> c
+    317:329:void sendPromptFromTab$lambda$0$0(java.lang.String,com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel,int) -> a
+    333:334:void sendPromptFromTab$lambda$1$0(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel,java.lang.String,int) -> a
+    362:366:void sendPromptFromTab$lambda$2$0$checkAllResolved(kotlin.jvm.internal.Ref$IntRef,java.util.List,com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel) -> a
+    371:371:kotlin.Unit sendPromptFromTab$lambda$2$0$2(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel,com.llamatik.teammate.model.EditProposal) -> b
+    373:377:kotlin.Unit sendPromptFromTab$lambda$2$0$3(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel,java.util.List,kotlin.jvm.internal.Ref$IntRef,com.llamatik.teammate.model.EditProposal) -> a
+    378:378:kotlin.Unit sendPromptFromTab$lambda$2$0$4(kotlin.jvm.internal.Ref$IntRef,java.util.List,com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel,com.llamatik.teammate.model.EditProposal) -> a
+    338:659:void sendPromptFromTab$lambda$2$0(int,com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel,java.util.List,com.llamatik.teammate.model.ChatMessage) -> a
+    385:388:void sendPromptFromTab$lambda$3$0(int,com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel,java.lang.String) -> a
+    411:412:void sendPromptFromTab$lambda$4$0(com.llamatik.teammate.ui.chat.ChatMessagePanel,java.lang.String) -> a
+    416:420:void sendPromptFromTab$lambda$5$0(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel,com.llamatik.teammate.model.ChatSession,java.lang.String,com.llamatik.teammate.ui.chat.ChatMessagePanel) -> a
+    424:424:kotlin.Unit sendPromptFromTab$lambda$6$0$0() -> k
+    424:426:void sendPromptFromTab$lambda$6$0(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel,java.lang.String) -> e
+    316:330:kotlin.Unit sendPromptFromTab$lambda$0(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel,int,java.lang.String) -> a
+    332:335:kotlin.Unit sendPromptFromTab$lambda$1(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel,int,java.lang.String) -> b
+    337:382:kotlin.Unit sendPromptFromTab$lambda$2(int,com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel,com.llamatik.teammate.model.ChatMessage,java.util.List) -> a
+    384:389:kotlin.Unit sendPromptFromTab$lambda$3(int,com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel,java.lang.String) -> b
+    410:413:kotlin.Unit sendPromptFromTab$lambda$4(com.llamatik.teammate.ui.chat.ChatMessagePanel,java.lang.String) -> b
+    415:421:kotlin.Unit sendPromptFromTab$lambda$5(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel,com.llamatik.teammate.model.ChatSession,com.llamatik.teammate.ui.chat.ChatMessagePanel,java.lang.String) -> a
+    423:427:kotlin.Unit sendPromptFromTab$lambda$6(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel,java.lang.String) -> f
+    548:548:kotlin.Unit startVerification$lambda$1$3$0$0(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel,java.lang.String) -> g
+    545:551:void startVerification$lambda$1$3$0(boolean,com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel,java.lang.String) -> a
+    561:561:kotlin.Unit startVerification$lambda$1$5$0(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel,java.lang.String) -> h
+    541:542:void startVerification$lambda$1$2(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel) -> k
+    544:552:kotlin.Unit startVerification$lambda$1$3(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel,boolean,java.lang.String) -> a
+    555:556:void startVerification$lambda$1$4(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel) -> l
+    561:563:void startVerification$lambda$1$5(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel,java.lang.String) -> i
+    533:534:void startVerification$lambda$0(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel) -> m
+    536:666:kotlin.Unit startVerification$lambda$1(java.util.List,com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel,boolean,java.util.List) -> a
+    572:573:void autoFixErrors$lambda$0(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel) -> n
+    579:580:void autoFixErrors$lambda$1(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel,java.lang.String) -> j
+    597:598:void buildLogoButton$lambda$1(java.awt.event.ActionEvent) -> a
+    620:623:void buildModeToggle$lambda$0$0(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel$buildModeToggle$1,java.lang.String,javax.swing.event.ChangeEvent) -> a
+    void <clinit>() -> <clinit>
+com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel$Companion -> com.llamatik.teammate.ui.toolwindow.e$a:
+# {"fileName":"LlamatikToolWindowPanel.kt","id":"sourceFile"}
+    74:74:void <init>() -> <init>
+    void <init>(kotlin.jvm.internal.DefaultConstructorMarker) -> <init>
+com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel$SurfaceMode -> com.llamatik.teammate.ui.toolwindow.e$b:
+# {"fileName":"LlamatikToolWindowPanel.kt","id":"sourceFile"}
+    com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel$SurfaceMode AGENT -> AGENT
+    com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel$SurfaceMode ASK -> ASK
+    com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel$SurfaceMode[] $VALUES -> $VALUES
+    kotlin.enums.EnumEntries $ENTRIES -> $ENTRIES
+    52:52:void <init>(java.lang.String,int) -> <init>
+    com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel$SurfaceMode[] values() -> values
+    com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel$SurfaceMode valueOf(java.lang.String) -> valueOf
+    kotlin.enums.EnumEntries getEntries() -> getEntries
+    com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel$SurfaceMode[] $values() -> $values
+    53:54:void <clinit>() -> <clinit>
+com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel$WhenMappings -> com.llamatik.teammate.ui.toolwindow.e$c:
+# {"fileName":"LlamatikToolWindowPanel.kt","id":"sourceFile"}
+    int[] $EnumSwitchMapping$0 -> a
+    void <clinit>() -> <clinit>
+com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel$buildModeToggle$1 -> com.llamatik.teammate.ui.toolwindow.e$d:
+# {"fileName":"LlamatikToolWindowPanel.kt","id":"sourceFile"}
+    com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel this$0 -> a
+    603:603:void <init>(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel) -> <init>
+com.llamatik.teammate.ui.toolwindow.ModelPickerButton -> com.llamatik.teammate.ui.toolwindow.f:
+# {"fileName":"ModelPickerButton.kt","id":"sourceFile"}
+    kotlin.jvm.functions.Function0 onModelChanged -> a
+    com.llamatik.teammate.settings.LlamatikAppSettings settings -> b
+    com.llamatik.teammate.settings.DownloadedModelService downloadedModelService -> c
+    18:88:void <init>(kotlin.jvm.functions.Function0) -> <init>
+    18:20:void <init>(kotlin.jvm.functions.Function0,int,kotlin.jvm.internal.DefaultConstructorMarker) -> <init>
+    40:89:void refresh() -> a
+    49:91:void showPicker() -> b
+    74:76:java.lang.String activeModelLabel() -> c
+    80:89:java.lang.String fileNameOf(java.lang.String) -> a
+    19:19:kotlin.Unit _init_$lambda$0() -> d
+    35:35:void _init_$lambda$1(com.llamatik.teammate.ui.toolwindow.ModelPickerButton,java.awt.event.ActionEvent) -> a
+    62:65:void showPicker$lambda$0$0$0(com.llamatik.teammate.ui.toolwindow.ModelPickerButton,java.lang.String,java.awt.event.ActionEvent) -> a
+    void <init>() -> <init>
+com.llamatik.teammate.ui.toolwindow.PluginStateController -> com.llamatik.teammate.ui.toolwindow.g:
+# {"fileName":"PluginStateController.kt","id":"sourceFile"}
+    com.llamatik.teammate.settings.LlamatikAppSettings settings -> a
+    14:28:void <init>() -> <init>
+    18:22:com.llamatik.teammate.model.PluginReadinessState currentState(boolean,boolean) -> a
+com.llamatik.teammate.ui.toolwindow.ToolWindowAccess -> com.llamatik.teammate.ui.toolwindow.h:
+# {"fileName":"ToolWindowAccess.kt","id":"sourceFile"}
+    com.llamatik.teammate.ui.toolwindow.ToolWindowAccess INSTANCE -> INSTANCE
+    6:6:void <init>() -> <init>
+    8:13:void focus(com.intellij.openapi.project.Project,java.lang.String) -> a
+    10:16:void focus$lambda$0(com.intellij.openapi.wm.ToolWindow,java.lang.String) -> a
+    void <clinit>() -> <clinit>
