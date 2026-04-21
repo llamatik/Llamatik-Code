@@ -136,11 +136,12 @@ class ChatTabPanel(
 
     // ── Image attachment bar ──────────────────────────────────────────────────
     private val isMultimodalEnabled: () -> Boolean = {
-        runCatching {
-            LicenseChecker.isLicensed() == true && service<MultimodalBackendService>().isConfigured()
-        }.getOrElse { false }
+        runCatching { service<MultimodalBackendService>().isConfigured() }.getOrElse { false }
     }
-    private val imageBar = ImageAttachmentBar(project, isMultimodalEnabled) { /* onChange — read on send */ }
+    private val isLicensed: () -> Boolean = {
+        runCatching { LicenseChecker.isLicensed() == true }.getOrElse { false }
+    }
+    private val imageBar = ImageAttachmentBar(project, isMultimodalEnabled, { /* onChange — read on send */ }, isLicensed)
 
     // ── Composer ──────────────────────────────────────────────────────────────
     private val composerInput = object : JBTextArea(3, 40) {

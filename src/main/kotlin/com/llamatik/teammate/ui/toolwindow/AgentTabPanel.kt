@@ -439,12 +439,13 @@ class AgentTabPanel(
 
     // ── Image attachment bar ──────────────────────────────────────────────────
     private val isMultimodalEnabled: () -> Boolean = {
-        runCatching {
-            LicenseChecker.isLicensed() == true && service<MultimodalBackendService>().isConfigured()
-        }.getOrElse { false }
+        runCatching { service<MultimodalBackendService>().isConfigured() }.getOrElse { false }
+    }
+    private val isLicensed: () -> Boolean = {
+        runCatching { LicenseChecker.isLicensed() == true }.getOrElse { false }
     }
     private val imageBar = project?.let {
-        ImageAttachmentBar(it, isMultimodalEnabled) { /* onChange — no-op, we read on send */ }
+        ImageAttachmentBar(it, isMultimodalEnabled, { /* onChange — no-op, we read on send */ }, isLicensed)
     }
 
     // ── Composer ──────────────────────────────────────────────────────────────

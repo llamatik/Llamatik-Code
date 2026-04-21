@@ -47,6 +47,7 @@ class ImageAttachmentBar(
     private val project: Project,
     private val isMultimodalEnabled: () -> Boolean,
     private val onAttachmentsChanged: (List<AttachedImage>) -> Unit,
+    private val isLicensed: () -> Boolean = { runCatching { LicenseChecker.isLicensed() == true }.getOrElse { false } },
 ) : JPanel(BorderLayout()) {
 
     private val attachments = mutableListOf<AttachedImage>()
@@ -84,7 +85,7 @@ class ImageAttachmentBar(
      * Called by AtMentionHandler when the user selects an image path via @-mention.
      */
     fun notifyImageMention(absolutePath: String) {
-        if (!isMultimodalEnabled()) { showUpgradePrompt(); return }
+        if (!checkAccess()) return
         addImageFile(File(absolutePath))
     }
 
@@ -120,7 +121,7 @@ class ImageAttachmentBar(
 
             override fun drop(e: DropTargetDropEvent) {
                 e.acceptDrop(DnDConstants.ACTION_COPY)
-                if (!isMultimodalEnabled()) { showUpgradePrompt(); e.dropComplete(false); return }
+                if (!checkAccess()) { e.dropComplete(false); return }
                 try {
                     @Suppress("UNCHECKED_CAST")
                     val files = e.transferable.getTransferData(DataFlavor.javaFileListFlavor) as List<File>
@@ -136,7 +137,7 @@ class ImageAttachmentBar(
     // ── Private ───────────────────────────────────────────────────────────────
 
     private fun onAttachClicked() {
-        if (!isMultimodalEnabled()) { showUpgradePrompt(); return }
+        if (!checkAccess()) return
         val chooser = JFileChooser().apply {
             dialogTitle = Strings.Multimodal.FILE_CHOOSER_TITLE
             isMultiSelectionEnabled = true
@@ -232,8 +233,21 @@ class ImageAttachmentBar(
         return chip
     }
 
-    private fun showUpgradePrompt() {
-        val trialService = com.intellij.openapi.components.service<TrialService>()
-        trialService.requestLicense(Strings.Multimodal.UPGRADE_MESSAGE)
+    // Returns true if both licensed and configured; shows the appropriate prompt otherwise.
+    private fun checkAccess(): Boolean {
+        if (!isLicensed()) {
+            com.intellij.openapi.components.service<TrialService>()
+                .requestLicense(Strings.Multimodal.UPGRADE_MESSAGE)
+            return false
+        }
+        if (!isMultimodalEnabled()) {
+            com.intellij.openapi.ui.Messages.showInfoMessage(
+                project,
+                Strings.Multimodal.NO_VLM_CONFIGURED,
+                Strings.App.NAME,
+            )
+            return false
+        }
+        return true
     }
 }
