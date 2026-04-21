@@ -375,7 +375,20 @@ class AgentTabPanel(
     }
 
     // ── Composer ──────────────────────────────────────────────────────────────
-    private val composerInput = JBTextArea(3, 40).apply {
+    private val composerInput = object : JBTextArea(3, 40) {
+        override fun paintComponent(g: java.awt.Graphics) {
+            super.paintComponent(g)
+            if (text.isEmpty() && !isFocusOwner) {
+                val g2 = g.create() as java.awt.Graphics2D
+                g2.setRenderingHint(java.awt.RenderingHints.KEY_TEXT_ANTIALIASING, java.awt.RenderingHints.VALUE_TEXT_ANTIALIAS_ON)
+                g2.color = LlamatikTheme.onSurfaceVariant
+                g2.font = font.deriveFont(java.awt.Font.ITALIC)
+                val ins = insets
+                g2.drawString(Strings.Composer.INPUT_PLACEHOLDER, ins.left, ins.top + g2.fontMetrics.ascent)
+                g2.dispose()
+            }
+        }
+    }.apply {
         lineWrap = true
         wrapStyleWord = true
         isOpaque = false
@@ -467,6 +480,11 @@ class AgentTabPanel(
                 }
             })
         }
+
+        composerInput.addFocusListener(object : java.awt.event.FocusAdapter() {
+            override fun focusGained(e: java.awt.event.FocusEvent?) = composerInput.repaint()
+            override fun focusLost(e: java.awt.event.FocusEvent?) = composerInput.repaint()
+        })
 
         if (project != null) AtMentionHandler(composerInput, project, imageBar)
     }

@@ -33,6 +33,7 @@ object Strings {
         const val SETTINGS_PILL = "⚙"
         const val INPUT_TOOLTIP_DEFAULT =
             "Ask AI, use @filename to attach source files, use @prompt to recall saved prompts"
+        const val INPUT_PLACEHOLDER = "Use @filename to attach source files"
         const val INPUT_TOOLTIP_AGENT = "Describe a task for the agent to inspect, plan, and execute"
         const val INPUT_TOOLTIP_ASK = "Ask a focused question about the current file or project"
         const val INPUT_TOOLTIP_NO_MODEL = "Configure a model in Settings → Llamatik Code to start"

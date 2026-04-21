@@ -143,7 +143,20 @@ class ChatTabPanel(
     private val imageBar = ImageAttachmentBar(project, isMultimodalEnabled) { /* onChange — read on send */ }
 
     // ── Composer ──────────────────────────────────────────────────────────────
-    private val composerInput = JBTextArea(3, 40).apply {
+    private val composerInput = object : JBTextArea(3, 40) {
+        override fun paintComponent(g: Graphics) {
+            super.paintComponent(g)
+            if (text.isEmpty() && !isFocusOwner) {
+                val g2 = g.create() as Graphics2D
+                g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON)
+                g2.color = LlamatikTheme.onSurfaceVariant
+                g2.font = font.deriveFont(Font.ITALIC)
+                val insets = insets
+                g2.drawString(Strings.Composer.INPUT_PLACEHOLDER, insets.left, insets.top + g2.fontMetrics.ascent)
+                g2.dispose()
+            }
+        }
+    }.apply {
         lineWrap = true
         wrapStyleWord = true
         isOpaque = false
@@ -194,6 +207,11 @@ class ChatTabPanel(
                 }
             })
         }
+
+        composerInput.addFocusListener(object : java.awt.event.FocusAdapter() {
+            override fun focusGained(e: java.awt.event.FocusEvent?) = composerInput.repaint()
+            override fun focusLost(e: java.awt.event.FocusEvent?) = composerInput.repaint()
+        })
 
         AtMentionHandler(composerInput, project, imageBar)
 
