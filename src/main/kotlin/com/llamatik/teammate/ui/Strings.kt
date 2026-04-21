@@ -358,6 +358,12 @@ object Strings {
         const val RETRY_LIMIT = "Auto-fix limit reached — please fix manually"
     }
 
+    // ── Upgrade ───────────────────────────────────────────────────────────────
+    object Upgrade {
+        const val UNLOCK_PRO_BUTTON = "Unlock PRO"
+        const val UNLOCK_PRO_TOOLTIP = "Upgrade to Llamatik Code Pro"
+    }
+
     // ── About ─────────────────────────────────────────────────────────────────
     object About {
         const val BUTTON = "About Llamatik Code"

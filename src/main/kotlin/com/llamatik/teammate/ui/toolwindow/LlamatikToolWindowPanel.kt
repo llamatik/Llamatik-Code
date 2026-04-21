@@ -30,6 +30,7 @@ import com.llamatik.teammate.ui.chat.ChatSessionController
 import java.awt.BorderLayout
 import java.awt.CardLayout
 import java.awt.Dimension
+import java.awt.FlowLayout
 import java.awt.Font
 import java.awt.Graphics
 import java.awt.Graphics2D
@@ -213,11 +214,34 @@ class LlamatikToolWindowPanel(
 
         val logoButton = buildLogoButton()
 
+        val licensed = runCatching { com.llamatik.teammate.licensing.LicenseChecker.isLicensed() == true }.getOrElse { false }
+        val unlockProButton = JButton(Strings.Upgrade.UNLOCK_PRO_BUTTON).apply {
+            toolTipText = Strings.Upgrade.UNLOCK_PRO_TOOLTIP
+            isFocusPainted = false
+            isContentAreaFilled = false
+            isOpaque = false
+            foreground = LlamatikTheme.primary
+            font = font.deriveFont(Font.BOLD, font.size2D - 1f)
+            border = JBUI.Borders.compound(
+                BorderFactory.createLineBorder(LlamatikTheme.primary, 1, true),
+                JBUI.Borders.empty(3, 8),
+            )
+            cursor = java.awt.Cursor(java.awt.Cursor.HAND_CURSOR)
+            isVisible = !licensed
+            addActionListener { trialService.requestLicense(Strings.Upgrade.UNLOCK_PRO_TOOLTIP) }
+        }
+
+        val rightPanel = JPanel(FlowLayout(FlowLayout.RIGHT, 6, 0)).apply {
+            isOpaque = false
+            add(unlockProButton)
+            add(logoButton)
+        }
+
         val modeRow = JPanel(BorderLayout()).apply {
             isOpaque = false
             border = JBUI.Borders.empty(0, 12, 10, 12)
             add(segmented, BorderLayout.WEST)
-            add(logoButton, BorderLayout.EAST)
+            add(rightPanel, BorderLayout.EAST)
         }
 
         val header = JPanel(BorderLayout()).apply {
