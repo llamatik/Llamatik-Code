@@ -63,8 +63,14 @@ class AgentOrchestrator(private val project: Project) {
         // The buffer always holds content that hasn't been dispatched yet.
         val tokenBuffer = StringBuilder()
         val inThink = AtomicBoolean(false)
+        // Prefixes that must never reach the UI — blocked at the source before flushToArea sees them
+        val uiBlockedPrefixes = listOf("<tool_call", "<edit_proposal", "<Tool_call", "<TOOL_CALL")
         fun flushAnswerBuffer(buf: String) {
-            if (buf.isNotEmpty()) onToken(buf)
+            if (buf.isEmpty()) return
+            val bufLower = buf.lowercase()
+            val cutAt = uiBlockedPrefixes.mapNotNull { p -> bufLower.indexOf(p.lowercase()).takeIf { it >= 0 } }.minOrNull()
+            val safe = if (cutAt != null) buf.substring(0, cutAt).trimEnd() else buf
+            if (safe.isNotEmpty()) onToken(safe)
         }
         fun filteredToken(token: String) {
             tokenBuffer.append(token)

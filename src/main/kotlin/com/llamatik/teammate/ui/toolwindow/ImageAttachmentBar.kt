@@ -55,7 +55,7 @@ class ImageAttachmentBar(
         isOpaque = false
     }
 
-    val attachButton = JButton(AllIcons.General.Add).apply {
+    val attachButton = JButton(AllIcons.Actions.Attach).apply {
         toolTipText = Strings.Multimodal.ATTACH_IMAGE_TOOLTIP
         isFocusPainted = false
         isContentAreaFilled = false

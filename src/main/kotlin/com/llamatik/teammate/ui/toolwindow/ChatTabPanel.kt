@@ -19,14 +19,19 @@ import com.llamatik.teammate.ui.chat.ChatMessagePanel
 import com.llamatik.teammate.ui.chat.ChatSessionController
 import java.awt.BorderLayout
 import java.awt.CardLayout
+import java.awt.Color
 import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.Font
+import java.awt.GradientPaint
 import java.awt.Graphics
 import java.awt.Graphics2D
+import java.awt.GridBagConstraints
+import java.awt.GridBagLayout
 import java.awt.GridLayout
 import java.awt.RenderingHints
 import java.awt.Shape
+import java.awt.event.AdjustmentEvent
 import java.awt.event.InputEvent
 import java.awt.event.KeyEvent
 import java.awt.geom.RoundRectangle2D
@@ -37,6 +42,7 @@ import javax.swing.Icon
 import javax.swing.JButton
 import javax.swing.JComponent
 import javax.swing.JLabel
+import javax.swing.JLayeredPane
 import javax.swing.JPanel
 import javax.swing.KeyStroke
 
@@ -322,11 +328,82 @@ class ChatTabPanel(
                 add(sessionClearButton)
             }
 
+            val scrollToBottomButton = object : JButton(Strings.Agent.SCROLL_TO_BOTTOM) {
+                private val pillArc = 20
+                override fun paintComponent(g: Graphics) {
+                    val g2 = g.create() as Graphics2D
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+                    g2.color = LlamatikTheme.primary
+                    g2.fillRoundRect(0, 0, width, height, pillArc, pillArc)
+                    g2.dispose()
+                    super.paintComponent(g)
+                }
+            }.apply {
+                foreground = Color.WHITE
+                isContentAreaFilled = false
+                isBorderPainted = false
+                isFocusPainted = false
+                isOpaque = false
+                font = font.deriveFont(Font.BOLD, font.size2D - 1f)
+                border = JBUI.Borders.empty(6, 14)
+                isVisible = false
+            }
+
+            val gradientOverlay = object : JPanel() {
+                override fun paintComponent(g: Graphics) {
+                    val g2 = g.create() as Graphics2D
+                    val bg = cardBackground
+                    val transparent = Color(bg.red, bg.green, bg.blue, 0)
+                    g2.paint = GradientPaint(0f, 0f, transparent, 0f, height.toFloat(), bg)
+                    g2.fillRect(0, 0, width, height)
+                    g2.dispose()
+                }
+            }.apply {
+                isOpaque = false
+                isVisible = false
+            }
+
+            val scrollBtnWrapper = JPanel(GridBagLayout()).apply {
+                isOpaque = false
+                isVisible = false
+                val gbc = GridBagConstraints()
+                gbc.anchor = GridBagConstraints.CENTER
+                add(scrollToBottomButton, gbc)
+            }
+
+            val scrollLayered = object : JLayeredPane() {
+                override fun getPreferredSize() = messagesScroll.preferredSize
+                override fun doLayout() {
+                    val w = width; val h = height
+                    messagesScroll.setBounds(0, 0, w, h)
+                    val overlayH = 64
+                    gradientOverlay.setBounds(0, h - overlayH, w, overlayH)
+                    scrollBtnWrapper.setBounds(0, h - overlayH, w, overlayH)
+                }
+            }.apply {
+                add(messagesScroll, JLayeredPane.DEFAULT_LAYER)
+                add(gradientOverlay, JLayeredPane.PALETTE_LAYER)
+                add(scrollBtnWrapper, JLayeredPane.PALETTE_LAYER)
+            }
+
+            messagesScroll.verticalScrollBar.addAdjustmentListener { e: AdjustmentEvent ->
+                val bar = messagesScroll.verticalScrollBar
+                val atBottom = bar.value + bar.visibleAmount >= bar.maximum - 5
+                gradientOverlay.isVisible = !atBottom
+                scrollBtnWrapper.isVisible = !atBottom
+            }
+
+            scrollToBottomButton.addActionListener {
+                val bar = messagesScroll.verticalScrollBar
+                bar.value = bar.maximum
+            }
+
             val welcomeCard = buildWelcomeCard()
             val messagesCard = JPanel(BorderLayout()).apply {
                 background = rootBackground
+                putClientProperty("isMessagesCard", true)
                 add(tabToolbar, BorderLayout.NORTH)
-                add(messagesScroll, BorderLayout.CENTER)
+                add(scrollLayered, BorderLayout.CENTER)
             }
 
             val cardPanel = JPanel(cardLayout).apply {
@@ -604,15 +681,20 @@ class ChatTabPanel(
         val cardPanel = tabs.getComponentAt(selectedIndex) as? JPanel ?: return
         (cardPanel.layout as? CardLayout)?.show(cardPanel, CARD_MESSAGES)
 
-        val scrollPane = cardPanel.components.filterIsInstance<JBScrollPane>().firstOrNull() ?: return
+        val messagesCard = cardPanel.components.filterIsInstance<JPanel>()
+            .firstOrNull { it.getClientProperty("isMessagesCard") == true } ?: return
+        val scrollLayered = messagesCard.components.filterIsInstance<JLayeredPane>().firstOrNull() ?: return
+        val scrollPane = scrollLayered.components.filterIsInstance<JBScrollPane>().firstOrNull() ?: return
         val content = scrollPane.viewport.view as? JPanel ?: return
 
         content.add(streamPanel)
         content.revalidate()
         content.repaint()
 
-        val bar = scrollPane.verticalScrollBar
-        bar.value = bar.maximum
+        javax.swing.SwingUtilities.invokeLater {
+            val bar = scrollPane.verticalScrollBar
+            bar.value = bar.maximum
+        }
     }
 
     private fun showInferenceDialog() {

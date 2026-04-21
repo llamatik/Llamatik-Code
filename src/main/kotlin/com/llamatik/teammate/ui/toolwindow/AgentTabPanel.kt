@@ -20,15 +20,20 @@ import com.llamatik.teammate.skills.SkillService
 import com.llamatik.teammate.ui.LlamatikTheme
 import com.llamatik.teammate.ui.Strings
 import java.awt.BorderLayout
+import java.awt.Color
 import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.Font
+import java.awt.GradientPaint
 import java.awt.Graphics
 import java.awt.Graphics2D
+import java.awt.GridBagConstraints
+import java.awt.GridBagLayout
 import java.awt.GridLayout
 import java.awt.RenderingHints
 import java.awt.Shape
 import java.awt.datatransfer.StringSelection
+import java.awt.event.AdjustmentEvent
 import java.awt.event.InputEvent
 import java.awt.event.KeyEvent
 import java.awt.geom.RoundRectangle2D
@@ -39,6 +44,7 @@ import javax.swing.JButton
 import javax.swing.JCheckBoxMenuItem
 import javax.swing.JComponent
 import javax.swing.JLabel
+import javax.swing.JLayeredPane
 import javax.swing.JPanel
 import javax.swing.JPopupMenu
 import javax.swing.KeyStroke
@@ -132,10 +138,41 @@ class AgentTabPanel(
         font = font.deriveFont(Font.BOLD, font.size2D)
         border = JBUI.Borders.empty(0, 0, 10, 0)
     }
-    private val promptBubble = JPanel(BorderLayout()).apply {
+    private val userAvatar = object : JPanel() {
+        private val initials: String get() {
+            val name = System.getProperty("user.name", "U")
+            return name.take(1).uppercase()
+        }
+        override fun paintComponent(g: Graphics) {
+            val g2 = g.create() as Graphics2D
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+            g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON)
+            g2.color = LlamatikTheme.primary
+            g2.fillOval(0, 0, width, height)
+            g2.color = LlamatikTheme.onPrimary
+            val f = font.deriveFont(Font.BOLD, width * 0.42f)
+            g2.font = f
+            val fm = g2.fontMetrics
+            val x = (width - fm.stringWidth(initials)) / 2
+            val y = (height - fm.height) / 2 + fm.ascent
+            g2.drawString(initials, x, y)
+            g2.dispose()
+        }
+    }.apply {
+        isOpaque = false
+        preferredSize = Dimension(28, 28)
+        minimumSize = Dimension(28, 28)
+        maximumSize = Dimension(28, 28)
+    }
+    private val promptBubble = JPanel(BorderLayout(10, 0)).apply {
         isOpaque = false
         alignmentX = LEFT_ALIGNMENT
         maximumSize = Dimension(Int.MAX_VALUE, Int.MAX_VALUE)
+        add(JPanel(BorderLayout()).apply {
+            isOpaque = false
+            border = JBUI.Borders.emptyTop(2)
+            add(userAvatar, BorderLayout.NORTH)
+        }, BorderLayout.WEST)
         add(promptLabel, BorderLayout.CENTER)
         isVisible = false
     }
@@ -319,6 +356,29 @@ class AgentTabPanel(
         add(verifyErrorContent)
         add(javax.swing.Box.createVerticalStrut(4))
         add(autoFixButton)
+    }
+
+    // ── Scroll-to-bottom button ───────────────────────────────────────────────
+    private val scrollToBottomButton = object : JButton(Strings.Agent.SCROLL_TO_BOTTOM) {
+        private val arc = 20f
+        override fun paintComponent(g: Graphics) {
+            val g2 = g.create() as Graphics2D
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+            g2.color = LlamatikTheme.primary
+            g2.fill(RoundRectangle2D.Float(0f, 0f, width.toFloat(), height.toFloat(), arc, arc))
+            g2.dispose()
+            super.paintComponent(g)
+        }
+    }.apply {
+        foreground = LlamatikTheme.onPrimary
+        isFocusPainted = false
+        isContentAreaFilled = false
+        isBorderPainted = false
+        isOpaque = false
+        border = JBUI.Borders.empty(6, 16)
+        font = font.deriveFont(Font.PLAIN, font.size2D - 1f)
+        cursor = java.awt.Cursor(java.awt.Cursor.HAND_CURSOR)
+        isVisible = false
     }
 
     // ── Navigation buttons ────────────────────────────────────────────────────
@@ -954,11 +1014,60 @@ class AgentTabPanel(
             add(activeSkillsLabel)
         }
 
+        // Gradient overlay — fades cardBackground from transparent at top to opaque at bottom
+        val gradientHeight = 64
+        val gradientOverlay = object : JPanel() {
+            override fun paintComponent(g: Graphics) {
+                val g2 = g.create() as Graphics2D
+                val base = cardBackground
+                val transparent = Color(base.red, base.green, base.blue, 0)
+                val opaque = Color(base.red, base.green, base.blue, 220)
+                g2.paint = GradientPaint(0f, 0f, transparent, 0f, height.toFloat(), opaque)
+                g2.fillRect(0, 0, width, height)
+                g2.dispose()
+            }
+        }.apply {
+            isOpaque = false
+            isVisible = false
+            preferredSize = Dimension(0, gradientHeight)
+        }
+
+        // Scroll-to-bottom button — centred inside a GridBagLayout wrapper
+        scrollToBottomButton.addActionListener { scrollToBottom() }
+        val scrollBtnWrapper = JPanel(GridBagLayout()).apply {
+            isOpaque = false
+            val gbc = GridBagConstraints()
+            gbc.anchor = GridBagConstraints.CENTER
+            add(scrollToBottomButton, gbc)
+        }
+
+        // Scroll listener — show/hide the button when not at bottom
+        conversationScroll.verticalScrollBar.addAdjustmentListener { e: AdjustmentEvent ->
+            val bar = conversationScroll.verticalScrollBar
+            val atBottom = bar.value + bar.visibleAmount >= bar.maximum - 8
+            scrollToBottomButton.isVisible = !atBottom
+            gradientOverlay.isVisible = !atBottom
+        }
+
+        // Layer everything: scroll pane at DEFAULT layer, gradient + button at PALETTE layer
+        val layered = object : JLayeredPane() {
+            override fun doLayout() {
+                val w = width; val h = height
+                conversationScroll.setBounds(0, 0, w, h)
+                gradientOverlay.setBounds(0, h - gradientHeight, w, gradientHeight)
+                scrollBtnWrapper.setBounds(0, h - gradientHeight, w, gradientHeight)
+            }
+        }.apply {
+            add(conversationScroll, JLayeredPane.DEFAULT_LAYER)
+            add(gradientOverlay, JLayeredPane.PALETTE_LAYER)
+            add(scrollBtnWrapper, JLayeredPane.PALETTE_LAYER)
+        }
+
         return JPanel(BorderLayout()).apply {
             background = cardBackground
             isOpaque = true
             add(topBar, BorderLayout.NORTH)
-            add(conversationScroll, BorderLayout.CENTER)
+            add(layered, BorderLayout.CENTER)
             add(bottomBar, BorderLayout.SOUTH)
         }
     }
@@ -1201,9 +1310,18 @@ class AgentTabPanel(
                          else blockedPrefixes + listOf("<think>", "<think ")
 
         buffer.append(token)
+        // Strip any </think> closing tag that may arrive before tool calls in the answer stream
+        if (target !== thinkTextArea) {
+            val cleaned = buffer.toString()
+                .replace(Regex("</think>", RegexOption.IGNORE_CASE), "")
+            buffer.clear()
+            buffer.append(cleaned)
+        }
         val buf = buffer.toString()
+        val bufLower = buf.lowercase()
 
-        val blockAt = allBlocked.mapNotNull { p -> buf.indexOf(p).takeIf { it >= 0 } }.minOrNull()
+        // Case-insensitive match for all blocked prefixes
+        val blockAt = allBlocked.mapNotNull { p -> bufLower.indexOf(p.lowercase()).takeIf { it >= 0 } }.minOrNull()
         if (blockAt != null) {
             val safe = buf.substring(0, blockAt).trimEnd()
             if (safe.isNotEmpty()) {
@@ -1215,10 +1333,10 @@ class AgentTabPanel(
         }
 
         val maxPrefixLen = allBlocked.maxOf { it.length }
-        val tail = buf.takeLast(maxPrefixLen)
+        val tail = bufLower.takeLast(maxPrefixLen)
         val holdLen = (1..tail.length).reversed().firstOrNull { len ->
             val candidate = tail.takeLast(len)
-            allBlocked.any { it.startsWith(candidate) }
+            allBlocked.any { it.lowercase().startsWith(candidate) }
         } ?: 0
 
         val safeEnd = buf.length - holdLen

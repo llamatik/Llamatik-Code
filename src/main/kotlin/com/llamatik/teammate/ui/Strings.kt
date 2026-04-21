@@ -71,6 +71,7 @@ object Strings {
         const val AUTO_APPROVE_NEXT = "Auto-apply edits on next run"
         const val AUTO_BUILD_NEXT = "Auto-build after applying edits"
         const val AUTO_FIX_NEXT = "Auto-fix build errors"
+        const val SCROLL_TO_BOTTOM = "↓  Scroll to bottom"
         fun brewedFor(elapsed: String) = "brewed for $elapsed"
 
         val SUGGESTIONS = listOf(
@@ -78,6 +79,7 @@ object Strings {
             "Suggest cleaner structure and apply changes with approval",
             "Analyze the current file and propose a safer refactor",
             "Generate tests, show the diff, and let me approve",
+            "Make a code review, suggest improvements and apply them"
         )
     }
 
