@@ -286,6 +286,245 @@ When refactoring for quality:
 - Prefer Kotlin idioms: use let/also/apply/run for scoping, takeIf/takeUnless for conditional nullability, mapNotNull for filtering+transforming.
 """.trimIndent(),
         ),
+
+        SkillDescriptor(
+            id = "frontend-design",
+            displayName = "Frontend Design",
+            description = "Build polished frontend components and pages with strong UX, hierarchy, and implementation quality.",
+            category = "Frontend",
+            tags = listOf("frontend", "ui", "ux", "design", "react"),
+            prompt = """
+When building frontend UI:
+- Produce real, working code — not placeholders or vague mockups.
+- Prioritize visual hierarchy, spacing rhythm, alignment, and clear interaction states.
+- Design for the user goal first: identify primary action, supporting actions, and low-priority elements.
+- Use reusable components and consistent patterns for buttons, cards, inputs, dialogs, and empty states.
+- Include hover, focus, disabled, loading, error, and success states where relevant.
+- Ensure responsive behavior across mobile, tablet, and desktop breakpoints.
+- Prefer accessible semantic HTML and keyboard-friendly interactions.
+- Use tasteful defaults: concise copy, restrained styling, and clear affordances.
+- Avoid clutter — simplify aggressively and remove decorative elements that do not improve usability.
+""".trimIndent(),
+        ),
+
+        SkillDescriptor(
+            id = "webapp-testing",
+            displayName = "Web App Testing",
+            description = "Test web apps systematically, covering happy paths, edge cases, regressions, and UX bugs.",
+            category = "Testing",
+            tags = listOf("testing", "web", "qa", "regression", "e2e"),
+            prompt = """
+When testing a web application:
+- Start with core user journeys: sign in, navigation, CRUD flows, forms, search, filters, and checkout or save flows if applicable.
+- Check happy path first, then edge cases: invalid input, empty states, timeouts, slow loading, offline behavior, and permission failures.
+- Verify visual and UX details: loading states, disabled states, error messages, focus order, keyboard navigation, and mobile responsiveness.
+- Look for regressions: broken links, stale data, duplicate submissions, lost form state, and inconsistent validation.
+- Be explicit about repro steps, expected behavior, and actual behavior.
+- When reporting issues, include severity, frequency, and likely impacted user flow.
+- Prefer deterministic test data and stable selectors for automation.
+- If writing automated tests, focus on user-observable behavior rather than implementation details.
+""".trimIndent(),
+        ),
+
+        SkillDescriptor(
+            id = "shadcn-ui",
+            displayName = "shadcn/ui",
+            description = "Build UI using shadcn/ui patterns, component composition, and Tailwind-friendly conventions.",
+            category = "Frontend",
+            tags = listOf("shadcn", "react", "tailwind", "ui", "components"),
+            prompt = """
+When writing shadcn/ui-based frontend code:
+- Prefer composing existing shadcn/ui primitives before creating custom components from scratch.
+- Keep components small, focused, and easy to restyle with className and variants.
+- Use cn() or equivalent class merging utility for conditional styling.
+- Separate layout structure from presentational components when possible.
+- Prefer Dialog, Sheet, DropdownMenu, Popover, Tabs, Command, and Table patterns from shadcn/ui for consistency.
+- Forms should use clear labels, descriptions, validation messages, and accessible input associations.
+- Use Tailwind utility classes consistently; avoid deeply nested custom CSS unless necessary.
+- Keep styling tokens consistent across spacing, radius, border, and typography.
+- Support dark mode if the project already uses it.
+""".trimIndent(),
+        ),
+
+        SkillDescriptor(
+            id = "typescript-best-practices",
+            displayName = "TypeScript Best Practices",
+            description = "Write robust TypeScript with safe types, narrowing, utility types, and maintainable APIs.",
+            category = "Frontend",
+            tags = listOf("typescript", "ts", "types", "frontend", "javascript"),
+            prompt = """
+When writing TypeScript:
+- Prefer explicit domain types over any, unknown, raw string unions scattered through the codebase, or loosely shaped objects.
+- Use type narrowing with typeof, in, discriminated unions, and user-defined type guards.
+- Prefer interfaces for extensible object contracts and type aliases for unions, mapped types, and utility compositions.
+- Use readonly where mutation is not intended.
+- Model async return types clearly: Promise<Result>, Promise<Data | null>, etc.
+- Avoid non-null assertions (!) unless the invariant is guaranteed and documented.
+- Use generics only when they improve type relationships; do not over-abstract.
+- Keep public function signatures simple and hard to misuse.
+- Prefer exhaustive handling for unions with a never branch in switch statements.
+""".trimIndent(),
+        ),
+
+        SkillDescriptor(
+            id = "nextjs-app-router",
+            displayName = "Next.js App Router",
+            description = "Build Next.js App Router features with server components, route handlers, and modern data flow.",
+            category = "Frontend",
+            tags = listOf("nextjs", "react", "app-router", "ssr", "web"),
+            prompt = """
+When writing Next.js App Router code:
+- Default to Server Components; use "use client" only when client-side interactivity is required.
+- Fetch data on the server whenever possible to reduce client bundle size.
+- Keep route segments organized by feature and co-locate loading.tsx, error.tsx, and page.tsx when useful.
+- Use Route Handlers for backend endpoints inside the app when appropriate.
+- Handle loading, error, and empty states explicitly.
+- Use Server Actions only when they simplify form or mutation workflows and fit the project architecture.
+- Be careful with caching and revalidation; choose static, dynamic, or revalidated behavior intentionally.
+- Keep metadata, layouts, and nested routes structured and predictable.
+- Avoid pushing business logic into client components.
+""".trimIndent(),
+        ),
+
+        SkillDescriptor(
+            id = "playwright-e2e",
+            displayName = "Playwright E2E",
+            description = "Write reliable Playwright end-to-end tests with stable selectors and realistic user flows.",
+            category = "Testing",
+            tags = listOf("playwright", "e2e", "testing", "web", "automation"),
+            prompt = """
+When writing Playwright tests:
+- Test user-visible flows, not implementation details.
+- Prefer getByRole, getByLabel, getByText, and stable data-testid selectors over brittle CSS selectors.
+- Keep each test independent and reset state between tests.
+- Use fixtures for shared setup such as authentication, seeded data, or page objects.
+- Assert visible outcomes the user would perceive: text, URL, enabled state, dialogs, toasts, and persisted changes.
+- Avoid arbitrary waits; use Playwright waiting primitives for network, locators, and navigation.
+- Cover happy path, validation errors, permission issues, and regression-prone flows.
+- Keep tests deterministic by controlling test data and environment assumptions.
+- Group related scenarios with clear names and minimal duplication.
+""".trimIndent(),
+        ),
+
+        SkillDescriptor(
+            id = "postgres-best-practices",
+            displayName = "Postgres Best Practices",
+            description = "Design and optimize PostgreSQL schemas and queries with indexing, concurrency, and security in mind.",
+            category = "Backend",
+            tags = listOf("postgres", "sql", "database", "performance", "backend"),
+            prompt = """
+When writing PostgreSQL code:
+- Design schemas intentionally: correct data types, constraints, foreign keys, and clear naming.
+- Add indexes based on actual query patterns, not guesswork.
+- Avoid SELECT * in production queries; select only required columns.
+- Be mindful of N+1 query patterns and repeated round trips.
+- Use transactions for multi-step writes that must remain consistent.
+- Consider concurrency, locking, and isolation when multiple writers may touch the same rows.
+- Prefer prepared statements or parameterized queries to avoid injection risks.
+- Use EXPLAIN / EXPLAIN ANALYZE for slow queries and optimize based on evidence.
+- Model soft delete, audit columns, and uniqueness constraints explicitly when needed.
+""".trimIndent(),
+        ),
+
+        SkillDescriptor(
+            id = "github-actions-ci",
+            displayName = "GitHub Actions CI",
+            description = "Build maintainable GitHub Actions workflows for linting, testing, builds, and releases.",
+            category = "DevOps",
+            tags = listOf("github-actions", "ci", "cd", "automation", "yaml"),
+            prompt = """
+When writing GitHub Actions workflows:
+- Keep workflows focused by responsibility: CI, release, dependency updates, deploy, etc.
+- Trigger on the minimal correct set of events: pull_request, push, workflow_dispatch, release, or schedule.
+- Use matrix builds for multiple OS, language, or runtime versions when useful.
+- Cache dependencies carefully to reduce build time without hiding reproducibility issues.
+- Fail fast on lint, typecheck, test, and build errors.
+- Store secrets only in GitHub Secrets; never hardcode credentials or tokens.
+- Pin major action versions and prefer official or widely trusted actions.
+- Upload useful artifacts such as reports, screenshots, or built packages when they help debugging or release flow.
+- Keep job names and step names human-readable.
+""".trimIndent(),
+        ),
+
+        SkillDescriptor(
+            id = "systematic-debugging",
+            displayName = "Systematic Debugging",
+            description = "Debug issues methodically using reproduction, isolation, instrumentation, and hypothesis testing.",
+            category = "Quality",
+            tags = listOf("debugging", "diagnostics", "bugs", "troubleshooting", "quality"),
+            prompt = """
+When debugging:
+- First define the symptom precisely: what is happening, where, and under what conditions.
+- Reproduce the issue consistently before attempting a fix.
+- Narrow scope by isolating variables: input, environment, timing, data shape, dependency behavior, and recent changes.
+- Form a small set of hypotheses and test them one at a time.
+- Add targeted logs, assertions, breakpoints, or temporary instrumentation close to the suspected failure point.
+- Distinguish root cause from downstream symptoms.
+- Fix the underlying cause, then verify no adjacent regressions were introduced.
+- After resolving, remove temporary debugging code and add tests to prevent recurrence.
+- Document the minimal repro and the final root-cause explanation.
+""".trimIndent(),
+        ),
+
+        SkillDescriptor(
+            id = "accessibility-audit",
+            displayName = "Accessibility Audit",
+            description = "Review and improve accessibility across semantics, keyboard support, focus, and contrast.",
+            category = "Frontend",
+            tags = listOf("accessibility", "a11y", "frontend", "ui", "audit"),
+            prompt = """
+When reviewing accessibility:
+- Use semantic HTML first; do not replace native controls unless necessary.
+- Ensure all interactive elements are keyboard reachable and operable.
+- Verify visible focus indicators and sensible focus order.
+- Associate labels, descriptions, helper text, and errors correctly with form controls.
+- Use correct roles and ARIA only when native HTML cannot express the interaction.
+- Check contrast, text resizing behavior, and responsive readability.
+- Ensure images, icons, and controls have appropriate accessible names.
+- Handle dialogs, menus, and toasts with correct focus management and announcements where needed.
+- Treat accessibility issues as product quality issues, not optional polish.
+""".trimIndent(),
+        ),
+
+        SkillDescriptor(
+            id = "api-security-review",
+            displayName = "API Security Review",
+            description = "Review API implementations for auth, authorization, validation, secrets, and abuse resistance.",
+            category = "Security",
+            tags = listOf("api", "security", "auth", "validation", "backend"),
+            prompt = """
+When reviewing API security:
+- Validate and sanitize all external input at the boundary.
+- Check authentication and authorization separately: being logged in is not the same as having access.
+- Ensure sensitive operations require the correct permissions and ownership checks.
+- Never trust client-supplied role, tenant, or pricing information without server verification.
+- Use parameterized queries and safe serializers/deserializers.
+- Avoid leaking internal errors, stack traces, SQL details, or identifiers in responses.
+- Rate-limit abuse-prone endpoints such as login, password reset, search, and file upload.
+- Store secrets and tokens securely; never commit them or log them.
+- Review file uploads, webhooks, redirects, and callback URLs for common abuse paths.
+""".trimIndent(),
+        ),
+
+        SkillDescriptor(
+            id = "mcp-server-builder",
+            displayName = "MCP Server Builder",
+            description = "Design and implement Model Context Protocol servers, tools, and schemas cleanly.",
+            category = "AI Tooling",
+            tags = listOf("mcp", "tools", "ai", "protocol", "integration"),
+            prompt = """
+When building an MCP server:
+- Define a narrow, clear tool surface area with strong descriptions and predictable inputs/outputs.
+- Use structured schemas for tool arguments and results; avoid ambiguous free-form payloads where possible.
+- Name tools after user intent, not implementation details.
+- Validate all incoming arguments and return explicit errors for invalid inputs.
+- Keep tools deterministic and side effects obvious.
+- Separate protocol wiring from business logic so tools remain testable.
+- Log requests and failures safely without leaking secrets or sensitive user data.
+- Document each tool with purpose, required inputs, failure modes, and example usage.
+- Prefer a few high-quality tools over many overlapping ones.
+""".trimIndent(),
+        ),
     )
 
     fun findById(id: String): SkillDescriptor? = all.firstOrNull { it.id == id }
