@@ -165,6 +165,10 @@ object Strings {
         const val TIER_1 = "Tier 1 — Lightweight (up to 5 GB)"
         const val TIER_2 = "Tier 2 — Balanced (5–15 GB)"
         const val TIER_3 = "Tier 3 — High-performance (15 GB+)"
+        const val TIER_BADGE_1 = "🟢 Best for quick tasks"
+        const val TIER_BADGE_2 = "🟡 Best for real projects"
+        const val TIER_BADGE_3 = "🔴 Best for large codebases (Pro)"
+        const val TIER_3_PAYWALL_TITLE = "Pro model"
     }
 
     // ── Empty state panel ─────────────────────────────────────────────────────

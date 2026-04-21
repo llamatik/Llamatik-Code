@@ -1,9 +1,12 @@
 package com.llamatik.teammate.settings
 
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.components.service
 import com.intellij.openapi.options.Configurable
 import com.intellij.openapi.project.ProjectManager
 import com.llamatik.teammate.licensing.LicenseChecker
+import com.llamatik.teammate.licensing.TrialService
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.wm.ToolWindowManager
@@ -135,21 +138,31 @@ class LlamatikSettingsConfigurable : Configurable {
             }
         }
 
-        val openModelLibraryButton = JButton(Strings.Settings.BROWSE_CATALOG).apply {
-            addActionListener {
-                val dialog = object : DialogWrapper(null, true) {
-                    init {
-                        title = Strings.Settings.MODEL_LIBRARY_TITLE
-                        init()
-                    }
-                    override fun createCenterPanel(): JComponent =
-                        ModelLibraryPanel(null).apply {
-                            preferredSize = Dimension(860, 640)
-                        }
-                    override fun createActions() = arrayOf(okAction)
-                }
-                dialog.show()
+        val openModelLibraryButton = JButton(Strings.Settings.BROWSE_CATALOG)
+        openModelLibraryButton.addActionListener {
+            var catalogDialog: DialogWrapper? = null
+            val onRequestUpgrade: () -> Unit = {
+                catalogDialog?.close(DialogWrapper.CANCEL_EXIT_CODE)
+                val settingsWindow = javax.swing.SwingUtilities.getWindowAncestor(openModelLibraryButton)
+                ApplicationManager.getApplication().invokeLater({
+                    settingsWindow?.dispose()
+                    ApplicationManager.getApplication().invokeLater({
+                        service<TrialService>().requestLicense(Strings.ModelCard.TIER_3_PAYWALL_TITLE)
+                    }, ModalityState.nonModal())
+                }, ModalityState.nonModal())
             }
+            catalogDialog = object : DialogWrapper(null, true) {
+                init {
+                    title = Strings.Settings.MODEL_LIBRARY_TITLE
+                    init()
+                }
+                override fun createCenterPanel(): JComponent =
+                    ModelLibraryPanel(null, onRequestUpgrade).apply {
+                        preferredSize = Dimension(860, 640)
+                    }
+                override fun createActions() = arrayOf(okAction)
+            }
+            catalogDialog.show()
         }
 
         val openSkillLibraryButton = JButton(Strings.Skills.OPEN_LIBRARY).apply {

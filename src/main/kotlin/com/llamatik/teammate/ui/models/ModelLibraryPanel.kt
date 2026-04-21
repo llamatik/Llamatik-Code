@@ -17,7 +17,10 @@ import javax.swing.JPanel
  * Reusable panel showing all models from the built-in catalog grouped by tier.
  * Can be embedded in settings, onboarding, or a standalone dialog.
  */
-class ModelLibraryPanel(private val project: Project?) : JPanel(BorderLayout()) {
+class ModelLibraryPanel(
+    private val project: Project?,
+    private val onRequestUpgrade: (() -> Unit)? = null,
+) : JPanel(BorderLayout()) {
 
     private val contentPanel = JPanel().apply {
         layout = BoxLayout(this, BoxLayout.Y_AXIS)
@@ -44,9 +47,9 @@ class ModelLibraryPanel(private val project: Project?) : JPanel(BorderLayout()) 
             contentPanel.add(tierLabel)
 
             models.forEach { descriptor ->
-                val card = ModelCardPanel(project, descriptor) { action, model ->
-                    handleAction(action, model)
-                }.apply { alignmentX = LEFT_ALIGNMENT }
+                val card = ModelCardPanel(project, descriptor, ::handleAction, onRequestUpgrade).apply {
+                    alignmentX = LEFT_ALIGNMENT
+                }
                 contentPanel.add(card)
                 contentPanel.add(javax.swing.Box.createVerticalStrut(6))
             }
