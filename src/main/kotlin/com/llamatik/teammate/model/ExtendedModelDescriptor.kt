@@ -19,6 +19,8 @@ data class ExtendedModelDescriptor(
     val catalogStatus: ModelCatalogStatus = ModelCatalogStatus.AVAILABLE,
     var status: ModelStatus = ModelStatus.NOT_DOWNLOADED,
     val localPath: String? = null,
+    /** Download URL for the companion mmproj GGUF required for vision/multimodal inference. Null for text-only models. */
+    val mmprojDownloadUrl: String? = null,
     /** Absolute path to the companion mmproj GGUF file required for vision/multimodal inference. */
     val mmprojPath: String? = null,
 ) {

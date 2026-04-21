@@ -65,7 +65,11 @@ class ModelCardPanel(
 
     private var progressBar: JProgressBar? = null
     private var progressLabel: JBLabel? = null
+    private var phaseLabel: JBLabel? = null
     private var activeListener: ((DownloadProgressState) -> Unit)? = null
+    private var activeMmprojListener: ((DownloadProgressState) -> Unit)? = null
+
+    private val mmprojId get() = "${descriptor.id}:mmproj"
 
     init {
         border = JBUI.Borders.compound(
@@ -189,6 +193,7 @@ class ModelCardPanel(
                 panel.add(JButton(Strings.ModelCard.ACTION_CANCEL).apply {
                     addActionListener {
                         downloadManager.cancelDownload(descriptor.id)
+                        downloadManager.cancelDownload(mmprojId)
                         hideProgressBar()
                         updateStatusBadge(ModelStatus.NOT_DOWNLOADED)
                         refreshActionsPanel()
@@ -276,8 +281,14 @@ class ModelCardPanel(
     private fun startDownload() {
         val destDir = settings.storageDir()
         val fileName = localFileName()
+        val mmprojUrl = descriptor.mmprojDownloadUrl
+        val hasMmproj = mmprojUrl != null
 
-        showProgressBar(0L, (descriptor.diskSizeGb * 1_073_741_824).toLong())
+        showProgressBar(
+            bytesDownloaded = 0L,
+            totalBytes = (descriptor.diskSizeGb * 1_073_741_824).toLong(),
+            phase = if (hasMmproj) "Downloading model (1/2)…" else null,
+        )
         attachProgressListener()
 
         downloadManager.startDownload(
@@ -286,12 +297,54 @@ class ModelCardPanel(
             destDir = destDir,
             fileName = fileName,
             onComplete = { localPath ->
+                if (hasMmproj) {
+                    startMmprojDownload(mmprojUrl!!, destDir, localPath)
+                } else {
+                    ApplicationManager.getApplication().invokeLater({
+                        updateStatusBadge(ModelStatus.DOWNLOADED)
+                        refreshActionsPanel()
+                        Messages.showInfoMessage(
+                            project,
+                            "\"${descriptor.displayName}\" downloaded.\nPath: $localPath\n\nClick Load to make it active.",
+                            "Download Complete",
+                        )
+                    }, ModalityState.any())
+                }
+            },
+            onError = { msg ->
                 ApplicationManager.getApplication().invokeLater({
+                    updateStatusBadge(ModelStatus.FAILED)
+                    refreshActionsPanel()
+                    Messages.showErrorDialog(project, "Download failed: $msg", "Download Error")
+                }, ModalityState.any())
+            },
+        )
+    }
+
+    private fun startMmprojDownload(mmprojUrl: String, destDir: java.nio.file.Path, modelLocalPath: String) {
+        val mmprojFileName = mmprojUrl.substringAfterLast('/').substringBefore('?')
+            .takeIf { it.endsWith(".gguf") } ?: "${descriptor.id}-mmproj.gguf"
+
+        ApplicationManager.getApplication().invokeLater({
+            updatePhaseLabel("Downloading mmproj (2/2)…")
+            updateProgressBar(0L, -1L)
+        }, ModalityState.any())
+
+        attachMmprojProgressListener()
+
+        downloadManager.startDownload(
+            modelId = mmprojId,
+            downloadUrl = mmprojUrl,
+            destDir = destDir,
+            fileName = mmprojFileName,
+            onComplete = { mmprojLocalPath ->
+                ApplicationManager.getApplication().invokeLater({
+                    settings.data().mmprojPath = mmprojLocalPath
                     updateStatusBadge(ModelStatus.DOWNLOADED)
                     refreshActionsPanel()
                     Messages.showInfoMessage(
                         project,
-                        "\"${descriptor.displayName}\" downloaded.\nPath: $localPath\n\nClick Load to make it active.",
+                        "\"${descriptor.displayName}\" downloaded.\nModel: $modelLocalPath\nmmproj: $mmprojLocalPath\n\nClick Load to make it active.",
                         "Download Complete",
                     )
                 }, ModalityState.any())
@@ -300,7 +353,7 @@ class ModelCardPanel(
                 ApplicationManager.getApplication().invokeLater({
                     updateStatusBadge(ModelStatus.FAILED)
                     refreshActionsPanel()
-                    Messages.showErrorDialog(project, "Download failed: $msg", "Download Error")
+                    Messages.showErrorDialog(project, "mmproj download failed: $msg", "Download Error")
                 }, ModalityState.any())
             },
         )
@@ -317,22 +370,19 @@ class ModelCardPanel(
                         updateStatusBadge(ModelStatus.DOWNLOADING)
                     }
                     ModelStatus.DOWNLOADED -> {
-                        hideProgressBar()
-                        updateStatusBadge(ModelStatus.DOWNLOADED)
-                        refreshActionsPanel()
+                        // If there is an mmproj to download, keep the progress bar visible until
+                        // the mmproj phase completes; the mmproj listener will hide it.
+                        if (descriptor.mmprojDownloadUrl == null) {
+                            hideProgressBar()
+                            updateStatusBadge(ModelStatus.DOWNLOADED)
+                            refreshActionsPanel()
+                        }
                         activeListener?.let { downloadManager.removeProgressListener(descriptor.id, it) }
                         activeListener = null
                     }
-                    ModelStatus.FAILED -> {
+                    ModelStatus.FAILED, ModelStatus.NOT_DOWNLOADED -> {
                         hideProgressBar()
-                        updateStatusBadge(ModelStatus.FAILED)
-                        refreshActionsPanel()
-                        activeListener?.let { downloadManager.removeProgressListener(descriptor.id, it) }
-                        activeListener = null
-                    }
-                    ModelStatus.NOT_DOWNLOADED -> {
-                        hideProgressBar()
-                        updateStatusBadge(ModelStatus.NOT_DOWNLOADED)
+                        updateStatusBadge(state.status)
                         refreshActionsPanel()
                         activeListener?.let { downloadManager.removeProgressListener(descriptor.id, it) }
                         activeListener = null
@@ -345,36 +395,71 @@ class ModelCardPanel(
         downloadManager.addProgressListener(descriptor.id, listener)
     }
 
+    private fun attachMmprojProgressListener() {
+        activeMmprojListener?.let { downloadManager.removeProgressListener(mmprojId, it) }
+
+        val listener: (DownloadProgressState) -> Unit = { state ->
+            ApplicationManager.getApplication().invokeLater({
+                when (state.status) {
+                    ModelStatus.DOWNLOADING -> {
+                        updateProgressBar(state.bytesDownloaded, state.totalBytes)
+                        updateStatusBadge(ModelStatus.DOWNLOADING)
+                    }
+                    ModelStatus.DOWNLOADED, ModelStatus.FAILED, ModelStatus.NOT_DOWNLOADED -> {
+                        hideProgressBar()
+                        updateStatusBadge(state.status)
+                        refreshActionsPanel()
+                        activeMmprojListener?.let { downloadManager.removeProgressListener(mmprojId, it) }
+                        activeMmprojListener = null
+                    }
+                    else -> {}
+                }
+            }, ModalityState.any())
+        }
+        activeMmprojListener = listener
+        downloadManager.addProgressListener(mmprojId, listener)
+    }
+
     // ── Progress bar ──────────────────────────────────────────────────────────
 
-    private fun showProgressBar(bytesDownloaded: Long, totalBytes: Long) {
+    private fun showProgressBar(bytesDownloaded: Long, totalBytes: Long, phase: String? = null) {
         val bar = JProgressBar(0, 100).apply {
             isIndeterminate = totalBytes <= 0
             value = if (totalBytes > 0) ((bytesDownloaded * 100) / totalBytes).toInt() else 0
             preferredSize = java.awt.Dimension(160, 14)
             maximumSize = java.awt.Dimension(Int.MAX_VALUE, 14)
         }
-        val label = JBLabel(formatProgress(bytesDownloaded, totalBytes)).apply {
+        val pLabel = JBLabel(formatProgress(bytesDownloaded, totalBytes)).apply {
             font = font.deriveFont(font.size2D - 1.5f)
             foreground = JBColor.GRAY
         }
         val cancelButton = JButton(Strings.ModelCard.ACTION_CANCEL).apply {
             addActionListener {
                 downloadManager.cancelDownload(descriptor.id)
+                downloadManager.cancelDownload(mmprojId)
                 hideProgressBar()
                 updateStatusBadge(ModelStatus.NOT_DOWNLOADED)
                 refreshActionsPanel()
             }
         }
         progressBar = bar
-        progressLabel = label
+        progressLabel = pLabel
 
         val container = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
             isOpaque = false
+            if (phase != null) {
+                val pl = JBLabel(phase).apply {
+                    font = font.deriveFont(font.size2D - 1.5f)
+                    foreground = JBColor.GRAY
+                }
+                phaseLabel = pl
+                add(pl)
+                add(Box.createVerticalStrut(2))
+            }
             add(bar)
             add(Box.createVerticalStrut(2))
-            add(label)
+            add(pLabel)
             add(Box.createVerticalStrut(4))
             add(cancelButton)
         }
@@ -386,6 +471,8 @@ class ModelCardPanel(
             if (totalBytes > 0) {
                 bar.isIndeterminate = false
                 bar.value = ((bytesDownloaded * 100) / totalBytes).toInt()
+            } else {
+                bar.isIndeterminate = true
             }
             bar.repaint()
         }
@@ -394,9 +481,15 @@ class ModelCardPanel(
         repaint()
     }
 
+    private fun updatePhaseLabel(text: String) {
+        phaseLabel?.text = text
+        phaseLabel?.repaint()
+    }
+
     private fun hideProgressBar() {
         progressBar = null
         progressLabel = null
+        phaseLabel = null
     }
 
     private fun formatProgress(bytesDownloaded: Long, totalBytes: Long): String {

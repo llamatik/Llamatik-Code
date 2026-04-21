@@ -41,9 +41,9 @@ object BuiltInModelCatalog {
             catalogStatus = ModelCatalogStatus.RECOMMENDED,
         ),
         ExtendedModelDescriptor(
-            id = "gemma-4-e2b-q4",
-            displayName = "Gemma 4 E2B",
-            quantization = "Q4_K_M",
+            id = "gemma-4-e2b-it",
+            displayName = "Gemma 4 E2B it",
+            quantization = "bf16",
             diskSizeGb = 3.4,
             minRamGb = 4.0,
             recommendedRamGb = 8.0,
@@ -54,13 +54,14 @@ object BuiltInModelCatalog {
             modelCardUrl = "https://ai.google.dev/gemma/docs/core/model_card_4",
             specialization = ModelSpecialization.BALANCED,
             catalogStatus = ModelCatalogStatus.RECOMMENDED,
-            downloadSourceUrl = "https://huggingface.co/Jackapan/gemma-4-E2B-it-Q4_K_M-GGUF/resolve/main/gemma-4-e2b-it-q4_k_m.gguf?download=true"
+            downloadSourceUrl = "https://huggingface.co/ggml-org/gemma-4-E2B-it-GGUF/resolve/main/gemma-4-E2B-it-bf16.gguf?download=true",
+            mmprojDownloadUrl = "https://huggingface.co/ggml-org/gemma-4-E2B-it-GGUF/resolve/main/mmproj-gemma-4-E2B-it-bf16.gguf?download=true"
         ),
         ExtendedModelDescriptor(
             id = "gemma-4-e4b-q4",
-            displayName = "Gemma 4 E4B",
-            quantization = "Q4_K_M",
-            diskSizeGb = 4.2,
+            displayName = "Gemma 4 E4B it",
+            quantization = "Q8_0",
+            diskSizeGb = 8.1,
             minRamGb = 6.0,
             recommendedRamGb = 8.0,
             tier = ModelTier.TIER_1,
@@ -70,7 +71,8 @@ object BuiltInModelCatalog {
             modelCardUrl = "https://ai.google.dev/gemma/docs/core/model_card_4",
             specialization = ModelSpecialization.BALANCED,
             catalogStatus = ModelCatalogStatus.RECOMMENDED,
-            downloadSourceUrl = "https://huggingface.co/Edge-Quant/gemma-3n-E4B-it-Q4_K_M-GGUF/resolve/main/gemma-3n-e4b-it-q4_k_m.gguf?download=true"
+            downloadSourceUrl = "https://huggingface.co/ggml-org/gemma-4-E4B-it-GGUF/resolve/main/gemma-4-E4B-it-Q8_0.gguf?download=true",
+            mmprojDownloadUrl = "https://huggingface.co/ggml-org/gemma-4-E4B-it-GGUF/resolve/main/mmproj-gemma-4-E4B-it-Q8_0.gguf?download=true"
         ),
 
         // Tier 2 - Balanced
@@ -193,10 +195,10 @@ object BuiltInModelCatalog {
             downloadSourceUrl = "https://huggingface.co/bartowski/DeepSeek-R1-Distill-Qwen-32B-GGUF/resolve/main/DeepSeek-R1-Distill-Qwen-32B-Q4_K_M.gguf?download=true"
         ),
         ExtendedModelDescriptor(
-            id = "gemma-4-31b-q4",
-            displayName = "Gemma 4 31B",
-            quantization = "Q4_K_M",
-            diskSizeGb = 18.7,
+            id = "gemma-4-31b-q8",
+            displayName = "Gemma 4 31B it",
+            quantization = "Q8_0",
+            diskSizeGb = 32.7,
             minRamGb = 24.0,
             recommendedRamGb = 32.0,
             tier = ModelTier.TIER_3,
@@ -204,7 +206,8 @@ object BuiltInModelCatalog {
             tradeoffs = "Premium Gemma option with strong reasoning and coding, but requires a high-end machine.",
             repositoryUrl = "https://ai.google.dev/gemma/docs/core",
             modelCardUrl = "https://ai.google.dev/gemma/docs/core/model_card_4",
-            downloadSourceUrl = "https://huggingface.co/NoxStrix/gemma-4-31B-it-Q4_K_M-GGUF/resolve/main/gemma-4-31b-it-q4_k_m.gguf?download=true",
+            downloadSourceUrl = "https://huggingface.co/ggml-org/gemma-4-31B-it-GGUF/resolve/main/gemma-4-31B-it-Q8_0.gguf?download=true",
+            mmprojDownloadUrl = "https://huggingface.co/ggml-org/gemma-4-31B-it-GGUF/resolve/main/mmproj-gemma-4-31B-it-Q8_0.gguf?download=true",
             specialization = ModelSpecialization.BALANCED,
             catalogStatus = ModelCatalogStatus.RECOMMENDED,
         ),
