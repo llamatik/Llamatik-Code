@@ -110,15 +110,18 @@ object LicenseChecker {
      * Returns true if a valid Marketplace licence exists, false if none, or null if the
      * LicensingFacade is not yet initialised (IDE startup — treat as "unknown").
      */
-    fun isLicensed(): Boolean? = runCatching {
-        val facade = LicensingFacade.getInstance() ?: return null
-        val cstamp = facade.getConfirmationStamp(PRODUCT_CODE) ?: return false
-        when {
-            cstamp.startsWith(KEY_PREFIX) -> isKeyValid(cstamp.removePrefix(KEY_PREFIX))
-            cstamp.startsWith(STAMP_PREFIX) -> isLicenseServerStampValid(cstamp.removePrefix(STAMP_PREFIX))
-            else -> false
-        }
-    }.getOrNull()
+    fun isLicensed(): Boolean? {
+        if (DebugConfig.FORCE_LICENSED) return true
+        return runCatching {
+            val facade = LicensingFacade.getInstance() ?: return null
+            val cstamp = facade.getConfirmationStamp(PRODUCT_CODE) ?: return false
+            when {
+                cstamp.startsWith(KEY_PREFIX) -> isKeyValid(cstamp.removePrefix(KEY_PREFIX))
+                cstamp.startsWith(STAMP_PREFIX) -> isLicenseServerStampValid(cstamp.removePrefix(STAMP_PREFIX))
+                else -> false
+            }
+        }.getOrNull()
+    }
 
     /**
      * Shows the JetBrains licence registration dialog with an optional prompt message.

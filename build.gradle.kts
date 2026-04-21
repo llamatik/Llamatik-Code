@@ -61,6 +61,27 @@ kotlin {
     }
 }
 
+// ── Debug config generation ───────────────────────────────────────────────────
+// Pass -PforceLicensed=true on the Gradle command line (or in a run config) to
+// enable Pro features locally. The generated file must have FORCE_LICENSED=false
+// before building a release JAR.
+val forceLicensed = providers.gradleProperty("forceLicensed").orNull == "true"
+val generateDebugConfig by tasks.registering {
+    val outFile = layout.projectDirectory.file("src/main/kotlin/com/llamatik/teammate/licensing/DebugConfig.kt")
+    val licensed = forceLicensed
+    inputs.property("forceLicensed", licensed)
+    outputs.file(outFile)
+    doLast {
+        outFile.asFile.writeText("""package com.llamatik.teammate.licensing
+
+internal object DebugConfig {
+    const val FORCE_LICENSED: Boolean = $licensed
+}
+""")
+    }
+}
+tasks.named("compileKotlin") { dependsOn(generateDebugConfig) }
+
 // ── ProGuard obfuscation ──────────────────────────────────────────────────────
 
 val proguardJar = layout.buildDirectory.file("libs/${rootProject.name}-${version}-obfuscated.jar")
