@@ -53,8 +53,8 @@ class AtMentionHandler(
         selectionBackground = LlamatikTheme.primary
         selectionForeground = LlamatikTheme.onPrimary
         font = font.deriveFont(Font.PLAIN, font.size2D)
-        border = JBUI.Borders.empty(2, 8)
-        fixedCellHeight = 24
+        border = JBUI.Borders.empty(4, 8)
+        fixedCellHeight = 28
         isFocusable = false
     }
 
@@ -126,8 +126,12 @@ class AtMentionHandler(
         textComponent.addKeyListener(keyListener)
 
         resultList.addMouseListener(object : MouseAdapter() {
-            override fun mouseClicked(e: MouseEvent) {
-                if (resultList.selectedIndex >= 0) confirmSelection()
+            override fun mousePressed(e: MouseEvent) {
+                val idx = resultList.locationToIndex(e.point)
+                if (idx >= 0) {
+                    resultList.selectedIndex = idx
+                    confirmSelection()
+                }
             }
         })
     }
@@ -185,7 +189,7 @@ class AtMentionHandler(
         val rows = listModel.size.coerceIn(1, 8)
         val itemH = resultList.fixedCellHeight + 2
         val popupH = rows * itemH + 6
-        val popupW = 380
+        val popupW = textComponent.width.coerceAtLeast(520)
 
         floatingWindow.setSize(popupW, popupH)
 
@@ -207,13 +211,19 @@ class AtMentionHandler(
     }
 
     private fun dismissPopup() {
-        atStartOffset = -1
         floatingWindow.isVisible = false
+        atStartOffset = -1
     }
 
     private fun confirmSelection() {
         val selected = resultList.selectedValue ?: return
-        dismissPopup()
+        // Capture atStartOffset before hiding the popup, as hiding may trigger
+        // a document change that resets it via dismissPopup().
+        val capturedOffset = atStartOffset
+        floatingWindow.isVisible = false
+        atStartOffset = -1
+
+        if (capturedOffset < 0) return
 
         // If the selected file is an image and an attachment bar is available, route
         // it there instead of inserting a text token.
@@ -221,25 +231,22 @@ class AtMentionHandler(
             val absolutePath = resolveAbsolutePath(selected)
             if (absolutePath != null) {
                 imageBar.notifyImageMention(absolutePath)
-                // Remove the @-prefix the user typed from the text input
-                removeAtPrefix()
+                removeAtPrefixFrom(capturedOffset)
                 textComponent.requestFocusInWindow()
                 return
             }
         }
 
-        insertFileReference(selected)
+        insertFileReference(selected, capturedOffset)
         textComponent.requestFocusInWindow()
     }
 
-    private fun removeAtPrefix() {
+    private fun removeAtPrefixFrom(startOffset: Int) {
         val doc = textComponent.document
         val caret = textComponent.caretPosition.coerceIn(0, doc.length)
-        val replaceStart = atStartOffset
-        val replaceEnd = caret
-        if (replaceStart < 0 || replaceStart > replaceEnd) return
+        if (startOffset < 0 || startOffset > caret) return
         suppressDocumentListener = true
-        try { doc.remove(replaceStart, replaceEnd - replaceStart) } finally { suppressDocumentListener = false }
+        try { doc.remove(startOffset, caret - startOffset) } finally { suppressDocumentListener = false }
     }
 
     private fun resolveAbsolutePath(relativePath: String): String? {
@@ -248,20 +255,17 @@ class AtMentionHandler(
         return if (file.exists()) file.absolutePath else null
     }
 
-    private fun insertFileReference(path: String) {
+    private fun insertFileReference(path: String, startOffset: Int) {
         val doc = textComponent.document
         val caret = textComponent.caretPosition.coerceIn(0, doc.length)
-        val replaceStart = atStartOffset
-        val replaceEnd = caret
-
-        if (replaceStart < 0 || replaceStart > replaceEnd) return
+        if (startOffset < 0 || startOffset > caret) return
 
         suppressDocumentListener = true
         try {
-            doc.remove(replaceStart, replaceEnd - replaceStart)
+            doc.remove(startOffset, caret - startOffset)
             val token = "@{$path} "
-            doc.insertString(replaceStart, token, null)
-            textComponent.caretPosition = replaceStart + token.length
+            doc.insertString(startOffset, token, null)
+            textComponent.caretPosition = startOffset + token.length
         } finally {
             suppressDocumentListener = false
         }
