@@ -88,7 +88,7 @@ object BuiltInModelCatalog {
             tradeoffs = "Excellent reasoning and broad coding help, especially for complex tasks.",
             repositoryUrl = "https://huggingface.co/Qwen/Qwen3-14B",
             modelCardUrl = "https://huggingface.co/Qwen/Qwen3-14B-GGUF",
-            downloadSourceUrl = "https://huggingface.co/stefancosma/Qwen3-14B-Instruct-Q4_K_M-GGUF/resolve/main/qwen3-14b-instruct-q4_k_m.gguf?download=true",
+            downloadSourceUrl = "https://huggingface.co/ggml-org/Qwen3-14B-GGUF/resolve/main/Qwen3-14B-Q4_K_M.gguf?download=true",
             recommendedFileName = "qwen3-14b-q4_k_m.gguf",
             specialization = ModelSpecialization.BALANCED,
             catalogStatus = ModelCatalogStatus.RECOMMENDED,
@@ -108,7 +108,7 @@ object BuiltInModelCatalog {
             modelCardUrl = "https://huggingface.co/Qwen/Qwen2.5-Coder-7B-Instruct-GGUF",
             specialization = ModelSpecialization.CODING,
             catalogStatus = ModelCatalogStatus.LEGACY,
-            downloadSourceUrl = "https://huggingface.co/bartowski/Qwen2.5-Coder-7B-Instruct-GGUF/resolve/main/Qwen2.5-Coder-7B-Instruct-f16.gguf?download=true"
+            downloadSourceUrl = "https://huggingface.co/ggml-org/Qwen2.5-Coder-7B-Instruct-Q8_0-GGUF/resolve/main/qwen2.5-coder-7b-instruct-q8_0.gguf?download=true"
         ),
         ExtendedModelDescriptor(
             id = "deepseek-coder-6.7b-q4",
