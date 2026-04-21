@@ -201,7 +201,7 @@ object BuiltInModelCatalog {
             diskSizeGb = 26.9,
             minRamGb = 16.0,
             recommendedRamGb = 24.0,
-            tier = ModelTier.TIER_2,
+            tier = ModelTier.TIER_3,
             useCases = listOf("Reasoning", "Coding", "Agentic workflows"),
             tradeoffs = "Powerful MoE option for advanced local assistance with better headroom than small Gemma variants.",
             repositoryUrl = "https://ai.google.dev/gemma/docs/core",
