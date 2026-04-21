@@ -13,6 +13,7 @@ import java.awt.RenderingHints
 import java.awt.image.BufferedImage
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.util.concurrent.Executors
 import javax.imageio.ImageIO
 import java.util.concurrent.atomic.AtomicBoolean
@@ -61,6 +62,12 @@ class MultimodalBackendService {
             return NoOpHandle(cancelled)
         }
 
+        val vramErr = checkVramHeadroom(modelPath)
+        if (vramErr != null) {
+            executor.submit { callbacks.onError(vramErr, null) }
+            return NoOpHandle(cancelled)
+        }
+
         val generationDone = AtomicBoolean(false)
         val nativeFinished = AtomicBoolean(false)
 
@@ -105,7 +112,7 @@ class MultimodalBackendService {
                     override fun onError(message: String) {
                         nativeFinished.set(true)
                         if (generationDone.compareAndSet(false, true) && !cancelled.get()) {
-                            callbacks.onError(message, null)
+                            callbacks.onError(friendlyMultimodalError(message), null)
                         }
                     }
                 }
@@ -117,7 +124,7 @@ class MultimodalBackendService {
                 nativeFinished.set(true)
                 if (!cancelled.get()) {
                     logger.warn("Multimodal generation failed", t)
-                    callbacks.onError(t.message ?: "Multimodal generation failed", t)
+                    callbacks.onError(friendlyMultimodalError(t.message ?: "Multimodal generation failed"), t)
                 }
             }
         }
@@ -130,6 +137,41 @@ class MultimodalBackendService {
                 }
             }
             override val isCancelled: Boolean get() = cancelled.get()
+        }
+    }
+
+    /**
+     * Returns an error string if the model file is too large for the available system RAM,
+     * leaving insufficient headroom for the VLM KV cache (~1.8 GB at n_ctx=8192).
+     * On Apple Silicon the GPU uses unified memory, so model size + KV cache competes with RAM.
+     */
+    private fun checkVramHeadroom(modelPath: String): String? {
+        val modelFileSizeGb = runCatching { File(modelPath).length().toDouble() / (1024.0 * 1024 * 1024) }.getOrDefault(0.0)
+        if (modelFileSizeGb <= 0.0) return null
+        val systemRamGb = runCatching {
+            val bean = java.lang.management.ManagementFactory.getOperatingSystemMXBean()
+            if (bean is com.sun.management.OperatingSystemMXBean) bean.totalMemorySize.toDouble() / (1024.0 * 1024 * 1024) else 0.0
+        }.getOrDefault(0.0)
+        if (systemRamGb <= 0.0) return null
+        // VLM decode at n_ctx=8192 needs ~1.8 GB KV cache + ~0.6 GB compute buffers
+        val headroomNeededGb = 2.5
+        return if (modelFileSizeGb + headroomNeededGb > systemRamGb) {
+            "Not enough memory for multimodal generation with this model.\n" +
+                "Model size: ${"%.1f".format(modelFileSizeGb)} GB, System RAM: ${"%.1f".format(systemRamGb)} GB.\n" +
+                "Use a smaller model (e.g. Gemma 4 E4B or Gemma 4 26B Q4) for image analysis on this machine."
+        } else null
+    }
+
+    private fun friendlyMultimodalError(raw: String): String {
+        val lower = raw.lowercase()
+        return when {
+            lower.contains("outofmemory") || lower.contains("out of memory") ||
+                lower.contains("insufficient memory") || lower.contains("kIOGPUCommandBufferCallbackErrorOutOfMemory", ignoreCase = true) ||
+                lower.contains("mtmd_helper_eval_chunks failed") || lower.contains("failed to decode image") ->
+                "GPU out of memory during image analysis.\n" +
+                    "The model is too large for the available unified memory once the image KV cache is added.\n" +
+                    "Switch to a smaller multimodal model (Gemma 4 E4B Q8 or Gemma 4 26B Q4) to use image analysis on this machine."
+            else -> raw
         }
     }
 
