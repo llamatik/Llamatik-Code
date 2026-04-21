@@ -730,8 +730,17 @@ class AgentTabPanel(
                 alignmentX = LEFT_ALIGNMENT
             }
             proposalsPanel.add(header)
-            proposals.forEach { proposal ->
-                proposalsPanel.add(buildProposalCard(proposal, onViewDiff, onApply, onRejectProposal))
+            val licensed = runCatching { LicenseChecker.isLicensed() == true }.getOrElse { false }
+            val freeTierPaywall = !licensed && proposals.size > 1
+            val lockFunctions = mutableListOf<() -> Unit>()
+            proposals.forEachIndexed { index, proposal ->
+                val onApplyWrapped: (EditProposal) -> Unit = { p ->
+                    onApply(p)
+                    if (freeTierPaywall) lockFunctions.filterIndexed { i, _ -> i != index }.forEach { it() }
+                }
+                val (card, lockAccept) = buildProposalCard(proposal, onViewDiff, onApplyWrapped, onRejectProposal)
+                lockFunctions.add(lockAccept)
+                proposalsPanel.add(card)
                 proposalsPanel.add(vStrut(6))
             }
             proposalsPanel.isVisible = true
@@ -1208,7 +1217,7 @@ class AgentTabPanel(
         onViewDiff: (EditProposal) -> Unit,
         onApply: (EditProposal) -> Unit,
         onReject: (EditProposal) -> Unit,
-    ): JPanel {
+    ): Pair<JPanel, () -> Unit> {
         val card = JPanel(BorderLayout(0, 6)).apply {
             isOpaque = false
             border = JBUI.Borders.compound(
@@ -1283,13 +1292,37 @@ class AgentTabPanel(
             rejectButton.isEnabled = false
             card.revalidate(); card.repaint()
         }
+
+        val upgradeLabel = JBLabel(Strings.EditDialog.FREE_PLAN_LIMIT).apply {
+            foreground = LlamatikTheme.onSurfaceVariant
+            font = font.deriveFont(Font.ITALIC, font.size2D - 1f)
+            border = JBUI.Borders.empty(2, 0, 0, 0)
+            isVisible = false
+        }
+
+        val lockAccept: () -> Unit = {
+            acceptButton.isEnabled = false
+            upgradeLabel.isVisible = true
+            card.revalidate(); card.repaint()
+        }
+
         val buttons = JPanel(FlowLayout(FlowLayout.RIGHT, 6, 0)).apply {
             isOpaque = false
             add(statusLabel); add(diffButton); add(rejectButton); add(acceptButton)
         }
+
+        val south = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            isOpaque = false
+            buttons.alignmentX = RIGHT_ALIGNMENT
+            upgradeLabel.alignmentX = RIGHT_ALIGNMENT
+            add(buttons)
+            add(upgradeLabel)
+        }
+
         card.add(labelStack, BorderLayout.NORTH)
-        card.add(buttons, BorderLayout.SOUTH)
-        return card
+        card.add(south, BorderLayout.SOUTH)
+        return Pair(card, lockAccept)
     }
 
     private fun buildPhaseRow(phase: AgentPhase, isCurrent: Boolean, isDone: Boolean): JPanel {

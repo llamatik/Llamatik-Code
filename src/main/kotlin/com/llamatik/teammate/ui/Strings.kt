@@ -128,6 +128,7 @@ object Strings {
         const val VIEW_DIFF = "Diff"
         const val ACCEPTED_LABEL = "✓ Applied"
         const val REJECTED_LABEL = "✕ Rejected"
+        const val FREE_PLAN_LIMIT = "Free plan supports 1 file change. Upgrade to apply all."
     }
 
     // ── Diff viewer ───────────────────────────────────────────────────────────
