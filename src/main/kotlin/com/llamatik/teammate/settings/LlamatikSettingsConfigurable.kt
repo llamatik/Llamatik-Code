@@ -144,12 +144,14 @@ class LlamatikSettingsConfigurable : Configurable {
             val onRequestUpgrade: () -> Unit = {
                 catalogDialog?.close(DialogWrapper.CANCEL_EXIT_CODE)
                 val settingsWindow = javax.swing.SwingUtilities.getWindowAncestor(openModelLibraryButton)
+                // ModalityState.any() so this fires while the settings modal is still alive
                 ApplicationManager.getApplication().invokeLater({
                     settingsWindow?.dispose()
+                    // nonModal() so this fires only after settings is fully gone
                     ApplicationManager.getApplication().invokeLater({
                         service<TrialService>().requestLicense(Strings.ModelCard.TIER_3_PAYWALL_TITLE)
                     }, ModalityState.nonModal())
-                }, ModalityState.nonModal())
+                }, ModalityState.any())
             }
             catalogDialog = object : DialogWrapper(null, true) {
                 init {
