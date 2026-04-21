@@ -259,6 +259,8 @@ object Strings {
         const val FLASH_ATTENTION      = "Enable Flash Attention"
         const val FLASH_ATTENTION_TOOLTIP = "Use Flash Attention kernel — reduces VRAM usage on supported hardware"
         const val RESET_DEFAULTS       = "Reset to defaults"
+        const val UPGRADE_REQUIRED     = "Inference settings require a Llamatik Code licence. Upgrade to change these settings."
+        const val UPGRADE_BUTTON       = "Upgrade"
     }
 
     // ── Onboarding ────────────────────────────────────────────────────────────

@@ -5,7 +5,11 @@ import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
 import com.intellij.util.ui.FormBuilder
 import com.intellij.util.ui.JBUI
+import com.llamatik.teammate.licensing.LicenseChecker
+import com.llamatik.teammate.licensing.TrialService
 import com.llamatik.teammate.ui.Strings
+import java.awt.BorderLayout
+import java.awt.Font
 import javax.swing.JButton
 import javax.swing.JPanel
 import javax.swing.JSpinner
@@ -21,12 +25,17 @@ class InferenceSettingsPanel {
     val useMmapCheck       = JBCheckBox(Strings.Inference.USE_MMAP)
     val flashAttentionCheck = JBCheckBox(Strings.Inference.FLASH_ATTENTION)
 
+    private val controls: List<java.awt.Component> get() = listOf(
+        temperatureSpinner, maxTokensSpinner, contextSizeSpinner,
+        batchSizeSpinner, numThreadsSpinner, useMmapCheck, flashAttentionCheck,
+    )
+
     val panel: JPanel by lazy {
         val resetButton = JButton(Strings.Inference.RESET_DEFAULTS).apply {
             addActionListener { resetToDefaults() }
         }
 
-        FormBuilder.createFormBuilder()
+        val formPanel = FormBuilder.createFormBuilder()
             .addSeparator()
             .addLabeledComponent(JBLabel(Strings.Inference.SECTION_GENERATION), JBLabel(""))
             .addLabeledComponent(JBLabel(Strings.Inference.TEMPERATURE), temperatureSpinner)
@@ -51,7 +60,37 @@ class InferenceSettingsPanel {
             .addComponent(resetButton)
             .addComponentFillVertically(JPanel(), 0)
             .panel
-            .also { it.border = JBUI.Borders.empty(8) }
+
+        val licensed = runCatching { LicenseChecker.isLicensed() == true }.getOrElse { false }
+        if (!licensed) {
+            controls.forEach { it.isEnabled = false }
+            resetButton.isEnabled = false
+
+            val messageLabel = JBLabel(Strings.Inference.UPGRADE_REQUIRED).apply {
+                font = font.deriveFont(Font.PLAIN)
+            }
+            val upgradeButton = JButton(Strings.Inference.UPGRADE_BUTTON).apply {
+                addActionListener {
+                    service<TrialService>().requestLicense(Strings.Inference.UPGRADE_REQUIRED)
+                }
+            }
+            val bannerPanel = JPanel(BorderLayout(8, 0)).apply {
+                border = JBUI.Borders.compound(
+                    JBUI.Borders.customLine(com.llamatik.teammate.ui.LlamatikTheme.primary, 0, 0, 1, 0),
+                    JBUI.Borders.empty(8),
+                )
+                add(messageLabel, BorderLayout.CENTER)
+                add(upgradeButton, BorderLayout.EAST)
+            }
+
+            JPanel(BorderLayout()).apply {
+                add(bannerPanel, BorderLayout.NORTH)
+                add(formPanel, BorderLayout.CENTER)
+                border = JBUI.Borders.empty(8)
+            }
+        } else {
+            formPanel.also { it.border = JBUI.Borders.empty(8) }
+        }
     }
 
     fun loadFrom(s: LlamatikAppSettings.State) {
