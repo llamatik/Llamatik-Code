@@ -284,6 +284,19 @@ class AgentTabPanel(
         addActionListener { onAutoFixChanged(isSelected); updateRunOptionsButton() }
     }
     private val runOptionsPopup = JPopupMenu().apply {
+        val licensed = runCatching { LicenseChecker.isLicensed() == true }.getOrElse { false }
+        if (!licensed) {
+            val proLabel = JBLabel(Strings.Agent.RUN_OPTIONS_PRO_REQUIRED).apply {
+                foreground = LlamatikTheme.onSurfaceVariant
+                font = font.deriveFont(Font.BOLD, font.size2D - 1f)
+                border = JBUI.Borders.empty(6, 12, 4, 12)
+            }
+            add(proLabel)
+            addSeparator()
+            autoApproveItem.isEnabled = false
+            autoBuildItem.isEnabled = false
+            autoFixItem.isEnabled = false
+        }
         add(autoApproveItem)
         add(autoBuildItem)
         add(autoFixItem)

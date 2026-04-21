@@ -71,6 +71,7 @@ object Strings {
         const val AUTO_APPROVE_NEXT = "Auto-apply edits on next run"
         const val AUTO_BUILD_NEXT = "Auto-build after applying edits"
         const val AUTO_FIX_NEXT = "Auto-fix build errors"
+        const val RUN_OPTIONS_PRO_REQUIRED = "Requires Pro"
         const val SCROLL_TO_BOTTOM = "↓  Scroll to bottom"
         fun brewedFor(elapsed: String) = "brewed for $elapsed"
 
