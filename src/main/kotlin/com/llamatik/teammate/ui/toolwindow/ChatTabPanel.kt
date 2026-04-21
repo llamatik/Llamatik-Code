@@ -131,9 +131,6 @@ class ChatTabPanel(
         })
     }
 
-    private val newChatButton = toolbarButton(AllIcons.General.Add, Strings.Chat.NEW_CHAT)
-    private val clearButton = toolbarButton(AllIcons.Actions.GC, Strings.Chat.CLEAR)
-
     // ── Model picker ──────────────────────────────────────────────────────────
     private val modelPickerButton = ModelPickerButton(onModelChanged = onModelChanged)
 
@@ -171,14 +168,6 @@ class ChatTabPanel(
         background = rootBackground
         border = JBUI.Borders.empty()
 
-        val topBar = JPanel(FlowLayout(FlowLayout.RIGHT, 3, 4)).apply {
-            background = rootBackground
-            border = JBUI.Borders.empty(0, 12)
-            add(newChatButton)
-            add(clearButton)
-        }
-
-        add(topBar, BorderLayout.NORTH)
         add(tabs, BorderLayout.CENTER)
         add(buildComposer(), BorderLayout.SOUTH)
 
@@ -249,24 +238,21 @@ class ChatTabPanel(
         rebuildTabs()
     }
 
+    private fun addNewSession() {
+        val newSession = sessionController.addSession()
+        rebuildTabs()
+        val index = sessionController.sessions.indexOfFirst { it.id == newSession.id }
+        if (index >= 0) tabs.selectedIndex = index
+    }
+
     private fun bindActions() {
-        newChatButton.addActionListener {
-            val newSession = sessionController.addSession()
-            rebuildTabs()
-            val index = sessionController.sessions.indexOfFirst { it.id == newSession.id }
-            if (index >= 0) tabs.selectedIndex = index
-        }
-
-        clearButton.addActionListener {
-            val idx = tabs.selectedIndex.coerceAtLeast(0)
-            sessionController.sessions.getOrNull(idx)?.let {
-                sessionController.clearSession(it.id)
-                rebuildTabs()
-            }
-        }
-
         tabs.addChangeListener {
             val idx = tabs.selectedIndex
+            // Last tab is always the "+" fake tab — redirect to new session
+            if (idx == tabs.tabCount - 1 && idx > sessionController.sessions.lastIndex) {
+                addNewSession()
+                return@addChangeListener
+            }
             if (idx in sessionController.sessions.indices) {
                 sessionController.selectedSessionId = sessionController.sessions[idx].id
                 sessionController.persist()
@@ -280,11 +266,7 @@ class ChatTabPanel(
 
         sessionController.sessions.forEach { session ->
             val cardLayout = CardLayout()
-            val cardPanel = JPanel(cardLayout).apply {
-                background = rootBackground
-            }
 
-            val welcomeCard = buildWelcomeCard()
             val messagesList = JPanel().apply {
                 layout = BoxLayout(this, BoxLayout.Y_AXIS)
                 background = rootBackground
@@ -311,8 +293,29 @@ class ChatTabPanel(
                 background = rootBackground
             }
 
-            cardPanel.add(welcomeCard, CARD_WELCOME)
-            cardPanel.add(messagesScroll, CARD_MESSAGES)
+            val sessionClearButton = toolbarButton(AllIcons.Actions.GC, Strings.Chat.CLEAR).apply {
+                addActionListener {
+                    sessionController.clearSession(session.id)
+                    rebuildTabs()
+                }
+            }
+            val tabToolbar = JPanel(FlowLayout(FlowLayout.RIGHT, 4, 4)).apply {
+                isOpaque = false
+                add(sessionClearButton)
+            }
+
+            val welcomeCard = buildWelcomeCard()
+            val messagesCard = JPanel(BorderLayout()).apply {
+                background = rootBackground
+                add(tabToolbar, BorderLayout.NORTH)
+                add(messagesScroll, BorderLayout.CENTER)
+            }
+
+            val cardPanel = JPanel(cardLayout).apply {
+                background = rootBackground
+                add(welcomeCard, CARD_WELCOME)
+                add(messagesCard, CARD_MESSAGES)
+            }
 
             cardLayout.show(cardPanel, if (session.messages.isEmpty()) CARD_WELCOME else CARD_MESSAGES)
 
@@ -324,8 +327,20 @@ class ChatTabPanel(
             })
         }
 
+        // "+" add-tab button as a trailing fake tab
+        tabs.addTab("", JPanel())
+        val addTabIndex = tabs.tabCount - 1
+        tabs.setTabComponentAt(addTabIndex, JButton(AllIcons.General.Add).apply {
+            toolTipText = Strings.Chat.NEW_CHAT
+            isFocusPainted = false
+            isContentAreaFilled = false
+            isBorderPainted = false
+            border = JBUI.Borders.empty(2, 4)
+            addActionListener { addNewSession() }
+        })
+
         val restoredIndex = sessionController.sessions.indexOfFirst { it.id == previousSelectedId }
-        if (tabs.tabCount > 0) {
+        if (tabs.tabCount > 1) {
             tabs.selectedIndex = if (restoredIndex >= 0) restoredIndex else 0
         }
     }
