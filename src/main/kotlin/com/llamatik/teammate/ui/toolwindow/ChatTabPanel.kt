@@ -1,6 +1,7 @@
 package com.llamatik.teammate.ui.toolwindow
 
 import com.intellij.icons.AllIcons
+import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
@@ -8,6 +9,9 @@ import com.intellij.ui.components.JBTabbedPane
 import com.intellij.ui.components.JBTextArea
 import com.intellij.util.ui.JBUI
 import com.llamatik.teammate.diff.DiffPreviewService
+import com.llamatik.teammate.licensing.LicenseChecker
+import com.llamatik.teammate.llamatik.MultimodalBackendService
+import com.llamatik.teammate.model.AttachedImage
 import com.llamatik.teammate.model.EditProposal
 import com.llamatik.teammate.ui.LlamatikTheme
 import com.llamatik.teammate.ui.Strings
@@ -46,7 +50,7 @@ class ChatTabPanel(
     private val pendingEdits: LinkedHashMap<String, EditProposal>,
     private val onApplyEdit: (EditProposal) -> Unit,
     private val onSuggestionSelected: (String) -> Unit,
-    private val onSend: (String) -> Unit = {},
+    private val onSend: (String, List<AttachedImage>) -> Unit = { _, _ -> },
     private val onStop: () -> Unit = {},
     private val onSettingsClicked: () -> Unit = {},
     private val onModelChanged: () -> Unit = {},
@@ -127,14 +131,32 @@ class ChatTabPanel(
         })
     }
 
-    private val newChatButton = toolbarButton(AllIcons.General.Add, Strings.Chat.NEW_CHAT)
-    private val clearButton = toolbarButton(AllIcons.Actions.GC, Strings.Chat.CLEAR)
-
     // ── Model picker ──────────────────────────────────────────────────────────
     private val modelPickerButton = ModelPickerButton(onModelChanged = onModelChanged)
 
+    // ── Image attachment bar ──────────────────────────────────────────────────
+    private val isMultimodalEnabled: () -> Boolean = {
+        runCatching {
+            LicenseChecker.isLicensed() == true && service<MultimodalBackendService>().isConfigured()
+        }.getOrElse { false }
+    }
+    private val imageBar = ImageAttachmentBar(project, isMultimodalEnabled) { /* onChange — read on send */ }
+
     // ── Composer ──────────────────────────────────────────────────────────────
-    private val composerInput = JBTextArea(3, 40).apply {
+    private val composerInput = object : JBTextArea(3, 40) {
+        override fun paintComponent(g: Graphics) {
+            super.paintComponent(g)
+            if (text.isEmpty() && !isFocusOwner) {
+                val g2 = g.create() as Graphics2D
+                g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON)
+                g2.color = LlamatikTheme.onSurfaceVariant
+                g2.font = font.deriveFont(Font.ITALIC)
+                val insets = insets
+                g2.drawString(Strings.Composer.INPUT_PLACEHOLDER, insets.left, insets.top + g2.fontMetrics.ascent)
+                g2.dispose()
+            }
+        }
+    }.apply {
         lineWrap = true
         wrapStyleWord = true
         isOpaque = false
@@ -159,20 +181,12 @@ class ChatTabPanel(
         background = rootBackground
         border = JBUI.Borders.empty()
 
-        val topBar = JPanel(FlowLayout(FlowLayout.RIGHT, 3, 4)).apply {
-            background = rootBackground
-            border = JBUI.Borders.empty(0, 12)
-            add(newChatButton)
-            add(clearButton)
-        }
-
-        add(topBar, BorderLayout.NORTH)
         add(tabs, BorderLayout.CENTER)
         add(buildComposer(), BorderLayout.SOUTH)
 
         composerSendButton.addActionListener {
             val text = composerInput.text.trim()
-            if (text.isNotEmpty()) onSend(text)
+            if (text.isNotEmpty()) onSend(text, imageBar.currentAttachments())
         }
         composerStopButton.addActionListener { onStop() }
 
@@ -184,7 +198,7 @@ class ChatTabPanel(
             put("send", object : AbstractAction() {
                 override fun actionPerformed(e: java.awt.event.ActionEvent?) {
                     val text = composerInput.text.trim()
-                    if (text.isNotEmpty()) onSend(text)
+                    if (text.isNotEmpty()) onSend(text, imageBar.currentAttachments())
                 }
             })
             put("newline", object : AbstractAction() {
@@ -194,7 +208,12 @@ class ChatTabPanel(
             })
         }
 
-        AtMentionHandler(composerInput, project)
+        composerInput.addFocusListener(object : java.awt.event.FocusAdapter() {
+            override fun focusGained(e: java.awt.event.FocusEvent?) = composerInput.repaint()
+            override fun focusLost(e: java.awt.event.FocusEvent?) = composerInput.repaint()
+        })
+
+        AtMentionHandler(composerInput, project, imageBar)
 
         bindActions()
         rebuildTabs()
@@ -214,6 +233,7 @@ class ChatTabPanel(
 
     fun clearComposer() {
         composerInput.text = ""
+        imageBar.clear()
     }
 
     fun setGenerating(generating: Boolean) {
@@ -236,24 +256,21 @@ class ChatTabPanel(
         rebuildTabs()
     }
 
+    private fun addNewSession() {
+        val newSession = sessionController.addSession()
+        rebuildTabs()
+        val index = sessionController.sessions.indexOfFirst { it.id == newSession.id }
+        if (index >= 0) tabs.selectedIndex = index
+    }
+
     private fun bindActions() {
-        newChatButton.addActionListener {
-            val newSession = sessionController.addSession()
-            rebuildTabs()
-            val index = sessionController.sessions.indexOfFirst { it.id == newSession.id }
-            if (index >= 0) tabs.selectedIndex = index
-        }
-
-        clearButton.addActionListener {
-            val idx = tabs.selectedIndex.coerceAtLeast(0)
-            sessionController.sessions.getOrNull(idx)?.let {
-                sessionController.clearSession(it.id)
-                rebuildTabs()
-            }
-        }
-
         tabs.addChangeListener {
             val idx = tabs.selectedIndex
+            // Last tab is always the "+" fake tab — redirect to new session
+            if (idx == tabs.tabCount - 1 && idx > sessionController.sessions.lastIndex) {
+                addNewSession()
+                return@addChangeListener
+            }
             if (idx in sessionController.sessions.indices) {
                 sessionController.selectedSessionId = sessionController.sessions[idx].id
                 sessionController.persist()
@@ -267,11 +284,7 @@ class ChatTabPanel(
 
         sessionController.sessions.forEach { session ->
             val cardLayout = CardLayout()
-            val cardPanel = JPanel(cardLayout).apply {
-                background = rootBackground
-            }
 
-            val welcomeCard = buildWelcomeCard()
             val messagesList = JPanel().apply {
                 layout = BoxLayout(this, BoxLayout.Y_AXIS)
                 background = rootBackground
@@ -298,8 +311,56 @@ class ChatTabPanel(
                 background = rootBackground
             }
 
-            cardPanel.add(welcomeCard, CARD_WELCOME)
-            cardPanel.add(messagesScroll, CARD_MESSAGES)
+            val sessionClearButton = toolbarButton(AllIcons.Actions.GC, Strings.Chat.CLEAR).apply {
+                addActionListener {
+                    sessionController.clearSession(session.id)
+                    rebuildTabs()
+                }
+            }
+
+            val scrollToBottomButton = toolbarButton(AllIcons.Actions.MoveDown, Strings.Agent.SCROLL_TO_BOTTOM).apply {
+                isVisible = false
+                addActionListener {
+                    val bar = messagesScroll.verticalScrollBar
+                    bar.value = bar.maximum
+                }
+            }
+
+            val tabToolbar = JPanel(BorderLayout()).apply {
+                isOpaque = false
+                val left = JPanel(FlowLayout(FlowLayout.LEFT, 4, 4)).apply {
+                    isOpaque = false
+                    add(scrollToBottomButton)
+                }
+                val right = JPanel(FlowLayout(FlowLayout.RIGHT, 4, 4)).apply {
+                    isOpaque = false
+                    add(sessionClearButton)
+                }
+                add(left, BorderLayout.WEST)
+                add(right, BorderLayout.EAST)
+            }
+
+            messagesScroll.verticalScrollBar.model.addChangeListener {
+                javax.swing.SwingUtilities.invokeLater {
+                    val bar = messagesScroll.verticalScrollBar
+                    val atBottom = bar.maximum <= bar.visibleAmount || bar.value + bar.visibleAmount >= bar.maximum - 5
+                    scrollToBottomButton.isVisible = !atBottom
+                }
+            }
+
+            val welcomeCard = buildWelcomeCard()
+            val messagesCard = JPanel(BorderLayout()).apply {
+                background = rootBackground
+                putClientProperty("isMessagesCard", true)
+                add(tabToolbar, BorderLayout.NORTH)
+                add(messagesScroll, BorderLayout.CENTER)
+            }
+
+            val cardPanel = JPanel(cardLayout).apply {
+                background = rootBackground
+                add(welcomeCard, CARD_WELCOME)
+                add(messagesCard, CARD_MESSAGES)
+            }
 
             cardLayout.show(cardPanel, if (session.messages.isEmpty()) CARD_WELCOME else CARD_MESSAGES)
 
@@ -311,8 +372,20 @@ class ChatTabPanel(
             })
         }
 
+        // "+" add-tab button as a trailing fake tab
+        tabs.addTab("", JPanel())
+        val addTabIndex = tabs.tabCount - 1
+        tabs.setTabComponentAt(addTabIndex, JButton(AllIcons.General.Add).apply {
+            toolTipText = Strings.Chat.NEW_CHAT
+            isFocusPainted = false
+            isContentAreaFilled = false
+            isBorderPainted = false
+            border = JBUI.Borders.empty(2, 4)
+            addActionListener { addNewSession() }
+        })
+
         val restoredIndex = sessionController.sessions.indexOfFirst { it.id == previousSelectedId }
-        if (tabs.tabCount > 0) {
+        if (tabs.tabCount > 1) {
             tabs.selectedIndex = if (restoredIndex >= 0) restoredIndex else 0
         }
     }
@@ -494,6 +567,7 @@ class ChatTabPanel(
         val footerLeft = JPanel(FlowLayout(FlowLayout.LEFT, 8, 0)).apply {
             isOpaque = false
             add(modelPickerButton)
+            add(imageBar.attachButton)
         }
         val footerRight = JPanel(FlowLayout(FlowLayout.RIGHT, 8, 0)).apply {
             isOpaque = false
@@ -527,8 +601,10 @@ class ChatTabPanel(
         }.apply {
             isOpaque = false
             border = JBUI.Borders.empty(10, 10, 8, 10)
+            add(imageBar, BorderLayout.NORTH)
             add(inputScroll, BorderLayout.CENTER)
             add(footer, BorderLayout.SOUTH)
+            imageBar.installDropTarget(this)
         }
 
         return JPanel(BorderLayout()).apply {
@@ -555,22 +631,31 @@ class ChatTabPanel(
         val cardPanel = tabs.getComponentAt(selectedIndex) as? JPanel ?: return
         (cardPanel.layout as? CardLayout)?.show(cardPanel, CARD_MESSAGES)
 
-        val scrollPane = cardPanel.components.filterIsInstance<JBScrollPane>().firstOrNull() ?: return
+        val messagesCard = cardPanel.components.filterIsInstance<JPanel>()
+            .firstOrNull { it.getClientProperty("isMessagesCard") == true } ?: return
+        val scrollPane = messagesCard.components.filterIsInstance<JBScrollPane>().firstOrNull() ?: return
         val content = scrollPane.viewport.view as? JPanel ?: return
 
         content.add(streamPanel)
         content.revalidate()
         content.repaint()
 
-        val bar = scrollPane.verticalScrollBar
-        bar.value = bar.maximum
+        javax.swing.SwingUtilities.invokeLater {
+            val bar = scrollPane.verticalScrollBar
+            bar.value = bar.maximum
+        }
     }
 
     private fun showInferenceDialog() {
         val settings = com.intellij.openapi.components.service<com.llamatik.teammate.settings.LlamatikAppSettings>()
-        val panel = com.llamatik.teammate.settings.InferenceSettingsPanel()
+        var dialog: com.intellij.openapi.ui.DialogWrapper? = null
+        val panel = com.llamatik.teammate.settings.InferenceSettingsPanel(onUpgrade = {
+            dialog?.close(com.intellij.openapi.ui.DialogWrapper.CANCEL_EXIT_CODE)
+            com.intellij.openapi.components.service<com.llamatik.teammate.licensing.TrialService>()
+                .requestLicense(Strings.Inference.UPGRADE_REQUIRED)
+        })
         panel.loadFrom(settings.data())
-        val dialog = object : com.intellij.openapi.ui.DialogWrapper(false) {
+        dialog = object : com.intellij.openapi.ui.DialogWrapper(false) {
             init {
                 title = Strings.Inference.DIALOG_TITLE
                 init()

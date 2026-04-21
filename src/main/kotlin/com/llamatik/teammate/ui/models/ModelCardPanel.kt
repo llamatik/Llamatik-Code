@@ -12,11 +12,14 @@ import com.intellij.ui.components.JBLabel
 import com.intellij.util.ui.JBUI
 import com.llamatik.teammate.infrastructure.HardwareDetector
 import com.llamatik.teammate.infrastructure.ModelDownloadManager
+import com.llamatik.teammate.licensing.LicenseChecker
+import com.llamatik.teammate.licensing.TrialService
 import com.llamatik.teammate.model.DownloadProgressState
 import com.llamatik.teammate.model.ExtendedModelDescriptor
 import com.llamatik.teammate.model.ModelCatalogStatus
 import com.llamatik.teammate.model.ModelSpecialization
 import com.llamatik.teammate.model.ModelStatus
+import com.llamatik.teammate.model.ModelTier
 import com.llamatik.teammate.settings.DownloadedModelService
 import com.llamatik.teammate.settings.LlamatikAppSettings
 import java.nio.file.Files
@@ -41,6 +44,7 @@ class ModelCardPanel(
     private val project: Project?,
     private val descriptor: ExtendedModelDescriptor,
     private val onActionRequested: (ModelCardAction, ExtendedModelDescriptor) -> Unit,
+    private val onRequestUpgrade: (() -> Unit)? = null,
 ) : JPanel(BorderLayout(8, 4)) {
 
     enum class ModelCardAction { DOWNLOAD, LOAD, UNLOAD, DELETE, SET_DEFAULT }
@@ -48,6 +52,8 @@ class ModelCardPanel(
     private val downloadManager = service<ModelDownloadManager>()
     private val settings = service<LlamatikAppSettings>()
     private val downloadedModelService = service<DownloadedModelService>()
+    private val trialService = service<TrialService>()
+    private val licensed = runCatching { LicenseChecker.isLicensed() == true }.getOrElse { false }
 
     // Right panel stacks badge → actions/progress vertically, no gap
     private val rightPanel = JPanel().apply {
@@ -74,9 +80,13 @@ class ModelCardPanel(
             isOpaque = false
         }
 
-        val titleRow = JPanel(FlowLayout(FlowLayout.LEFT, 0, 0)).apply { isOpaque = false }
+        val titleRow = JPanel(FlowLayout(FlowLayout.LEFT, 6, 0)).apply { isOpaque = false }
         titleRow.add(JBLabel("<html><b>${descriptor.displayName}</b> <i>(${descriptor.quantization})</i></html>").apply {
             font = font.deriveFont(Font.BOLD)
+        })
+        titleRow.add(JBLabel(tierBadgeText(descriptor.tier)).apply {
+            font = font.deriveFont(font.size2D - 1f)
+            foreground = tierBadgeColor(descriptor.tier)
         })
         topPanel.add(titleRow)
 
@@ -146,14 +156,34 @@ class ModelCardPanel(
 
         when (liveStatus) {
             ModelStatus.NOT_DOWNLOADED, ModelStatus.FAILED, ModelStatus.CORRUPTED -> {
-                panel.add(JButton(Strings.ModelCard.ACTION_DOWNLOAD).apply {
-                    isEnabled = descriptor.downloadSourceUrl.isNotBlank()
-                    if (!isEnabled) toolTipText = "No download URL available"
-                    addActionListener {
-                        onActionRequested(ModelCardAction.DOWNLOAD, descriptor)
-                        startDownload()
-                    }
-                })
+                if (!licensed && descriptor.tier == ModelTier.TIER_3) {
+                    panel.add(JButton(Strings.ModelCard.ACTION_DOWNLOAD).apply {
+                        isEnabled = false
+                        toolTipText = Strings.ModelCard.TIER_3_PAYWALL_TITLE
+                    })
+                    panel.add(JButton("Pro").apply {
+                        foreground = JBColor(Color(0xFF9500), Color(0xFFAA00))
+                        font = font.deriveFont(Font.BOLD, font.size2D - 1f)
+                        addActionListener {
+                            if (onRequestUpgrade != null) {
+                                onRequestUpgrade.invoke()
+                            } else {
+                                ApplicationManager.getApplication().invokeLater({
+                                    trialService.requestLicense(Strings.ModelCard.TIER_3_PAYWALL_TITLE)
+                                }, ModalityState.nonModal())
+                            }
+                        }
+                    })
+                } else {
+                    panel.add(JButton(Strings.ModelCard.ACTION_DOWNLOAD).apply {
+                        isEnabled = descriptor.downloadSourceUrl.isNotBlank()
+                        if (!isEnabled) toolTipText = "No download URL available"
+                        addActionListener {
+                            onActionRequested(ModelCardAction.DOWNLOAD, descriptor)
+                            startDownload()
+                        }
+                    })
+                }
             }
             ModelStatus.DOWNLOADING -> {
                 panel.add(JButton(Strings.ModelCard.ACTION_CANCEL).apply {
@@ -456,4 +486,17 @@ class ModelCardPanel(
         }
         return if (links.isEmpty()) "" else "Links: ${links.joinToString(" · ")}"
     }
+
+    private fun tierBadgeText(tier: ModelTier): String = when (tier) {
+        ModelTier.TIER_1 -> Strings.ModelCard.TIER_BADGE_1
+        ModelTier.TIER_2 -> Strings.ModelCard.TIER_BADGE_2
+        ModelTier.TIER_3 -> Strings.ModelCard.TIER_BADGE_3
+    }
+
+    private fun tierBadgeColor(tier: ModelTier): java.awt.Color = when (tier) {
+        ModelTier.TIER_1 -> JBColor(Color(0x34C759), Color(0x30D158))
+        ModelTier.TIER_2 -> JBColor(Color(0xFF9500), Color(0xFFAA00))
+        ModelTier.TIER_3 -> JBColor.RED
+    }
+
 }

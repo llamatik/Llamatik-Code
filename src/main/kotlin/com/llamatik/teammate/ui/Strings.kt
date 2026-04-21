@@ -33,6 +33,7 @@ object Strings {
         const val SETTINGS_PILL = "⚙"
         const val INPUT_TOOLTIP_DEFAULT =
             "Ask AI, use @filename to attach source files, use @prompt to recall saved prompts"
+        const val INPUT_PLACEHOLDER = "Use @filename to attach source files"
         const val INPUT_TOOLTIP_AGENT = "Describe a task for the agent to inspect, plan, and execute"
         const val INPUT_TOOLTIP_ASK = "Ask a focused question about the current file or project"
         const val INPUT_TOOLTIP_NO_MODEL = "Configure a model in Settings → Llamatik Code to start"
@@ -70,6 +71,8 @@ object Strings {
         const val AUTO_APPROVE_NEXT = "Auto-apply edits on next run"
         const val AUTO_BUILD_NEXT = "Auto-build after applying edits"
         const val AUTO_FIX_NEXT = "Auto-fix build errors"
+        const val RUN_OPTIONS_PRO_REQUIRED = "Requires Pro"
+        const val SCROLL_TO_BOTTOM = "↓  Scroll to bottom"
         fun brewedFor(elapsed: String) = "brewed for $elapsed"
 
         val SUGGESTIONS = listOf(
@@ -77,6 +80,7 @@ object Strings {
             "Suggest cleaner structure and apply changes with approval",
             "Analyze the current file and propose a safer refactor",
             "Generate tests, show the diff, and let me approve",
+            "Make a code review, suggest improvements and apply them"
         )
     }
 
@@ -125,6 +129,7 @@ object Strings {
         const val VIEW_DIFF = "Diff"
         const val ACCEPTED_LABEL = "✓ Applied"
         const val REJECTED_LABEL = "✕ Rejected"
+        const val FREE_PLAN_LIMIT = "Free plan supports 1 file change. Upgrade to apply all."
     }
 
     // ── Diff viewer ───────────────────────────────────────────────────────────
@@ -160,6 +165,10 @@ object Strings {
         const val TIER_1 = "Tier 1 — Lightweight (up to 5 GB)"
         const val TIER_2 = "Tier 2 — Balanced (5–15 GB)"
         const val TIER_3 = "Tier 3 — High-performance (15 GB+)"
+        const val TIER_BADGE_1 = "🟢 Best for quick tasks"
+        const val TIER_BADGE_2 = "🟡 Best for real projects"
+        const val TIER_BADGE_3 = "🔴 Best for large codebases (Pro)"
+        const val TIER_3_PAYWALL_TITLE = "Pro model"
     }
 
     // ── Empty state panel ─────────────────────────────────────────────────────
@@ -214,7 +223,7 @@ object Strings {
             "Shows the welcome dialog again next time the tool window is opened"
         const val SECTION_ACTIVE_MODEL = "<html><b>Active model path</b></html>"
         const val SECTION_REGISTERED_MODELS = "<html><b>Registered models</b></html>"
-        const val SECTION_BEHAVIOUR = "<html><b>Behaviour</b></html>"
+        const val SECTION_BEHAVIOUR = "<html><b>Run Options</b></html>"
         const val SECTION_CONTEXT = "<html><b>Context</b></html>"
         const val FIELD_IGNORED_DIRS = "Ignored directories (comma-separated):"
         const val FIELD_INSTRUCTIONS = "Project rules / instructions:"
@@ -246,8 +255,10 @@ object Strings {
         const val SECTION_RUNTIME      = "<html><b>Runtime</b></html>"
         const val TEMPERATURE          = "Temperature:"
         const val TEMPERATURE_TOOLTIP  = "Sampling temperature (0 = deterministic, higher = more creative)"
-        const val MAX_TOKENS           = "Max tokens:"
-        const val MAX_TOKENS_TOOLTIP   = "Maximum number of tokens to generate per response"
+        const val MAX_TOKENS               = "Max tokens:"
+        const val MAX_TOKENS_TOOLTIP       = "Maximum number of tokens to generate per response"
+        const val MAX_TOKENS_FREE_TOOLTIP  = "Maximum tokens per response (free tier capped at 4096 — upgrade for higher limits)"
+        const val PRO_REQUIRED             = "Requires Pro"
         const val CONTEXT_SIZE         = "Context size (tokens):"
         const val CONTEXT_SIZE_TOOLTIP = "KV cache size — larger allows longer conversations but uses more VRAM"
         const val BATCH_SIZE           = "Batch size:"
@@ -259,6 +270,8 @@ object Strings {
         const val FLASH_ATTENTION      = "Enable Flash Attention"
         const val FLASH_ATTENTION_TOOLTIP = "Use Flash Attention kernel — reduces VRAM usage on supported hardware"
         const val RESET_DEFAULTS       = "Reset to defaults"
+        const val UPGRADE_REQUIRED     = "Context size, batch size and Flash Attention require a Pro licence. Upgrade to unlock advanced settings."
+        const val UPGRADE_BUTTON       = "Upgrade"
     }
 
     // ── Onboarding ────────────────────────────────────────────────────────────
@@ -337,6 +350,7 @@ object Strings {
         const val ACTION_DELETE = "Delete"
         const val SECTION_SETTINGS = "<html><b>Skills</b></html>"
         fun activeCount(n: Int) = if (n == 0) "No skills active" else "$n skill${if (n == 1) "" else "s"} active"
+        const val FREE_PLAN_SKILL_LIMIT = "Free plan supports 1 active skill. Upgrade to activate all."
     }
 
     // ── Build verification ────────────────────────────────────────────────────
@@ -351,6 +365,12 @@ object Strings {
         const val RETRY_LIMIT = "Auto-fix limit reached — please fix manually"
     }
 
+    // ── Upgrade ───────────────────────────────────────────────────────────────
+    object Upgrade {
+        const val UNLOCK_PRO_BUTTON = "Unlock PRO"
+        const val UNLOCK_PRO_TOOLTIP = "Upgrade to Llamatik Code Pro"
+    }
+
     // ── About ─────────────────────────────────────────────────────────────────
     object About {
         const val BUTTON = "About Llamatik Code"
@@ -359,6 +379,22 @@ object Strings {
         const val DEVELOPED_BY = "Developed by Llamatik AI"
         const val POWERED_BY = "Powered by Llamatik and llama.cpp"
         const val COPYRIGHT = "Copyright 2026"
+    }
+
+    // ── Multimodal / image attachment ─────────────────────────────────────────
+    object Multimodal {
+        const val ATTACH_IMAGE_TOOLTIP = "Attach image"
+        const val REMOVE_IMAGE_TOOLTIP = "Remove"
+        const val FILE_CHOOSER_TITLE = "Select Image"
+        const val FILE_FILTER_DESC = "Image files (PNG, JPG, BMP, WebP, GIF)"
+        const val UPGRADE_MESSAGE =
+            "Image attachments require a Llamatik Code Pro licence. Upgrade to attach images and use multimodal models."
+        const val NO_VLM_CONFIGURED =
+            "Multimodal inference requires a vision model (VLM). Configure the model and mmproj paths in Settings → Llamatik Code."
+        const val IMAGES_LABEL = "Attached images"
+        const val MMPROJ_PATH_LABEL = "Multimodal projector (mmproj) path:"
+        const val MMPROJ_PATH_TOOLTIP =
+            "Path to the companion .gguf mmproj file required for vision/multimodal inference"
     }
 
     // ── Trial / Licensing ─────────────────────────────────────────────────────

@@ -8,23 +8,32 @@ import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTextArea
 import com.intellij.util.ui.AsyncProcessIcon
 import com.intellij.util.ui.JBUI
+import com.intellij.openapi.components.service
+import com.llamatik.teammate.licensing.LicenseChecker
+import com.llamatik.teammate.llamatik.MultimodalBackendService
 import com.llamatik.teammate.model.AgentPhase
 import com.llamatik.teammate.model.AgentTaskState
+import com.llamatik.teammate.model.AttachedImage
 import com.llamatik.teammate.model.EditProposal
 import com.llamatik.teammate.model.PluginReadinessState
 import com.llamatik.teammate.skills.SkillService
 import com.llamatik.teammate.ui.LlamatikTheme
 import com.llamatik.teammate.ui.Strings
 import java.awt.BorderLayout
+import java.awt.Color
 import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.Font
+import java.awt.GradientPaint
 import java.awt.Graphics
 import java.awt.Graphics2D
+import java.awt.GridBagConstraints
+import java.awt.GridBagLayout
 import java.awt.GridLayout
 import java.awt.RenderingHints
 import java.awt.Shape
 import java.awt.datatransfer.StringSelection
+import java.awt.event.AdjustmentEvent
 import java.awt.event.InputEvent
 import java.awt.event.KeyEvent
 import java.awt.geom.RoundRectangle2D
@@ -35,6 +44,7 @@ import javax.swing.JButton
 import javax.swing.JCheckBoxMenuItem
 import javax.swing.JComponent
 import javax.swing.JLabel
+import javax.swing.JLayeredPane
 import javax.swing.JPanel
 import javax.swing.JPopupMenu
 import javax.swing.KeyStroke
@@ -50,7 +60,7 @@ class AgentTabPanel(
     private val onSuggestionSelected: (String) -> Unit,
     private val onApprove: () -> Unit,
     private val onReject: () -> Unit,
-    private val onSend: (String) -> Unit = {},
+    private val onSend: (String, List<AttachedImage>) -> Unit = { _, _ -> },
     private val onStop: () -> Unit = {},
     private val onSettingsClicked: () -> Unit = {},
     private val onModelChanged: () -> Unit = {},
@@ -128,10 +138,41 @@ class AgentTabPanel(
         font = font.deriveFont(Font.BOLD, font.size2D)
         border = JBUI.Borders.empty(0, 0, 10, 0)
     }
-    private val promptBubble = JPanel(BorderLayout()).apply {
+    private val userAvatar = object : JPanel() {
+        private val initials: String get() {
+            val name = System.getProperty("user.name", "U")
+            return name.take(1).uppercase()
+        }
+        override fun paintComponent(g: Graphics) {
+            val g2 = g.create() as Graphics2D
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+            g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON)
+            g2.color = LlamatikTheme.primary
+            g2.fillOval(0, 0, width, height)
+            g2.color = LlamatikTheme.onPrimary
+            val f = font.deriveFont(Font.BOLD, width * 0.42f)
+            g2.font = f
+            val fm = g2.fontMetrics
+            val x = (width - fm.stringWidth(initials)) / 2
+            val y = (height - fm.height) / 2 + fm.ascent
+            g2.drawString(initials, x, y)
+            g2.dispose()
+        }
+    }.apply {
+        isOpaque = false
+        preferredSize = Dimension(28, 28)
+        minimumSize = Dimension(28, 28)
+        maximumSize = Dimension(28, 28)
+    }
+    private val promptBubble = JPanel(BorderLayout(10, 0)).apply {
         isOpaque = false
         alignmentX = LEFT_ALIGNMENT
         maximumSize = Dimension(Int.MAX_VALUE, Int.MAX_VALUE)
+        add(JPanel(BorderLayout()).apply {
+            isOpaque = false
+            border = JBUI.Borders.emptyTop(2)
+            add(userAvatar, BorderLayout.NORTH)
+        }, BorderLayout.WEST)
         add(promptLabel, BorderLayout.CENTER)
         isVisible = false
     }
@@ -243,6 +284,19 @@ class AgentTabPanel(
         addActionListener { onAutoFixChanged(isSelected); updateRunOptionsButton() }
     }
     private val runOptionsPopup = JPopupMenu().apply {
+        val licensed = runCatching { LicenseChecker.isLicensed() == true }.getOrElse { false }
+        if (!licensed) {
+            val proLabel = JBLabel(Strings.Agent.RUN_OPTIONS_PRO_REQUIRED).apply {
+                foreground = LlamatikTheme.onSurfaceVariant
+                font = font.deriveFont(Font.BOLD, font.size2D - 1f)
+                border = JBUI.Borders.empty(6, 12, 4, 12)
+            }
+            add(proLabel)
+            addSeparator()
+            autoApproveItem.isEnabled = false
+            autoBuildItem.isEnabled = false
+            autoFixItem.isEnabled = false
+        }
         add(autoApproveItem)
         add(autoBuildItem)
         add(autoFixItem)
@@ -317,6 +371,29 @@ class AgentTabPanel(
         add(autoFixButton)
     }
 
+    // ── Scroll-to-bottom button ───────────────────────────────────────────────
+    private val scrollToBottomButton = object : JButton(Strings.Agent.SCROLL_TO_BOTTOM) {
+        private val arc = 20f
+        override fun paintComponent(g: Graphics) {
+            val g2 = g.create() as Graphics2D
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+            g2.color = LlamatikTheme.primary
+            g2.fill(RoundRectangle2D.Float(0f, 0f, width.toFloat(), height.toFloat(), arc, arc))
+            g2.dispose()
+            super.paintComponent(g)
+        }
+    }.apply {
+        foreground = LlamatikTheme.onPrimary
+        isFocusPainted = false
+        isContentAreaFilled = false
+        isBorderPainted = false
+        isOpaque = false
+        border = JBUI.Borders.empty(6, 16)
+        font = font.deriveFont(Font.PLAIN, font.size2D - 1f)
+        cursor = java.awt.Cursor(java.awt.Cursor.HAND_CURSOR)
+        isVisible = false
+    }
+
     // ── Navigation buttons ────────────────────────────────────────────────────
     private val backButton = JButton(Strings.Agent.BACK).apply {
         isFocusPainted = false
@@ -360,8 +437,31 @@ class AgentTabPanel(
     // ── Model picker ──────────────────────────────────────────────────────────
     private val modelPickerButton = ModelPickerButton(onModelChanged = onModelChanged)
 
+    // ── Image attachment bar ──────────────────────────────────────────────────
+    private val isMultimodalEnabled: () -> Boolean = {
+        runCatching {
+            LicenseChecker.isLicensed() == true && service<MultimodalBackendService>().isConfigured()
+        }.getOrElse { false }
+    }
+    private val imageBar = project?.let {
+        ImageAttachmentBar(it, isMultimodalEnabled) { /* onChange — no-op, we read on send */ }
+    }
+
     // ── Composer ──────────────────────────────────────────────────────────────
-    private val composerInput = JBTextArea(3, 40).apply {
+    private val composerInput = object : JBTextArea(3, 40) {
+        override fun paintComponent(g: java.awt.Graphics) {
+            super.paintComponent(g)
+            if (text.isEmpty() && !isFocusOwner) {
+                val g2 = g.create() as java.awt.Graphics2D
+                g2.setRenderingHint(java.awt.RenderingHints.KEY_TEXT_ANTIALIASING, java.awt.RenderingHints.VALUE_TEXT_ANTIALIAS_ON)
+                g2.color = LlamatikTheme.onSurfaceVariant
+                g2.font = font.deriveFont(java.awt.Font.ITALIC)
+                val ins = insets
+                g2.drawString(Strings.Composer.INPUT_PLACEHOLDER, ins.left, ins.top + g2.fontMetrics.ascent)
+                g2.dispose()
+            }
+        }
+    }.apply {
         lineWrap = true
         wrapStyleWord = true
         isOpaque = false
@@ -426,7 +526,10 @@ class AgentTabPanel(
 
         composerSendButton.addActionListener {
             val text = composerInput.text.trim()
-            if (text.isNotEmpty()) onSend(text)
+            if (text.isNotEmpty()) {
+                val images = imageBar?.currentAttachments() ?: emptyList()
+                onSend(text, images)
+            }
         }
         composerStopButton.addActionListener { onStop() }
 
@@ -438,7 +541,10 @@ class AgentTabPanel(
             put("send", object : AbstractAction() {
                 override fun actionPerformed(e: java.awt.event.ActionEvent?) {
                     val text = composerInput.text.trim()
-                    if (text.isNotEmpty()) onSend(text)
+                    if (text.isNotEmpty()) {
+                        val images = imageBar?.currentAttachments() ?: emptyList()
+                        onSend(text, images)
+                    }
                 }
             })
             put("newline", object : AbstractAction() {
@@ -448,7 +554,12 @@ class AgentTabPanel(
             })
         }
 
-        if (project != null) AtMentionHandler(composerInput, project)
+        composerInput.addFocusListener(object : java.awt.event.FocusAdapter() {
+            override fun focusGained(e: java.awt.event.FocusEvent?) = composerInput.repaint()
+            override fun focusLost(e: java.awt.event.FocusEvent?) = composerInput.repaint()
+        })
+
+        if (project != null) AtMentionHandler(composerInput, project, imageBar)
     }
 
     // ── Public API ────────────────────────────────────────────────────────────
@@ -478,6 +589,7 @@ class AgentTabPanel(
 
     fun clearComposer() {
         composerInput.text = ""
+        imageBar?.clear()
     }
 
     fun setGenerating(generating: Boolean) {
@@ -631,8 +743,17 @@ class AgentTabPanel(
                 alignmentX = LEFT_ALIGNMENT
             }
             proposalsPanel.add(header)
-            proposals.forEach { proposal ->
-                proposalsPanel.add(buildProposalCard(proposal, onViewDiff, onApply, onRejectProposal))
+            val licensed = runCatching { LicenseChecker.isLicensed() == true }.getOrElse { false }
+            val freeTierPaywall = !licensed && proposals.size > 1
+            val lockFunctions = mutableListOf<() -> Unit>()
+            proposals.forEachIndexed { index, proposal ->
+                val onApplyWrapped: (EditProposal) -> Unit = { p ->
+                    onApply(p)
+                    if (freeTierPaywall) lockFunctions.filterIndexed { i, _ -> i != index }.forEach { it() }
+                }
+                val (card, lockAccept) = buildProposalCard(proposal, onViewDiff, onApplyWrapped, onRejectProposal)
+                lockFunctions.add(lockAccept)
+                proposalsPanel.add(card)
                 proposalsPanel.add(vStrut(6))
             }
             proposalsPanel.isVisible = true
@@ -915,11 +1036,60 @@ class AgentTabPanel(
             add(activeSkillsLabel)
         }
 
+        // Gradient overlay — fades cardBackground from transparent at top to opaque at bottom
+        val gradientHeight = 64
+        val gradientOverlay = object : JPanel() {
+            override fun paintComponent(g: Graphics) {
+                val g2 = g.create() as Graphics2D
+                val base = cardBackground
+                val transparent = Color(base.red, base.green, base.blue, 0)
+                val opaque = Color(base.red, base.green, base.blue, 220)
+                g2.paint = GradientPaint(0f, 0f, transparent, 0f, height.toFloat(), opaque)
+                g2.fillRect(0, 0, width, height)
+                g2.dispose()
+            }
+        }.apply {
+            isOpaque = false
+            isVisible = false
+            preferredSize = Dimension(0, gradientHeight)
+        }
+
+        // Scroll-to-bottom button — centred inside a GridBagLayout wrapper
+        scrollToBottomButton.addActionListener { scrollToBottom() }
+        val scrollBtnWrapper = JPanel(GridBagLayout()).apply {
+            isOpaque = false
+            val gbc = GridBagConstraints()
+            gbc.anchor = GridBagConstraints.CENTER
+            add(scrollToBottomButton, gbc)
+        }
+
+        // Scroll listener — show/hide the button when not at bottom
+        conversationScroll.verticalScrollBar.addAdjustmentListener { e: AdjustmentEvent ->
+            val bar = conversationScroll.verticalScrollBar
+            val atBottom = bar.value + bar.visibleAmount >= bar.maximum - 8
+            scrollToBottomButton.isVisible = !atBottom
+            gradientOverlay.isVisible = !atBottom
+        }
+
+        // Layer everything: scroll pane at DEFAULT layer, gradient + button at PALETTE layer
+        val layered = object : JLayeredPane() {
+            override fun doLayout() {
+                val w = width; val h = height
+                conversationScroll.setBounds(0, 0, w, h)
+                gradientOverlay.setBounds(0, h - gradientHeight, w, gradientHeight)
+                scrollBtnWrapper.setBounds(0, h - gradientHeight, w, gradientHeight)
+            }
+        }.apply {
+            add(conversationScroll, JLayeredPane.DEFAULT_LAYER)
+            add(gradientOverlay, JLayeredPane.PALETTE_LAYER)
+            add(scrollBtnWrapper, JLayeredPane.PALETTE_LAYER)
+        }
+
         return JPanel(BorderLayout()).apply {
             background = cardBackground
             isOpaque = true
             add(topBar, BorderLayout.NORTH)
-            add(conversationScroll, BorderLayout.CENTER)
+            add(layered, BorderLayout.CENTER)
             add(bottomBar, BorderLayout.SOUTH)
         }
     }
@@ -964,6 +1134,7 @@ class AgentTabPanel(
         val footerLeft = JPanel(FlowLayout(FlowLayout.LEFT, 8, 0)).apply {
             isOpaque = false
             add(modelPickerButton)
+            if (imageBar != null) add(imageBar.attachButton)
         }
         val footerRight = JPanel(FlowLayout(FlowLayout.RIGHT, 8, 0)).apply {
             isOpaque = false
@@ -997,8 +1168,10 @@ class AgentTabPanel(
         }.apply {
             isOpaque = false
             border = JBUI.Borders.empty(10, 10, 8, 10)
+            if (imageBar != null) add(imageBar, BorderLayout.NORTH)
             add(inputScroll, BorderLayout.CENTER)
             add(footer, BorderLayout.SOUTH)
+            if (imageBar != null) imageBar.installDropTarget(this)
         }
 
         return JPanel(BorderLayout()).apply {
@@ -1057,7 +1230,7 @@ class AgentTabPanel(
         onViewDiff: (EditProposal) -> Unit,
         onApply: (EditProposal) -> Unit,
         onReject: (EditProposal) -> Unit,
-    ): JPanel {
+    ): Pair<JPanel, () -> Unit> {
         val card = JPanel(BorderLayout(0, 6)).apply {
             isOpaque = false
             border = JBUI.Borders.compound(
@@ -1132,13 +1305,37 @@ class AgentTabPanel(
             rejectButton.isEnabled = false
             card.revalidate(); card.repaint()
         }
+
+        val upgradeLabel = JBLabel(Strings.EditDialog.FREE_PLAN_LIMIT).apply {
+            foreground = LlamatikTheme.onSurfaceVariant
+            font = font.deriveFont(Font.ITALIC, font.size2D - 1f)
+            border = JBUI.Borders.empty(2, 0, 0, 0)
+            isVisible = false
+        }
+
+        val lockAccept: () -> Unit = {
+            acceptButton.isEnabled = false
+            upgradeLabel.isVisible = true
+            card.revalidate(); card.repaint()
+        }
+
         val buttons = JPanel(FlowLayout(FlowLayout.RIGHT, 6, 0)).apply {
             isOpaque = false
             add(statusLabel); add(diffButton); add(rejectButton); add(acceptButton)
         }
+
+        val south = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            isOpaque = false
+            buttons.alignmentX = RIGHT_ALIGNMENT
+            upgradeLabel.alignmentX = RIGHT_ALIGNMENT
+            add(buttons)
+            add(upgradeLabel)
+        }
+
         card.add(labelStack, BorderLayout.NORTH)
-        card.add(buttons, BorderLayout.SOUTH)
-        return card
+        card.add(south, BorderLayout.SOUTH)
+        return Pair(card, lockAccept)
     }
 
     private fun buildPhaseRow(phase: AgentPhase, isCurrent: Boolean, isDone: Boolean): JPanel {
@@ -1159,9 +1356,18 @@ class AgentTabPanel(
                          else blockedPrefixes + listOf("<think>", "<think ")
 
         buffer.append(token)
+        // Strip any </think> closing tag that may arrive before tool calls in the answer stream
+        if (target !== thinkTextArea) {
+            val cleaned = buffer.toString()
+                .replace(Regex("</think>", RegexOption.IGNORE_CASE), "")
+            buffer.clear()
+            buffer.append(cleaned)
+        }
         val buf = buffer.toString()
+        val bufLower = buf.lowercase()
 
-        val blockAt = allBlocked.mapNotNull { p -> buf.indexOf(p).takeIf { it >= 0 } }.minOrNull()
+        // Case-insensitive match for all blocked prefixes
+        val blockAt = allBlocked.mapNotNull { p -> bufLower.indexOf(p.lowercase()).takeIf { it >= 0 } }.minOrNull()
         if (blockAt != null) {
             val safe = buf.substring(0, blockAt).trimEnd()
             if (safe.isNotEmpty()) {
@@ -1173,10 +1379,10 @@ class AgentTabPanel(
         }
 
         val maxPrefixLen = allBlocked.maxOf { it.length }
-        val tail = buf.takeLast(maxPrefixLen)
+        val tail = bufLower.takeLast(maxPrefixLen)
         val holdLen = (1..tail.length).reversed().firstOrNull { len ->
             val candidate = tail.takeLast(len)
-            allBlocked.any { it.startsWith(candidate) }
+            allBlocked.any { it.lowercase().startsWith(candidate) }
         } ?: 0
 
         val safeEnd = buf.length - holdLen
@@ -1223,9 +1429,14 @@ class AgentTabPanel(
 
     private fun showInferenceDialog(anchor: java.awt.Component) {
         val settings = com.intellij.openapi.components.service<com.llamatik.teammate.settings.LlamatikAppSettings>()
-        val panel = com.llamatik.teammate.settings.InferenceSettingsPanel()
+        var dialog: com.intellij.openapi.ui.DialogWrapper? = null
+        val panel = com.llamatik.teammate.settings.InferenceSettingsPanel(onUpgrade = {
+            dialog?.close(com.intellij.openapi.ui.DialogWrapper.CANCEL_EXIT_CODE)
+            com.intellij.openapi.components.service<com.llamatik.teammate.licensing.TrialService>()
+                .requestLicense(com.llamatik.teammate.ui.Strings.Inference.UPGRADE_REQUIRED)
+        })
         panel.loadFrom(settings.data())
-        val dialog = object : com.intellij.openapi.ui.DialogWrapper(false) {
+        dialog = object : com.intellij.openapi.ui.DialogWrapper(false) {
             init {
                 title = com.llamatik.teammate.ui.Strings.Inference.DIALOG_TITLE
                 init()

@@ -5,8 +5,8 @@ object ToolCallParser {
     private val argPattern = Regex("<arg\\s+name=\\\"([^\\\"]+)\\\">(.*?)</arg>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
     private val thinkPattern = Regex("<think>.*?</think>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
     private val editProposalPattern = Regex(
-        "<edit_proposal\\s+path=\\\"([^\\\"]+)\\\"\\s+summary=\\\"([^\\\"]*)\\\">\\s*<new_content><!\\[CDATA\\[.*?]]></new_content>\\s*</edit_proposal>",
-        setOf(RegexOption.DOT_MATCHES_ALL),
+        "<edit_proposal\\b[^>]*>.*?</edit_proposal>",
+        setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE),
     )
 
     fun stripThinking(text: String): String =

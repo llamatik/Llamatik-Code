@@ -30,7 +30,6 @@ class ChatMessagePanel(
     private val onViewDiff: (() -> Unit)? = null,
 ) : JPanel(BorderLayout()) {
 
-    private val rootBackground = LlamatikTheme.background
     private val assistantBubble = LlamatikTheme.surface
     private val userBubble = LlamatikTheme.primaryContainer
     private val bubbleStroke = LlamatikTheme.outline
@@ -43,17 +42,17 @@ class ChatMessagePanel(
         lineWrap = true
         wrapStyleWord = true
         foreground = LlamatikTheme.onSurface
-        background = if (isUser) userBubble else assistantBubble
-        border = JBUI.Borders.empty(10, 12)
+        border = JBUI.Borders.empty(10, 12, 4, 12)
         font = font.deriveFont(font.size2D + 1f)
     }
 
-    private val actions = JPanel(FlowLayout(FlowLayout.RIGHT, 4, 0)).apply {
+    private val editActions = JPanel(FlowLayout(FlowLayout.RIGHT, 4, 0)).apply {
         isOpaque = false
     }
 
     private val spinner = AsyncProcessIcon("chat-streaming").apply {
         isVisible = initialContent.isEmpty() && role == ChatRole.ASSISTANT
+        if (isVisible) resume()
     }
 
     init {
@@ -63,25 +62,34 @@ class ChatMessagePanel(
         val bubbleColor = if (isUser) userBubble else assistantBubble
         val strokeColor = if (isUser) userStroke else bubbleStroke
 
-        // Role label row
-        val roleRow = JPanel(BorderLayout()).apply {
-            isOpaque = false
-            border = JBUI.Borders.empty(0, 2, 4, 2)
-        }
-        roleRow.add(JLabel("<html><span style='color:${LlamatikTheme.htmlOnSurfaceVariant};'>$roleLabel</span></html>").apply {
+        val roleLabelWidget = JLabel(
+            "<html><span style='color:${LlamatikTheme.htmlOnSurfaceVariant};'>$roleLabel</span></html>"
+        ).apply {
             font = font.deriveFont(font.size2D - 1f)
-        }, BorderLayout.WEST)
-        roleRow.add(actions, BorderLayout.EAST)
+        }
 
-        actions.add(iconButton(AllIcons.Actions.Copy, Strings.App.COPY) {
+        val copyButton = iconButton(AllIcons.Actions.Copy, Strings.App.COPY) {
             CopyPasteManager.getInstance().setContents(StringSelection(textArea.text))
-        })
-        if (onViewDiff != null) actions.add(actionButton(Strings.App.VIEW_DIFF) { onViewDiff.invoke() })
-        if (onApplyEdit != null) actions.add(actionButton(Strings.App.APPLY_EDIT) { onApplyEdit.invoke() })
+        }
 
-        val spinnerRow = JPanel(FlowLayout(FlowLayout.LEFT, 8, 4)).apply {
+        if (onViewDiff != null) editActions.add(actionButton(Strings.App.VIEW_DIFF) { onViewDiff.invoke() })
+        if (onApplyEdit != null) editActions.add(actionButton(Strings.App.APPLY_EDIT) { onApplyEdit.invoke() })
+
+        val spinnerRow = JPanel(FlowLayout(FlowLayout.LEFT, 4, 0)).apply {
             isOpaque = false
             add(spinner)
+        }
+
+        val bubbleFooter = JPanel(BorderLayout()).apply {
+            isOpaque = false
+            border = JBUI.Borders.empty(0, 8, 6, 8)
+            add(spinnerRow, BorderLayout.WEST)
+            val footerRight = JPanel(FlowLayout(FlowLayout.RIGHT, 4, 0)).apply {
+                isOpaque = false
+                add(editActions)
+                add(copyButton)
+            }
+            add(footerRight, BorderLayout.EAST)
         }
 
         val bubble = object : JPanel(BorderLayout()) {
@@ -98,23 +106,42 @@ class ChatMessagePanel(
             isOpaque = false
             border = JBUI.Borders.empty(1)
             add(textArea, BorderLayout.CENTER)
-            add(spinnerRow, BorderLayout.SOUTH)
+            add(bubbleFooter, BorderLayout.SOUTH)
         }
 
-        // Indent: user bubbles are offset from the left, assistant from the right
-        val outer = JPanel(BorderLayout()).apply {
+        // Indent: user bubbles pushed right (spacer on left), assistant pushed left (spacer on right).
+        // Bubble sits in CENTER so it fills the available width after the spacer.
+        val indent = Dimension(100, 0)
+        val spacer = JPanel().apply {
             isOpaque = false
-            if (isUser) border = JBUI.Borders.emptyLeft(48) else border = JBUI.Borders.emptyRight(48)
+            preferredSize = indent
+            minimumSize = indent
+            maximumSize = Dimension(indent.width, Int.MAX_VALUE)
         }
-        outer.add(bubble, BorderLayout.CENTER)
+
+        val bubbleRow = JPanel(BorderLayout()).apply {
+            isOpaque = false
+            if (isUser) {
+                add(spacer, BorderLayout.WEST)
+                add(bubble, BorderLayout.CENTER)
+            } else {
+                add(bubble, BorderLayout.CENTER)
+                add(spacer, BorderLayout.EAST)
+            }
+        }
+
+        val roleRow = JPanel(if (isUser) FlowLayout(FlowLayout.RIGHT, 2, 0) else FlowLayout(FlowLayout.LEFT, 2, 0)).apply {
+            isOpaque = false
+            add(roleLabelWidget)
+        }
 
         val stack = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
             isOpaque = false
             roleRow.alignmentX = LEFT_ALIGNMENT
-            outer.alignmentX = LEFT_ALIGNMENT
+            bubbleRow.alignmentX = LEFT_ALIGNMENT
             add(roleRow)
-            add(outer)
+            add(bubbleRow)
         }
 
         add(stack, BorderLayout.CENTER)
@@ -137,10 +164,10 @@ class ChatMessagePanel(
     }
 
     fun attachEditProposal(onApply: () -> Unit, onViewDiff: () -> Unit) {
-        actions.add(actionButton(Strings.App.VIEW_DIFF) { onViewDiff() })
-        actions.add(actionButton(Strings.App.APPLY_EDIT) { onApply() })
-        actions.revalidate()
-        actions.repaint()
+        editActions.add(actionButton(Strings.App.VIEW_DIFF) { onViewDiff() })
+        editActions.add(actionButton(Strings.App.APPLY_EDIT) { onApply() })
+        editActions.revalidate()
+        editActions.repaint()
     }
 
     private fun iconButton(icon: javax.swing.Icon, tooltip: String, onClick: () -> Unit): JButton =

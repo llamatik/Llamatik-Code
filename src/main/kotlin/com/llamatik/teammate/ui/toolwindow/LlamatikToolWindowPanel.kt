@@ -15,6 +15,7 @@ import com.llamatik.teammate.agent.BuildVerificationService
 import com.llamatik.teammate.backend.GenerationHandle
 import com.llamatik.teammate.diff.DiffPreviewService
 import com.llamatik.teammate.licensing.TrialService
+import com.llamatik.teammate.model.AttachedImage
 import com.llamatik.teammate.model.ChatMessage
 import com.llamatik.teammate.model.ChatRole
 import com.llamatik.teammate.model.EditProposal
@@ -29,6 +30,7 @@ import com.llamatik.teammate.ui.chat.ChatSessionController
 import java.awt.BorderLayout
 import java.awt.CardLayout
 import java.awt.Dimension
+import java.awt.FlowLayout
 import java.awt.Font
 import java.awt.Graphics
 import java.awt.Graphics2D
@@ -114,7 +116,7 @@ class LlamatikToolWindowPanel(
         pendingEdits = pendingEdits,
         onApplyEdit = { applyEdit(it) },
         onSuggestionSelected = { text -> sendPromptFromTab(text, isAgent = false) },
-        onSend = { text -> sendPromptFromTab(text, isAgent = false) },
+        onSend = { text, images -> sendPromptFromTab(text, isAgent = false, images = images) },
         onStop = { currentHandle?.cancel(); setGenerating(false) },
         onSettingsClicked = {
             ShowSettingsUtil.getInstance().showSettingsDialog(project, LlamatikSettingsConfigurable::class.java)
@@ -126,7 +128,7 @@ class LlamatikToolWindowPanel(
         onSuggestionSelected = { text -> sendPromptFromTab(text, isAgent = true) },
         onApprove = {},
         onReject = {},
-        onSend = { text -> sendPromptFromTab(text, isAgent = true) },
+        onSend = { text, images -> sendPromptFromTab(text, isAgent = true, images = images) },
         onStop = { currentHandle?.cancel(); setGenerating(false) },
         onSettingsClicked = {
             ShowSettingsUtil.getInstance().showSettingsDialog(project, LlamatikSettingsConfigurable::class.java)
@@ -212,11 +214,34 @@ class LlamatikToolWindowPanel(
 
         val logoButton = buildLogoButton()
 
+        val licensed = runCatching { com.llamatik.teammate.licensing.LicenseChecker.isLicensed() == true }.getOrElse { false }
+        val unlockProButton = JButton(Strings.Upgrade.UNLOCK_PRO_BUTTON).apply {
+            toolTipText = Strings.Upgrade.UNLOCK_PRO_TOOLTIP
+            isFocusPainted = false
+            isContentAreaFilled = false
+            isOpaque = false
+            foreground = LlamatikTheme.primary
+            font = font.deriveFont(Font.BOLD, font.size2D - 1f)
+            border = JBUI.Borders.compound(
+                BorderFactory.createLineBorder(LlamatikTheme.primary, 1, true),
+                JBUI.Borders.empty(3, 8),
+            )
+            cursor = java.awt.Cursor(java.awt.Cursor.HAND_CURSOR)
+            isVisible = !licensed
+            addActionListener { trialService.requestLicense(Strings.Upgrade.UNLOCK_PRO_TOOLTIP) }
+        }
+
+        val rightPanel = JPanel(FlowLayout(FlowLayout.RIGHT, 6, 0)).apply {
+            isOpaque = false
+            add(unlockProButton)
+            add(logoButton)
+        }
+
         val modeRow = JPanel(BorderLayout()).apply {
             isOpaque = false
             border = JBUI.Borders.empty(0, 12, 10, 12)
             add(segmented, BorderLayout.WEST)
-            add(logoButton, BorderLayout.EAST)
+            add(rightPanel, BorderLayout.EAST)
         }
 
         val header = JPanel(BorderLayout()).apply {
@@ -278,7 +303,7 @@ class LlamatikToolWindowPanel(
         }
     }
 
-    private fun sendPromptFromTab(prompt: String, isAgent: Boolean) {
+    private fun sendPromptFromTab(prompt: String, isAgent: Boolean, images: List<AttachedImage> = emptyList()) {
         if (!isAutoFix) autoFixCount = 0
         isAutoFix = false
         if (prompt.isEmpty()) return
@@ -312,6 +337,7 @@ class LlamatikToolWindowPanel(
             currentHandle = agent.submit(
                 session = chatTabPanel.currentSession(),
                 userPrompt = submittedPrompt,
+                images = images,
                 onToken = { token ->
                     SwingUtilities.invokeLater {
                         when {
@@ -406,6 +432,7 @@ class LlamatikToolWindowPanel(
         currentHandle = agent.chat(
             session = session,
             userPrompt = submittedPrompt,
+            images = images,
             onToken = { token ->
                 SwingUtilities.invokeLater {
                     streamPanel.appendToken(token)
@@ -415,7 +442,6 @@ class LlamatikToolWindowPanel(
                 ApplicationManager.getApplication().invokeLater {
                     sessionController.appendMessage(session.id, ChatMessage(role = ChatRole.ASSISTANT, content = answer))
                     streamPanel.setContent(answer)
-                    chatTabPanel.rebuildTabs()
                     setGenerating(false)
                 }
             },

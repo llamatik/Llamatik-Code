@@ -87,6 +87,8 @@
         <applicationService
                 serviceImplementation="com.llamatik.teammate.llamatik.LlamatikBackendService"/>
         <applicationService
+                serviceImplementation="com.llamatik.teammate.llamatik.MultimodalBackendService"/>
+        <applicationService
                 serviceImplementation="com.llamatik.teammate.licensing.TrialService"/>
         <applicationService
                 serviceImplementation="com.llamatik.teammate.infrastructure.ModelDownloadManager"/>

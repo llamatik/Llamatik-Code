@@ -29,6 +29,9 @@ import javax.swing.text.JTextComponent
  * user types `@` followed by characters. The popup is a non-focusable [JWindow] so
  * keyboard focus stays in the text field the whole time.
  *
+ * When [imageBar] is provided, selecting an image file path (png/jpg/…) routes the
+ * file to the attachment bar instead of inserting a text token.
+ *
  * Keyboard behaviour (while popup is visible):
  *  - Arrow Up/Down  — navigate the list
  *  - Enter/Tab      — confirm selection
@@ -37,6 +40,7 @@ import javax.swing.text.JTextComponent
 class AtMentionHandler(
     private val textComponent: JTextComponent,
     private val project: Project,
+    private val imageBar: ImageAttachmentBar? = null,
 ) {
     private val contextService = ProjectContextService(project)
 
@@ -49,8 +53,8 @@ class AtMentionHandler(
         selectionBackground = LlamatikTheme.primary
         selectionForeground = LlamatikTheme.onPrimary
         font = font.deriveFont(Font.PLAIN, font.size2D)
-        border = JBUI.Borders.empty(2, 8)
-        fixedCellHeight = 24
+        border = JBUI.Borders.empty(4, 8)
+        fixedCellHeight = 28
         isFocusable = false
     }
 
@@ -122,8 +126,12 @@ class AtMentionHandler(
         textComponent.addKeyListener(keyListener)
 
         resultList.addMouseListener(object : MouseAdapter() {
-            override fun mouseClicked(e: MouseEvent) {
-                if (resultList.selectedIndex >= 0) confirmSelection()
+            override fun mousePressed(e: MouseEvent) {
+                val idx = resultList.locationToIndex(e.point)
+                if (idx >= 0) {
+                    resultList.selectedIndex = idx
+                    confirmSelection()
+                }
             }
         })
     }
@@ -181,7 +189,7 @@ class AtMentionHandler(
         val rows = listModel.size.coerceIn(1, 8)
         val itemH = resultList.fixedCellHeight + 2
         val popupH = rows * itemH + 6
-        val popupW = 380
+        val popupW = textComponent.width.coerceAtLeast(520)
 
         floatingWindow.setSize(popupW, popupH)
 
@@ -203,31 +211,61 @@ class AtMentionHandler(
     }
 
     private fun dismissPopup() {
-        atStartOffset = -1
         floatingWindow.isVisible = false
+        atStartOffset = -1
     }
 
     private fun confirmSelection() {
         val selected = resultList.selectedValue ?: return
-        insertFileReference(selected)
-        dismissPopup()
+        // Capture atStartOffset before hiding the popup, as hiding may trigger
+        // a document change that resets it via dismissPopup().
+        val capturedOffset = atStartOffset
+        floatingWindow.isVisible = false
+        atStartOffset = -1
+
+        if (capturedOffset < 0) return
+
+        // If the selected file is an image and an attachment bar is available, route
+        // it there instead of inserting a text token.
+        if (imageBar != null && com.llamatik.teammate.model.AttachedImage.isImagePath(selected)) {
+            val absolutePath = resolveAbsolutePath(selected)
+            if (absolutePath != null) {
+                imageBar.notifyImageMention(absolutePath)
+                removeAtPrefixFrom(capturedOffset)
+                textComponent.requestFocusInWindow()
+                return
+            }
+        }
+
+        insertFileReference(selected, capturedOffset)
         textComponent.requestFocusInWindow()
     }
 
-    private fun insertFileReference(path: String) {
+    private fun removeAtPrefixFrom(startOffset: Int) {
         val doc = textComponent.document
         val caret = textComponent.caretPosition.coerceIn(0, doc.length)
-        val replaceStart = atStartOffset
-        val replaceEnd = caret
+        if (startOffset < 0 || startOffset > caret) return
+        suppressDocumentListener = true
+        try { doc.remove(startOffset, caret - startOffset) } finally { suppressDocumentListener = false }
+    }
 
-        if (replaceStart < 0 || replaceStart > replaceEnd) return
+    private fun resolveAbsolutePath(relativePath: String): String? {
+        val base = project.basePath ?: return null
+        val file = java.io.File(base, relativePath)
+        return if (file.exists()) file.absolutePath else null
+    }
+
+    private fun insertFileReference(path: String, startOffset: Int) {
+        val doc = textComponent.document
+        val caret = textComponent.caretPosition.coerceIn(0, doc.length)
+        if (startOffset < 0 || startOffset > caret) return
 
         suppressDocumentListener = true
         try {
-            doc.remove(replaceStart, replaceEnd - replaceStart)
+            doc.remove(startOffset, caret - startOffset)
             val token = "@{$path} "
-            doc.insertString(replaceStart, token, null)
-            textComponent.caretPosition = replaceStart + token.length
+            doc.insertString(startOffset, token, null)
+            textComponent.caretPosition = startOffset + token.length
         } finally {
             suppressDocumentListener = false
         }

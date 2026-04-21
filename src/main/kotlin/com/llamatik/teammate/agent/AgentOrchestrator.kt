@@ -10,6 +10,8 @@ import com.llamatik.teammate.backend.GenerationHandle
 import com.llamatik.teammate.backend.GenerationRequest
 import com.llamatik.teammate.context.ProjectContextService
 import com.llamatik.teammate.llamatik.LlamatikBackendService
+import com.llamatik.teammate.llamatik.MultimodalBackendService
+import com.llamatik.teammate.model.AttachedImage
 import com.llamatik.teammate.model.ChatMessage
 import com.llamatik.teammate.model.ChatRole
 import com.llamatik.teammate.model.ChatSession
@@ -25,6 +27,7 @@ import java.util.concurrent.atomic.AtomicReference
 @Service(Service.Level.PROJECT)
 class AgentOrchestrator(private val project: Project) {
     private val backend: AssistantBackend = service<LlamatikBackendService>()
+    private val multimodalBackend = service<MultimodalBackendService>()
     private val toolRegistry = project.service<ToolRegistry>()
     private val contextService = ProjectContextService(project)
     private val skillService = service<SkillService>()
@@ -39,7 +42,18 @@ class AgentOrchestrator(private val project: Project) {
         onThinkingToken: ((String) -> Unit)? = null,
         onFinished: (ChatMessage, List<EditProposal>) -> Unit,
         onError: (String) -> Unit,
+        images: List<AttachedImage> = emptyList(),
     ): GenerationHandle {
+        // Route to multimodal pipeline when images are attached
+        if (images.isNotEmpty()) {
+            return submitMultimodal(
+                userPrompt = userPrompt,
+                images = images,
+                onToken = onToken,
+                onFinished = { text -> onFinished(ChatMessage(role = ChatRole.ASSISTANT, content = text), emptyList()) },
+                onError = onError,
+            )
+        }
         val settings = service<LlamatikAppSettings>().data()
         val cancelled = AtomicBoolean(false)
         // Tracks whichever backend call is currently active so cancel() always reaches the live handle.
@@ -49,8 +63,14 @@ class AgentOrchestrator(private val project: Project) {
         // The buffer always holds content that hasn't been dispatched yet.
         val tokenBuffer = StringBuilder()
         val inThink = AtomicBoolean(false)
+        // Prefixes that must never reach the UI — blocked at the source before flushToArea sees them
+        val uiBlockedPrefixes = listOf("<tool_call", "<edit_proposal", "<Tool_call", "<TOOL_CALL")
         fun flushAnswerBuffer(buf: String) {
-            if (buf.isNotEmpty()) onToken(buf)
+            if (buf.isEmpty()) return
+            val bufLower = buf.lowercase()
+            val cutAt = uiBlockedPrefixes.mapNotNull { p -> bufLower.indexOf(p.lowercase()).takeIf { it >= 0 } }.minOrNull()
+            val safe = if (cutAt != null) buf.substring(0, cutAt).trimEnd() else buf
+            if (safe.isNotEmpty()) onToken(safe)
         }
         fun filteredToken(token: String) {
             tokenBuffer.append(token)
@@ -349,7 +369,7 @@ class AgentOrchestrator(private val project: Project) {
     }
 
     private val editRegex = Regex(
-        "<edit_proposal\\s+path=\\\"([^\\\"]+)\\\"\\s+summary=\\\"([^\\\"]*)\\\">\\s*<new_content><!\\[CDATA\\[(.*?)]]></new_content>\\s*</edit_proposal>",
+        "<edit_proposal\\s+path=\\\"([^\\\"]+)\\\"\\s+summary=\\\"([^\\\"]*)\\\">\\s*<new_content>(?:<!\\[CDATA\\[(.*?)]]>|(.*?))</new_content>\\s*</edit_proposal>",
         RegexOption.DOT_MATCHES_ALL,
     )
 
@@ -359,7 +379,11 @@ class AgentOrchestrator(private val project: Project) {
 
     private fun extractEditProposals(text: String): List<EditProposal> {
         val complete = editRegex.findAll(text).mapNotNull { match ->
-            buildProposal(match.groupValues[1], match.groupValues[2], match.groupValues[3])
+            val path = match.groupValues[1]
+            val summary = match.groupValues[2]
+            // group 3 = CDATA content, group 4 = plain content
+            val content = match.groupValues[3].ifEmpty { match.groupValues[4] }
+            buildProposal(path, summary, content)
         }.toList()
         if (complete.isNotEmpty()) return complete
 
@@ -368,21 +392,39 @@ class AgentOrchestrator(private val project: Project) {
             val path = headerMatch.groupValues[1]
             val summary = headerMatch.groupValues[2]
             val afterHeader = text.substring(headerMatch.range.last + 1)
-            val cdataIdx = afterHeader.indexOf("<![CDATA[")
-            val content = if (cdataIdx >= 0) {
-                val raw = afterHeader.substring(cdataIdx + "<![CDATA[".length)
-                val closing = raw.indexOf("]]>")
-                if (closing >= 0) raw.substring(0, closing) else raw.trimEnd()
-            } else ""
+            val content = extractNewContent(afterHeader)
             buildProposal(path, summary, content)
         }.toList()
+    }
+
+    private fun extractNewContent(afterHeader: String): String {
+        // Try CDATA first (inside or outside <new_content>)
+        val cdataIdx = afterHeader.indexOf("<![CDATA[")
+        if (cdataIdx >= 0) {
+            val raw = afterHeader.substring(cdataIdx + "<![CDATA[".length)
+            val closing = raw.indexOf("]]>")
+            return if (closing >= 0) raw.substring(0, closing).trim() else raw.trim()
+        }
+        // Plain <new_content>…</new_content> — strip any stray CDATA markers
+        val openTag = "<new_content>"
+        val closeTag = "</new_content>"
+        val openIdx = afterHeader.indexOf(openTag)
+        if (openIdx >= 0) {
+            val raw = afterHeader.substring(openIdx + openTag.length)
+            val closeIdx = raw.indexOf(closeTag)
+            val content = if (closeIdx >= 0) raw.substring(0, closeIdx) else raw
+            return content.trim().removePrefix("<![CDATA[").removeSuffix("]]>").trim()
+        }
+        return ""
     }
 
     private fun buildProposal(path: String, summary: String, newContent: String): EditProposal? {
         val trimmedPath = path.trim()
         if (!trimmedPath.contains('.')) return null
         val oldContent = runCatching { contextService.readFile(trimmedPath) }.getOrDefault("")
-        return EditProposal(filePath = trimmedPath, oldContent = oldContent, newContent = newContent, summary = summary)
+        val cleanContent = newContent.trim()
+            .removePrefix("<![CDATA[").removeSuffix("]]>").trim()
+        return EditProposal(filePath = trimmedPath, oldContent = oldContent, newContent = cleanContent, summary = summary)
     }
 
     /**
@@ -395,7 +437,17 @@ class AgentOrchestrator(private val project: Project) {
         onToken: (String) -> Unit,
         onFinished: (String) -> Unit,
         onError: (String) -> Unit,
+        images: List<AttachedImage> = emptyList(),
     ): GenerationHandle {
+        if (images.isNotEmpty()) {
+            return submitMultimodal(
+                userPrompt = userPrompt,
+                images = images,
+                onToken = onToken,
+                onFinished = onFinished,
+                onError = onError,
+            )
+        }
         val settings = service<LlamatikAppSettings>().data()
         val (cleanInstruction, fileContext) = resolveFileReferences(userPrompt)
 
@@ -485,6 +537,34 @@ class AgentOrchestrator(private val project: Project) {
                     val answer = ToolCallParser.stripThinking(fullText).trim()
                     onFinished(answer)
                 }
+                override fun onError(message: String, throwable: Throwable?) = onError(message)
+            },
+        )
+    }
+
+    private fun submitMultimodal(
+        userPrompt: String,
+        images: List<AttachedImage>,
+        onToken: (String) -> Unit,
+        onFinished: (String) -> Unit,
+        onError: (String) -> Unit,
+    ): GenerationHandle {
+        val contextHint = buildContextHint()
+        val systemPrompt = buildString {
+            appendLine("You are a helpful coding assistant integrated in an IDE.")
+            if (contextHint.isNotBlank()) {
+                appendLine()
+                appendLine(contextHint)
+            }
+        }.trim()
+
+        return multimodalBackend.generateWithImages(
+            systemPrompt = systemPrompt,
+            userPrompt = userPrompt,
+            images = images,
+            callbacks = object : GenerationCallbacks {
+                override fun onToken(token: String) = onToken(token)
+                override fun onCompleted(fullText: String) = onFinished(fullText.trim())
                 override fun onError(message: String, throwable: Throwable?) = onError(message)
             },
         )

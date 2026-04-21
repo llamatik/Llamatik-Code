@@ -108,9 +108,10 @@ val obfuscate by tasks.registering(ProGuardTask::class) {
     verbose()
 }
 
-// After obfuscation, overwrite the composedJar with the obfuscated version so
-// buildPlugin and prepareSandbox transparently pick up obfuscated bytecode.
-tasks.named("prepareSandbox") {
+// Obfuscation only runs for buildPlugin (distribution), NOT for runIde (development).
+// Hooking into prepareSandbox would obfuscate every runIde cycle and breaks
+// virtual-dispatch for anonymous Swing/IntelliJ subclasses during development.
+tasks.named("buildPlugin") {
     dependsOn(obfuscate)
     doFirst {
         val obfuscatedFile = proguardJar.get().asFile

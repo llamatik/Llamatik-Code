@@ -1,8 +1,12 @@
 package com.llamatik.teammate.settings
 
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.components.service
 import com.intellij.openapi.options.Configurable
 import com.intellij.openapi.project.ProjectManager
+import com.llamatik.teammate.licensing.LicenseChecker
+import com.llamatik.teammate.licensing.TrialService
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.wm.ToolWindowManager
@@ -49,6 +53,9 @@ class LlamatikSettingsConfigurable : Configurable {
     // Model path
     private val modelPathField = JBTextField()
 
+    // Multimodal projector path
+    private val mmprojPathField = JBTextField()
+
     // Behaviour
     private val agentAutoApproveCheck = JBCheckBox(Strings.Settings.AUTO_APPROVE)
     private val agentAutoBuildCheck = JBCheckBox(Strings.Settings.AUTO_BUILD)
@@ -72,6 +79,7 @@ class LlamatikSettingsConfigurable : Configurable {
                 val chooser = JFileChooser().apply {
                     fileSelectionMode = JFileChooser.FILES_ONLY
                     dialogTitle = Strings.Settings.FILE_CHOOSER_TITLE
+                    fileFilter = javax.swing.filechooser.FileNameExtensionFilter("GGUF model files (*.gguf)", "gguf")
                 }
                 if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
                     modelPathField.text = chooser.selectedFile.absolutePath
@@ -130,21 +138,33 @@ class LlamatikSettingsConfigurable : Configurable {
             }
         }
 
-        val openModelLibraryButton = JButton(Strings.Settings.BROWSE_CATALOG).apply {
-            addActionListener {
-                val dialog = object : DialogWrapper(null, true) {
-                    init {
-                        title = Strings.Settings.MODEL_LIBRARY_TITLE
-                        init()
-                    }
-                    override fun createCenterPanel(): JComponent =
-                        ModelLibraryPanel(null).apply {
-                            preferredSize = Dimension(860, 640)
-                        }
-                    override fun createActions() = arrayOf(okAction)
-                }
-                dialog.show()
+        val openModelLibraryButton = JButton(Strings.Settings.BROWSE_CATALOG)
+        openModelLibraryButton.addActionListener {
+            var catalogDialog: DialogWrapper? = null
+            val onRequestUpgrade: () -> Unit = {
+                catalogDialog?.close(DialogWrapper.CANCEL_EXIT_CODE)
+                val settingsWindow = javax.swing.SwingUtilities.getWindowAncestor(openModelLibraryButton)
+                // ModalityState.any() so this fires while the settings modal is still alive
+                ApplicationManager.getApplication().invokeLater({
+                    settingsWindow?.dispose()
+                    // nonModal() so this fires only after settings is fully gone
+                    ApplicationManager.getApplication().invokeLater({
+                        service<TrialService>().requestLicense(Strings.ModelCard.TIER_3_PAYWALL_TITLE)
+                    }, ModalityState.nonModal())
+                }, ModalityState.any())
             }
+            catalogDialog = object : DialogWrapper(null, true) {
+                init {
+                    title = Strings.Settings.MODEL_LIBRARY_TITLE
+                    init()
+                }
+                override fun createCenterPanel(): JComponent =
+                    ModelLibraryPanel(null, onRequestUpgrade).apply {
+                        preferredSize = Dimension(860, 640)
+                    }
+                override fun createActions() = arrayOf(okAction)
+            }
+            catalogDialog.show()
         }
 
         val openSkillLibraryButton = JButton(Strings.Skills.OPEN_LIBRARY).apply {
@@ -176,6 +196,24 @@ class LlamatikSettingsConfigurable : Configurable {
             }, BorderLayout.EAST)
         }
 
+        val browseMmprojButton = JButton(Strings.Settings.BROWSE).apply {
+            addActionListener {
+                val chooser = JFileChooser().apply {
+                    fileSelectionMode = JFileChooser.FILES_ONLY
+                    dialogTitle = Strings.Multimodal.MMPROJ_PATH_LABEL
+                    fileFilter = javax.swing.filechooser.FileNameExtensionFilter("GGUF mmproj files (*.gguf)", "gguf")
+                }
+                if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
+                    mmprojPathField.text = chooser.selectedFile.absolutePath
+                }
+            }
+        }
+
+        val mmprojPathPanel = JPanel(BorderLayout(6, 0)).apply {
+            add(mmprojPathField, BorderLayout.CENTER)
+            add(browseMmprojButton, BorderLayout.EAST)
+        }
+
         val listButtonsPanel = JPanel().apply {
             add(useSelectedButton)
             add(deleteSelectedButton)
@@ -188,15 +226,24 @@ class LlamatikSettingsConfigurable : Configurable {
         reloadDownloadedModels()
         reloadActiveSkills()
 
+        val licensed = runCatching { LicenseChecker.isLicensed() == true }.getOrElse { false }
+        if (!licensed) {
+            agentAutoApproveCheck.isEnabled = false
+            agentAutoBuildCheck.isEnabled = false
+            agentAutoFixCheck.isEnabled = false
+        }
+
         return FormBuilder.createFormBuilder()
             .addSeparator()
             .addLabeledComponent(JBLabel(Strings.Settings.SECTION_ACTIVE_MODEL), modelPathPanel)
             .addTooltip(Strings.Settings.MODEL_PATH_TOOLTIP)
+            .addLabeledComponent(JBLabel(Strings.Multimodal.MMPROJ_PATH_LABEL), mmprojPathPanel)
+            .addTooltip(Strings.Multimodal.MMPROJ_PATH_TOOLTIP)
             .addSeparator()
             .addLabeledComponent(JBLabel(Strings.Settings.SECTION_REGISTERED_MODELS), registeredModelsPanel)
             .addComponent(openModelLibraryButton)
             .addSeparator()
-            .addLabeledComponent(JBLabel(Strings.Settings.SECTION_BEHAVIOUR), JBLabel(""))
+            .addLabeledComponent(JBLabel(Strings.Settings.SECTION_BEHAVIOUR), buildRunOptionsPaywallLabel())
             .addComponent(agentAutoApproveCheck)
             .addComponent(agentAutoBuildCheck)
             .addComponent(agentAutoFixCheck)
@@ -222,6 +269,7 @@ class LlamatikSettingsConfigurable : Configurable {
     override fun isModified(): Boolean {
         val s = settings.data()
         return modelPathField.text.trim() != s.modelPath ||
+            mmprojPathField.text.trim() != s.mmprojPath ||
             agentAutoApproveCheck.isSelected != s.agentAutoApprove ||
             agentAutoBuildCheck.isSelected != s.agentAutoBuild ||
             agentAutoFixCheck.isSelected != s.agentAutoFix ||
@@ -237,6 +285,7 @@ class LlamatikSettingsConfigurable : Configurable {
             if (err != null) throw com.intellij.openapi.options.ConfigurationException(err)
         }
         s.modelPath = path
+        s.mmprojPath = mmprojPathField.text.trim()
         s.agentAutoApprove = agentAutoApproveCheck.isSelected
         s.agentAutoBuild = agentAutoBuildCheck.isSelected
         s.agentAutoFix = agentAutoFixCheck.isSelected
@@ -254,6 +303,7 @@ class LlamatikSettingsConfigurable : Configurable {
     override fun reset() {
         val s = settings.data()
         modelPathField.text = s.modelPath
+        mmprojPathField.text = s.mmprojPath
         agentAutoApproveCheck.isSelected = s.agentAutoApprove
         agentAutoBuildCheck.isSelected = s.agentAutoBuild
         agentAutoFixCheck.isSelected = s.agentAutoFix
@@ -286,6 +336,14 @@ class LlamatikSettingsConfigurable : Configurable {
         if (!Files.isRegularFile(nioPath)) return Strings.Settings.validationNotFile(path)
         if (!path.lowercase().endsWith(".gguf")) return Strings.Settings.VALIDATION_NOT_GGUF
         return null
+    }
+
+    private fun buildRunOptionsPaywallLabel(): JBLabel {
+        val licensed = runCatching { LicenseChecker.isLicensed() == true }.getOrElse { false }
+        return if (licensed) JBLabel("") else JBLabel(Strings.Agent.RUN_OPTIONS_PRO_REQUIRED).apply {
+            foreground = com.llamatik.teammate.ui.LlamatikTheme.onSurfaceVariant
+            font = font.deriveFont(Font.ITALIC, font.size2D - 1f)
+        }
     }
 
     companion object {

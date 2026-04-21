@@ -16,6 +16,8 @@ data class ChatMessage(
     val timestamp: Long = System.currentTimeMillis(),
     val toolName: String? = null,
     val editProposalId: String? = null,
+    // Not persisted — images are large; paths are embedded in content if needed
+    @Transient val attachedImages: List<AttachedImage> = emptyList(),
 )
 
 enum class AgentRole {

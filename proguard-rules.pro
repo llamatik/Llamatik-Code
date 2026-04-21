@@ -4,12 +4,21 @@
 
 -keep class com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowFactory { *; }
 
+# Theme and string constants — HTML label strings reference these by direct call;
+# obfuscating them causes colours and labels to disappear at runtime.
+-keep class com.llamatik.teammate.ui.LlamatikTheme { *; }
+-keep class com.llamatik.teammate.ui.LlamatikTheme$* { *; }
+-keep class com.llamatik.teammate.ui.Strings { *; }
+-keep class com.llamatik.teammate.ui.Strings$* { *; }
+
 -keep class com.llamatik.teammate.settings.LlamatikAppSettings { *; }
 -keep class com.llamatik.teammate.settings.DownloadedModelService { *; }
 -keep class com.llamatik.teammate.settings.LlamatikSettingsConfigurable { *; }
 -keep class com.llamatik.teammate.settings.InferenceSettingsConfigurable { *; }
+-keep class com.llamatik.teammate.settings.InferenceSettingsPanel { *; }
 
 -keep class com.llamatik.teammate.llamatik.LlamatikBackendService { *; }
+-keep class com.llamatik.teammate.llamatik.MultimodalBackendService { *; }
 -keep class com.llamatik.teammate.licensing.TrialService { *; }
 -keep class com.llamatik.teammate.licensing.LicenseChecker { *; }
 -keep class com.llamatik.teammate.infrastructure.ModelDownloadManager { *; }
@@ -72,11 +81,14 @@
 
 # ── Swing / UI components ────────────────────────────────────────────────────
 # Preserve all members of anonymous JPanel/JButton subclasses used for custom painting.
--keepclassmembers class * extends javax.swing.JPanel { *; }
--keepclassmembers class * extends javax.swing.JComponent { *; }
--keepclassmembers class * extends javax.swing.JButton { *; }
--keepclassmembers class * extends com.intellij.openapi.ui.DialogWrapper { *; }
--keepclassmembers class * extends com.intellij.openapi.ui.DialogBuilder { *; }
+-keep class * extends javax.swing.JPanel { *; }
+-keep class * extends javax.swing.JComponent { *; }
+-keep class * extends javax.swing.JButton { *; }
+-keep class * extends com.intellij.openapi.ui.DialogWrapper { *; }
+-keep class * extends com.intellij.openapi.ui.DialogBuilder { *; }
+-keep class * extends com.intellij.ui.components.JBTextArea { *; }
+-keep class * extends com.intellij.ui.components.JBLabel { *; }
+-keep class * extends javax.swing.plaf.basic.BasicTabbedPaneUI { *; }
 
 # ── JetBrains Marketplace recommendations ────────────────────────────────────
 # https://plugins.jetbrains.com/docs/marketplace/obfuscate-the-plugin.html
