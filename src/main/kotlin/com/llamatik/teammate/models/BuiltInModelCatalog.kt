@@ -140,7 +140,7 @@ object BuiltInModelCatalog {
             modelCardUrl = "https://ai.google.dev/gemma/docs/core/model_card_4",
             specialization = ModelSpecialization.BALANCED,
             catalogStatus = ModelCatalogStatus.RECOMMENDED,
-            downloadSourceUrl = "https://huggingface.co/steamdj/gemma-4-26B-A4B-Q4_K_M-GGUF/resolve/main/gemma-4-26b-a4b-q4_k_m.gguf?download=true"
+            downloadSourceUrl = "https://huggingface.co/ggml-org/gemma-4-26B-A4B-it-GGUF/resolve/main/gemma-4-26B-A4B-it-Q4_K_M.gguf?download=true"
         ),
 
         // Tier 3 - High performance
@@ -193,6 +193,23 @@ object BuiltInModelCatalog {
             specialization = ModelSpecialization.GENERAL_REASONING,
             catalogStatus = ModelCatalogStatus.AVAILABLE,
             downloadSourceUrl = "https://huggingface.co/bartowski/DeepSeek-R1-Distill-Qwen-32B-GGUF/resolve/main/DeepSeek-R1-Distill-Qwen-32B-Q4_K_M.gguf?download=true"
+        ),
+        ExtendedModelDescriptor(
+            id = "gemma-4-26b-a4b-q8",
+            displayName = "Gemma 4 26B A4B it",
+            quantization = "Q8_0",
+            diskSizeGb = 26.9,
+            minRamGb = 16.0,
+            recommendedRamGb = 24.0,
+            tier = ModelTier.TIER_2,
+            useCases = listOf("Reasoning", "Coding", "Agentic workflows"),
+            tradeoffs = "Powerful MoE option for advanced local assistance with better headroom than small Gemma variants.",
+            repositoryUrl = "https://ai.google.dev/gemma/docs/core",
+            modelCardUrl = "https://ai.google.dev/gemma/docs/core/model_card_4",
+            specialization = ModelSpecialization.BALANCED,
+            catalogStatus = ModelCatalogStatus.RECOMMENDED,
+            downloadSourceUrl = "https://huggingface.co/ggml-org/gemma-4-26B-A4B-it-GGUF/resolve/main/gemma-4-26B-A4B-it-Q8_0.gguf?download=true",
+            mmprojDownloadUrl = "https://huggingface.co/ggml-org/gemma-4-26B-A4B-it-GGUF/resolve/main/mmproj-gemma-4-26B-A4B-it-Q8_0.gguf?download=true"
         ),
         ExtendedModelDescriptor(
             id = "gemma-4-31b-q8",
