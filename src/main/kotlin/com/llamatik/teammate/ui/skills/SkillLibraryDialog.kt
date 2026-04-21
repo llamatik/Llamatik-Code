@@ -2,6 +2,7 @@ package com.llamatik.teammate.ui.skills
 
 import com.intellij.openapi.components.service
 import com.intellij.ui.DocumentAdapter
+import com.llamatik.teammate.licensing.LicenseChecker
 import com.intellij.ui.SearchTextField
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
@@ -15,6 +16,7 @@ import com.llamatik.teammate.ui.Strings
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Component.LEFT_ALIGNMENT
+import java.awt.Component.RIGHT_ALIGNMENT
 import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.Font
@@ -98,8 +100,16 @@ class SkillLibraryDialog(
                 alignmentX = LEFT_ALIGNMENT
             })
         } else {
+            val licensed = runCatching { LicenseChecker.isLicensed() == true }.getOrElse { false }
+            val activeCount = skillService.activeSkills().size
+            val freeTierPaywall = !licensed
+            val lockFunctions = mutableListOf<() -> Unit>()
             filtered.forEach { skill ->
-                listPanel.add(buildSkillCard(skill))
+                val status = skillService.skillStatus(skill.id)
+                val locked = freeTierPaywall && status != SkillStatus.ACTIVE && activeCount >= 1
+                val (card, lockActivate) = buildSkillCard(skill, locked)
+                lockFunctions.add(lockActivate)
+                listPanel.add(card)
                 listPanel.add(Box.createVerticalStrut(8))
             }
         }
@@ -108,7 +118,7 @@ class SkillLibraryDialog(
         listPanel.repaint()
     }
 
-    private fun buildSkillCard(skill: SkillDescriptor): JPanel {
+    private fun buildSkillCard(skill: SkillDescriptor, locked: Boolean = false): Pair<JPanel, () -> Unit> {
         val status = skillService.skillStatus(skill.id)
 
         val card = JPanel(BorderLayout(0, 6)).apply {
@@ -156,7 +166,7 @@ class SkillLibraryDialog(
                 "</span></html>",
         )
 
-        val actionButtons = buildActionButtons(skill, status)
+        val (actionButtons, lockActivate) = buildActionButtons(skill, status, locked)
 
         val footerRow = JPanel(BorderLayout()).apply {
             isOpaque = false
@@ -178,7 +188,7 @@ class SkillLibraryDialog(
         // Fill full width in BoxLayout.Y_AXIS; height unconstrained so card uses preferred size.
         card.maximumSize = Dimension(Int.MAX_VALUE, Short.MAX_VALUE.toInt())
 
-        return card
+        return Pair(card, lockActivate)
     }
 
     private fun buildStatusBadge(status: SkillStatus): JBLabel {
@@ -207,35 +217,57 @@ class SkillLibraryDialog(
             )
         }
 
-    private fun buildActionButtons(skill: SkillDescriptor, status: SkillStatus): JPanel {
-        val panel = JPanel(FlowLayout(FlowLayout.RIGHT, 6, 0)).apply { isOpaque = false }
-
-        when (status) {
-            SkillStatus.NOT_DOWNLOADED -> {
-                // Built-in skills are bundled — no real download needed; activate directly
-                panel.add(buildButton(Strings.Skills.ACTION_ACTIVATE, primary = true) {
-                    skillService.download(skill.id)
-                    skillService.activate(skill.id)
-                    onChanged()
-                    rebuildList(searchField.text.trim())
-                })
+    private fun buildActionButtons(skill: SkillDescriptor, status: SkillStatus, locked: Boolean = false): Pair<JPanel, () -> Unit> {
+        val activateButton: JButton? = when (status) {
+            SkillStatus.NOT_DOWNLOADED -> buildButton(Strings.Skills.ACTION_ACTIVATE, primary = true) {
+                skillService.download(skill.id)
+                skillService.activate(skill.id)
+                onChanged()
+                rebuildList(searchField.text.trim())
             }
-            SkillStatus.DOWNLOADED -> {
-                panel.add(buildButton(Strings.Skills.ACTION_ACTIVATE, primary = true) {
-                    skillService.activate(skill.id)
-                    onChanged()
-                    rebuildList(searchField.text.trim())
-                })
+            SkillStatus.DOWNLOADED -> buildButton(Strings.Skills.ACTION_ACTIVATE, primary = true) {
+                skillService.activate(skill.id)
+                onChanged()
+                rebuildList(searchField.text.trim())
             }
-            SkillStatus.ACTIVE -> {
-                panel.add(buildButton(Strings.Skills.ACTION_DEACTIVATE, primary = false) {
-                    skillService.deactivate(skill.id)
-                    onChanged()
-                    rebuildList(searchField.text.trim())
-                })
-            }
+            SkillStatus.ACTIVE -> null
         }
-        return panel
+        val deactivateButton: JButton? = if (status == SkillStatus.ACTIVE) {
+            buildButton(Strings.Skills.ACTION_DEACTIVATE, primary = false) {
+                skillService.deactivate(skill.id)
+                onChanged()
+                rebuildList(searchField.text.trim())
+            }
+        } else null
+
+        val upgradeLabel = JBLabel(Strings.Skills.FREE_PLAN_SKILL_LIMIT).apply {
+            foreground = LlamatikTheme.onSurfaceVariant
+            font = font.deriveFont(Font.ITALIC, font.size2D - 1f)
+            isVisible = locked
+        }
+
+        if (locked) activateButton?.isEnabled = false
+
+        val lockActivate: () -> Unit = {
+            activateButton?.isEnabled = false
+            upgradeLabel.isVisible = true
+        }
+
+        val panel = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            isOpaque = false
+            val buttonsRow = JPanel(FlowLayout(FlowLayout.RIGHT, 6, 0)).apply {
+                isOpaque = false
+                deactivateButton?.let { add(it) }
+                activateButton?.let { add(it) }
+            }
+            buttonsRow.alignmentX = RIGHT_ALIGNMENT
+            upgradeLabel.alignmentX = RIGHT_ALIGNMENT
+            add(buttonsRow)
+            add(upgradeLabel)
+        }
+
+        return Pair(panel, lockActivate)
     }
 
     private fun buildButton(text: String, primary: Boolean, onClick: () -> Unit): JButton =

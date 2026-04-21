@@ -648,9 +648,14 @@ class ChatTabPanel(
 
     private fun showInferenceDialog() {
         val settings = com.intellij.openapi.components.service<com.llamatik.teammate.settings.LlamatikAppSettings>()
-        val panel = com.llamatik.teammate.settings.InferenceSettingsPanel()
+        var dialog: com.intellij.openapi.ui.DialogWrapper? = null
+        val panel = com.llamatik.teammate.settings.InferenceSettingsPanel(onUpgrade = {
+            dialog?.close(com.intellij.openapi.ui.DialogWrapper.CANCEL_EXIT_CODE)
+            com.intellij.openapi.components.service<com.llamatik.teammate.licensing.TrialService>()
+                .requestLicense(Strings.Inference.UPGRADE_REQUIRED)
+        })
         panel.loadFrom(settings.data())
-        val dialog = object : com.intellij.openapi.ui.DialogWrapper(false) {
+        dialog = object : com.intellij.openapi.ui.DialogWrapper(false) {
             init {
                 title = Strings.Inference.DIALOG_TITLE
                 init()

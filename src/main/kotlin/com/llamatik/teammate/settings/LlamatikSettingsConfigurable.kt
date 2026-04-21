@@ -3,6 +3,7 @@ package com.llamatik.teammate.settings
 import com.intellij.openapi.components.service
 import com.intellij.openapi.options.Configurable
 import com.intellij.openapi.project.ProjectManager
+import com.llamatik.teammate.licensing.LicenseChecker
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.wm.ToolWindowManager
@@ -210,6 +211,13 @@ class LlamatikSettingsConfigurable : Configurable {
         reloadDownloadedModels()
         reloadActiveSkills()
 
+        val licensed = runCatching { LicenseChecker.isLicensed() == true }.getOrElse { false }
+        if (!licensed) {
+            agentAutoApproveCheck.isEnabled = false
+            agentAutoBuildCheck.isEnabled = false
+            agentAutoFixCheck.isEnabled = false
+        }
+
         return FormBuilder.createFormBuilder()
             .addSeparator()
             .addLabeledComponent(JBLabel(Strings.Settings.SECTION_ACTIVE_MODEL), modelPathPanel)
@@ -220,7 +228,7 @@ class LlamatikSettingsConfigurable : Configurable {
             .addLabeledComponent(JBLabel(Strings.Settings.SECTION_REGISTERED_MODELS), registeredModelsPanel)
             .addComponent(openModelLibraryButton)
             .addSeparator()
-            .addLabeledComponent(JBLabel(Strings.Settings.SECTION_BEHAVIOUR), JBLabel(""))
+            .addLabeledComponent(JBLabel(Strings.Settings.SECTION_BEHAVIOUR), buildRunOptionsPaywallLabel())
             .addComponent(agentAutoApproveCheck)
             .addComponent(agentAutoBuildCheck)
             .addComponent(agentAutoFixCheck)
@@ -313,6 +321,14 @@ class LlamatikSettingsConfigurable : Configurable {
         if (!Files.isRegularFile(nioPath)) return Strings.Settings.validationNotFile(path)
         if (!path.lowercase().endsWith(".gguf")) return Strings.Settings.VALIDATION_NOT_GGUF
         return null
+    }
+
+    private fun buildRunOptionsPaywallLabel(): JBLabel {
+        val licensed = runCatching { LicenseChecker.isLicensed() == true }.getOrElse { false }
+        return if (licensed) JBLabel("") else JBLabel(Strings.Agent.RUN_OPTIONS_PRO_REQUIRED).apply {
+            foreground = com.llamatik.teammate.ui.LlamatikTheme.onSurfaceVariant
+            font = font.deriveFont(Font.ITALIC, font.size2D - 1f)
+        }
     }
 
     companion object {

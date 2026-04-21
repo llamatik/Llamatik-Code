@@ -219,7 +219,7 @@ object Strings {
             "Shows the welcome dialog again next time the tool window is opened"
         const val SECTION_ACTIVE_MODEL = "<html><b>Active model path</b></html>"
         const val SECTION_REGISTERED_MODELS = "<html><b>Registered models</b></html>"
-        const val SECTION_BEHAVIOUR = "<html><b>Behaviour</b></html>"
+        const val SECTION_BEHAVIOUR = "<html><b>Run Options</b></html>"
         const val SECTION_CONTEXT = "<html><b>Context</b></html>"
         const val FIELD_IGNORED_DIRS = "Ignored directories (comma-separated):"
         const val FIELD_INSTRUCTIONS = "Project rules / instructions:"
@@ -251,8 +251,10 @@ object Strings {
         const val SECTION_RUNTIME      = "<html><b>Runtime</b></html>"
         const val TEMPERATURE          = "Temperature:"
         const val TEMPERATURE_TOOLTIP  = "Sampling temperature (0 = deterministic, higher = more creative)"
-        const val MAX_TOKENS           = "Max tokens:"
-        const val MAX_TOKENS_TOOLTIP   = "Maximum number of tokens to generate per response"
+        const val MAX_TOKENS               = "Max tokens:"
+        const val MAX_TOKENS_TOOLTIP       = "Maximum number of tokens to generate per response"
+        const val MAX_TOKENS_FREE_TOOLTIP  = "Maximum tokens per response (free tier capped at 4096 — upgrade for higher limits)"
+        const val PRO_REQUIRED             = "Requires Pro"
         const val CONTEXT_SIZE         = "Context size (tokens):"
         const val CONTEXT_SIZE_TOOLTIP = "KV cache size — larger allows longer conversations but uses more VRAM"
         const val BATCH_SIZE           = "Batch size:"
@@ -264,7 +266,7 @@ object Strings {
         const val FLASH_ATTENTION      = "Enable Flash Attention"
         const val FLASH_ATTENTION_TOOLTIP = "Use Flash Attention kernel — reduces VRAM usage on supported hardware"
         const val RESET_DEFAULTS       = "Reset to defaults"
-        const val UPGRADE_REQUIRED     = "Inference settings require a Llamatik Code licence. Upgrade to change these settings."
+        const val UPGRADE_REQUIRED     = "Context size, batch size and Flash Attention require a Pro licence. Upgrade to unlock advanced settings."
         const val UPGRADE_BUTTON       = "Upgrade"
     }
 
@@ -344,6 +346,7 @@ object Strings {
         const val ACTION_DELETE = "Delete"
         const val SECTION_SETTINGS = "<html><b>Skills</b></html>"
         fun activeCount(n: Int) = if (n == 0) "No skills active" else "$n skill${if (n == 1) "" else "s"} active"
+        const val FREE_PLAN_SKILL_LIMIT = "Free plan supports 1 active skill. Upgrade to activate all."
     }
 
     // ── Build verification ────────────────────────────────────────────────────
