@@ -369,7 +369,7 @@ class AgentOrchestrator(private val project: Project) {
     }
 
     private val editRegex = Regex(
-        "<edit_proposal\\s+path=\\\"([^\\\"]+)\\\"\\s+summary=\\\"([^\\\"]*)\\\">\\s*<new_content><!\\[CDATA\\[(.*?)]]></new_content>\\s*</edit_proposal>",
+        "<edit_proposal\\s+path=\\\"([^\\\"]+)\\\"\\s+summary=\\\"([^\\\"]*)\\\">\\s*<new_content>(?:<!\\[CDATA\\[(.*?)]]>|(.*?))</new_content>\\s*</edit_proposal>",
         RegexOption.DOT_MATCHES_ALL,
     )
 
@@ -379,7 +379,11 @@ class AgentOrchestrator(private val project: Project) {
 
     private fun extractEditProposals(text: String): List<EditProposal> {
         val complete = editRegex.findAll(text).mapNotNull { match ->
-            buildProposal(match.groupValues[1], match.groupValues[2], match.groupValues[3])
+            val path = match.groupValues[1]
+            val summary = match.groupValues[2]
+            // group 3 = CDATA content, group 4 = plain content
+            val content = match.groupValues[3].ifEmpty { match.groupValues[4] }
+            buildProposal(path, summary, content)
         }.toList()
         if (complete.isNotEmpty()) return complete
 
@@ -388,21 +392,39 @@ class AgentOrchestrator(private val project: Project) {
             val path = headerMatch.groupValues[1]
             val summary = headerMatch.groupValues[2]
             val afterHeader = text.substring(headerMatch.range.last + 1)
-            val cdataIdx = afterHeader.indexOf("<![CDATA[")
-            val content = if (cdataIdx >= 0) {
-                val raw = afterHeader.substring(cdataIdx + "<![CDATA[".length)
-                val closing = raw.indexOf("]]>")
-                if (closing >= 0) raw.substring(0, closing) else raw.trimEnd()
-            } else ""
+            val content = extractNewContent(afterHeader)
             buildProposal(path, summary, content)
         }.toList()
+    }
+
+    private fun extractNewContent(afterHeader: String): String {
+        // Try CDATA first (inside or outside <new_content>)
+        val cdataIdx = afterHeader.indexOf("<![CDATA[")
+        if (cdataIdx >= 0) {
+            val raw = afterHeader.substring(cdataIdx + "<![CDATA[".length)
+            val closing = raw.indexOf("]]>")
+            return if (closing >= 0) raw.substring(0, closing).trim() else raw.trim()
+        }
+        // Plain <new_content>…</new_content> — strip any stray CDATA markers
+        val openTag = "<new_content>"
+        val closeTag = "</new_content>"
+        val openIdx = afterHeader.indexOf(openTag)
+        if (openIdx >= 0) {
+            val raw = afterHeader.substring(openIdx + openTag.length)
+            val closeIdx = raw.indexOf(closeTag)
+            val content = if (closeIdx >= 0) raw.substring(0, closeIdx) else raw
+            return content.trim().removePrefix("<![CDATA[").removeSuffix("]]>").trim()
+        }
+        return ""
     }
 
     private fun buildProposal(path: String, summary: String, newContent: String): EditProposal? {
         val trimmedPath = path.trim()
         if (!trimmedPath.contains('.')) return null
         val oldContent = runCatching { contextService.readFile(trimmedPath) }.getOrDefault("")
-        return EditProposal(filePath = trimmedPath, oldContent = oldContent, newContent = newContent, summary = summary)
+        val cleanContent = newContent.trim()
+            .removePrefix("<![CDATA[").removeSuffix("]]>").trim()
+        return EditProposal(filePath = trimmedPath, oldContent = oldContent, newContent = cleanContent, summary = summary)
     }
 
     /**
