@@ -418,7 +418,6 @@ class LlamatikToolWindowPanel(
                 ApplicationManager.getApplication().invokeLater {
                     sessionController.appendMessage(session.id, ChatMessage(role = ChatRole.ASSISTANT, content = answer))
                     streamPanel.setContent(answer)
-                    chatTabPanel.rebuildTabs()
                     setGenerating(false)
                 }
             },
