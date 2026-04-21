@@ -2,7 +2,7 @@
 <idea-plugin>
     <id>com.llamatik.teammate.LlamatikTeammate</id>
     <name>Llamatik Code</name>
-    <vendor url="https://www.llamatik.com">Llamatik AI</vendor>
+    <vendor url="https://www.llamatik.com" email="info@multiplatformkickstarter.com">Llamatik AI</vendor>
 
     <!--
         Paid plugin parameters required by JetBrains Marketplace.
@@ -59,6 +59,11 @@
         <br/>
 
         <p>Learn more: <a href="https://www.llamatik.com">https://www.llamatik.com</a></p>
+
+        <p>
+            <a href="https://www.llamatik.com/llamatik-code/eula">End-User License Agreement</a> |
+            <a href="https://www.llamatik.com/llamatik-code/privacy">Privacy Policy</a>
+        </p>
     ]]></description>
 
     <depends>com.intellij.modules.platform</depends>

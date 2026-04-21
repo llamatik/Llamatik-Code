@@ -1,0 +1,15 @@
+Copyright (c) 2026 Llamatik AI
+
+All rights reserved.
+
+This software and associated documentation files (the "Software") are proprietary
+and confidential. Use of the Software is governed by the End-User License Agreement
+available at https://www.llamatik.com/llamatik-code/eula
+
+Redistribution, reverse engineering, decompilation, or disassembly of the Software
+is prohibited except to the extent permitted by applicable law.
+
+The Software includes a bundled native inference library (com.llamatik:library)
+which is also proprietary and subject to the same license terms.
+
+For licensing inquiries, contact: info@multiplatformkickstarter.com
