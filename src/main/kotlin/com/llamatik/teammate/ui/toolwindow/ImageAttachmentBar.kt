@@ -1,6 +1,8 @@
 package com.llamatik.teammate.ui.toolwindow
 
 import com.intellij.icons.AllIcons
+import com.intellij.openapi.fileChooser.FileChooser
+import com.intellij.openapi.fileChooser.FileChooserDescriptor
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
 import com.intellij.util.ui.JBUI
@@ -27,11 +29,8 @@ import java.io.File
 import javax.imageio.ImageIO
 import javax.swing.BorderFactory
 import javax.swing.JButton
-import javax.swing.JFileChooser
 import javax.swing.JLabel
 import javax.swing.JPanel
-import javax.swing.SwingUtilities
-import javax.swing.filechooser.FileNameExtensionFilter
 
 /**
  * A compact horizontal bar that shows image attachment chips and provides three
@@ -138,17 +137,19 @@ class ImageAttachmentBar(
 
     private fun onAttachClicked() {
         if (!checkAccess()) return
-        val chooser = JFileChooser().apply {
-            dialogTitle = Strings.Multimodal.FILE_CHOOSER_TITLE
-            isMultiSelectionEnabled = true
-            fileFilter = FileNameExtensionFilter(
-                Strings.Multimodal.FILE_FILTER_DESC,
-                "png", "jpg", "jpeg", "bmp", "webp", "gif",
-            )
+        val descriptor = FileChooserDescriptor(
+            /* chooseFiles = */ true,
+            /* chooseFolders = */ false,
+            /* chooseJars = */ false,
+            /* chooseJarsAsFiles = */ false,
+            /* chooseJarContents = */ false,
+            /* chooseMultiple = */ true,
+        ).apply {
+            title = Strings.Multimodal.FILE_CHOOSER_TITLE
+            withFileFilter { vf -> AttachedImage.isImagePath(vf.name) }
         }
-        val parent = SwingUtilities.getWindowAncestor(this)
-        if (chooser.showOpenDialog(parent) == JFileChooser.APPROVE_OPTION) {
-            chooser.selectedFiles.forEach { addImageFile(it) }
+        FileChooser.chooseFiles(descriptor, project, null) { files ->
+            files.forEach { vf -> addImageFile(java.io.File(vf.path)) }
         }
     }
 

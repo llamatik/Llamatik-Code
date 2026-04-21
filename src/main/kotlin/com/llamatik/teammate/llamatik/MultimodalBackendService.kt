@@ -9,7 +9,12 @@ import com.llamatik.teammate.backend.GenerationCallbacks
 import com.llamatik.teammate.backend.GenerationHandle
 import com.llamatik.teammate.model.AttachedImage
 import com.llamatik.teammate.settings.LlamatikAppSettings
+import java.awt.RenderingHints
+import java.awt.image.BufferedImage
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import java.util.concurrent.Executors
+import javax.imageio.ImageIO
 import java.util.concurrent.atomic.AtomicBoolean
 
 @Service(Service.Level.APP)
@@ -70,7 +75,8 @@ class MultimodalBackendService {
 
                 // Use the first attached image (multi-image support requires model capability)
                 val image = images.first()
-                val normalizedBytes = AttachedImage.normalizeBytes(image.bytes, image.mimeType)
+                val resizedBytes = resizeToMaxDimension(image.bytes, maxDim = 1120)
+                val normalizedBytes = AttachedImage.normalizeBytes(resizedBytes, image.mimeType)
 
                 val fullPrompt = buildString {
                     if (systemPrompt.isNotBlank()) {
@@ -125,6 +131,24 @@ class MultimodalBackendService {
             }
             override val isCancelled: Boolean get() = cancelled.get()
         }
+    }
+
+    private fun resizeToMaxDimension(bytes: ByteArray, maxDim: Int): ByteArray {
+        val src = runCatching { ImageIO.read(ByteArrayInputStream(bytes)) }.getOrNull() ?: return bytes
+        val w = src.width
+        val h = src.height
+        if (w <= maxDim && h <= maxDim) return bytes
+        val scale = maxDim.toDouble() / maxOf(w, h)
+        val nw = (w * scale).toInt().coerceAtLeast(1)
+        val nh = (h * scale).toInt().coerceAtLeast(1)
+        val dst = BufferedImage(nw, nh, BufferedImage.TYPE_INT_RGB)
+        val g = dst.createGraphics()
+        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR)
+        g.drawImage(src, 0, 0, nw, nh, null)
+        g.dispose()
+        val out = ByteArrayOutputStream()
+        ImageIO.write(dst, "JPEG", out)
+        return out.toByteArray()
     }
 
     private fun ensureModel(modelPath: String, mmprojPath: String) {

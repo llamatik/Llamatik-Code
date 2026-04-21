@@ -80,12 +80,14 @@ class LlamatikBackendService : AssistantBackend {
                 )
                 ensureModel(request.config.modelIdOrPath)
 
-                val prompt = PluginPromptRenderer.render(
+                val rendered = PluginPromptRenderer.renderForModel(
                     system = request.systemPrompt,
                     messages = request.messages,
                     noThink = request.noThink,
+                    modelPath = request.config.modelIdOrPath,
                 )
-                val stopSequences = PluginPromptRenderer.STOP_SEQUENCES
+                val prompt = rendered.text
+                val stopSequences = rendered.stopSequences
 
                 val acc = StringBuilder()
                 var tokenCount = 0

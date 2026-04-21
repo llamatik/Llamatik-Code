@@ -558,6 +558,7 @@ class AgentOrchestrator(private val project: Project) {
             }
         }.trim()
 
+        onToken(" STATUS:Analyzing image…")
         return multimodalBackend.generateWithImages(
             systemPrompt = systemPrompt,
             userPrompt = userPrompt,
