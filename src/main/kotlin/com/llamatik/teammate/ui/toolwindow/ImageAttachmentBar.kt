@@ -55,7 +55,7 @@ class ImageAttachmentBar(
         isOpaque = false
     }
 
-    val attachButton = JButton(AllIcons.General.Locate).apply {
+    val attachButton = JButton(AllIcons.General.Add).apply {
         toolTipText = Strings.Multimodal.ATTACH_IMAGE_TOOLTIP
         isFocusPainted = false
         isContentAreaFilled = false
@@ -67,7 +67,7 @@ class ImageAttachmentBar(
     init {
         isOpaque = false
         isVisible = false  // hidden until at least one image attached or during drag hover
-        border = JBUI.Borders.empty(4, 0, 0, 0)
+        border = JBUI.Borders.emptyTop(4)
         add(chipsPanel, BorderLayout.CENTER)
     }
 

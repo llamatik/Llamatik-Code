@@ -49,6 +49,9 @@ class LlamatikSettingsConfigurable : Configurable {
     // Model path
     private val modelPathField = JBTextField()
 
+    // Multimodal projector path
+    private val mmprojPathField = JBTextField()
+
     // Behaviour
     private val agentAutoApproveCheck = JBCheckBox(Strings.Settings.AUTO_APPROVE)
     private val agentAutoBuildCheck = JBCheckBox(Strings.Settings.AUTO_BUILD)
@@ -72,6 +75,7 @@ class LlamatikSettingsConfigurable : Configurable {
                 val chooser = JFileChooser().apply {
                     fileSelectionMode = JFileChooser.FILES_ONLY
                     dialogTitle = Strings.Settings.FILE_CHOOSER_TITLE
+                    fileFilter = javax.swing.filechooser.FileNameExtensionFilter("GGUF model files (*.gguf)", "gguf")
                 }
                 if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
                     modelPathField.text = chooser.selectedFile.absolutePath
@@ -176,6 +180,24 @@ class LlamatikSettingsConfigurable : Configurable {
             }, BorderLayout.EAST)
         }
 
+        val browseMmprojButton = JButton(Strings.Settings.BROWSE).apply {
+            addActionListener {
+                val chooser = JFileChooser().apply {
+                    fileSelectionMode = JFileChooser.FILES_ONLY
+                    dialogTitle = Strings.Multimodal.MMPROJ_PATH_LABEL
+                    fileFilter = javax.swing.filechooser.FileNameExtensionFilter("GGUF mmproj files (*.gguf)", "gguf")
+                }
+                if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
+                    mmprojPathField.text = chooser.selectedFile.absolutePath
+                }
+            }
+        }
+
+        val mmprojPathPanel = JPanel(BorderLayout(6, 0)).apply {
+            add(mmprojPathField, BorderLayout.CENTER)
+            add(browseMmprojButton, BorderLayout.EAST)
+        }
+
         val listButtonsPanel = JPanel().apply {
             add(useSelectedButton)
             add(deleteSelectedButton)
@@ -192,6 +214,8 @@ class LlamatikSettingsConfigurable : Configurable {
             .addSeparator()
             .addLabeledComponent(JBLabel(Strings.Settings.SECTION_ACTIVE_MODEL), modelPathPanel)
             .addTooltip(Strings.Settings.MODEL_PATH_TOOLTIP)
+            .addLabeledComponent(JBLabel(Strings.Multimodal.MMPROJ_PATH_LABEL), mmprojPathPanel)
+            .addTooltip(Strings.Multimodal.MMPROJ_PATH_TOOLTIP)
             .addSeparator()
             .addLabeledComponent(JBLabel(Strings.Settings.SECTION_REGISTERED_MODELS), registeredModelsPanel)
             .addComponent(openModelLibraryButton)
@@ -222,6 +246,7 @@ class LlamatikSettingsConfigurable : Configurable {
     override fun isModified(): Boolean {
         val s = settings.data()
         return modelPathField.text.trim() != s.modelPath ||
+            mmprojPathField.text.trim() != s.mmprojPath ||
             agentAutoApproveCheck.isSelected != s.agentAutoApprove ||
             agentAutoBuildCheck.isSelected != s.agentAutoBuild ||
             agentAutoFixCheck.isSelected != s.agentAutoFix ||
@@ -237,6 +262,7 @@ class LlamatikSettingsConfigurable : Configurable {
             if (err != null) throw com.intellij.openapi.options.ConfigurationException(err)
         }
         s.modelPath = path
+        s.mmprojPath = mmprojPathField.text.trim()
         s.agentAutoApprove = agentAutoApproveCheck.isSelected
         s.agentAutoBuild = agentAutoBuildCheck.isSelected
         s.agentAutoFix = agentAutoFixCheck.isSelected
@@ -254,6 +280,7 @@ class LlamatikSettingsConfigurable : Configurable {
     override fun reset() {
         val s = settings.data()
         modelPathField.text = s.modelPath
+        mmprojPathField.text = s.mmprojPath
         agentAutoApproveCheck.isSelected = s.agentAutoApprove
         agentAutoBuildCheck.isSelected = s.agentAutoBuild
         agentAutoFixCheck.isSelected = s.agentAutoFix
