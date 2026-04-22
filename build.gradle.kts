@@ -133,18 +133,26 @@ val obfuscate by tasks.registering(ProGuardTask::class) {
 // After Gradle assembles the zip, we rewrite it in-place: replace the unobfuscated
 // composedJar inside the archive with the ProGuard output.  This avoids fighting
 // Gradle's build cache (mutating composedJar's declared output breaks cache correctness).
+// Resolve composedJar archive name at configuration time (outside doLast) so no
+// Gradle script object reference is captured, satisfying the configuration cache.
+val composedJarArchiveName = tasks.named("composedJar", org.gradle.api.tasks.bundling.AbstractArchiveTask::class)
+    .flatMap { it.archiveFileName }
+
 tasks.named("buildPlugin") {
     dependsOn(obfuscate)
+    // Wire the composedJar archive name as an input so it is recorded in the cache entry.
+    val composedJarNameProvider = composedJarArchiveName
+    val obfuscatedJarProvider = proguardJar
+
     doLast {
-        val obfuscatedFile = proguardJar.get().asFile
+        val obfuscatedFile = obfuscatedJarProvider.get().asFile
         if (!obfuscatedFile.exists()) return@doLast
 
         val zipTask = this as org.gradle.api.tasks.bundling.Zip
         val zipFile = zipTask.archiveFile.get().asFile
         if (!zipFile.exists()) return@doLast
 
-        val composedJarName = (tasks.named("composedJar").get() as org.gradle.api.tasks.bundling.AbstractArchiveTask)
-            .archiveFileName.get()
+        val composedJarName = composedJarNameProvider.get()
         val entryName = "LlamatikCode/lib/$composedJarName"
 
         // Rewrite the zip in-place: replace the unobfuscated composedJar entry with the
