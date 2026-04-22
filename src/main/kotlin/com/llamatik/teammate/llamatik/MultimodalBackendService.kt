@@ -31,13 +31,15 @@ class MultimodalBackendService {
     fun isAvailable(): Boolean = nativeLoadError == null
 
     fun unload() {
-        executor.submit {
-            synchronized(this) {
-                if (loadedModelPath != null) {
-                    runCatching { MultimodalBridge.release() }
-                    loadedModelPath = null
-                    loadedMmprojPath = null
-                }
+        executor.submit { releaseSync() }
+    }
+
+    fun releaseSync() {
+        synchronized(this) {
+            if (loadedModelPath != null) {
+                runCatching { MultimodalBridge.release() }
+                loadedModelPath = null
+                loadedMmprojPath = null
             }
         }
     }
@@ -94,8 +96,12 @@ class MultimodalBackendService {
 
                 // Use the first attached image (multi-image support requires model capability)
                 val image = images.first()
-                val resizedBytes = resizeToMaxDimension(image.bytes, maxDim = 1120)
-                val normalizedBytes = AttachedImage.normalizeBytes(resizedBytes, image.mimeType)
+                val normalizedBytes = resizeAndEncodeJpeg(image.absolutePath, image.bytes, maxDim = 1120)
+                if (normalizedBytes.isEmpty()) {
+                    executor.submit { callbacks.onError("Failed to encode image for analysis. Ensure the file is a valid PNG, JPEG, or WebP.", null) }
+                    return@submit
+                }
+                logger.info("Multimodal: encoded image bytes=${normalizedBytes.size} for ${image.displayName}")
 
                 val fullPrompt = buildString {
                     if (systemPrompt.isNotBlank()) {
@@ -123,6 +129,7 @@ class MultimodalBackendService {
 
                     override fun onError(message: String) {
                         nativeFinished.set(true)
+                        resetModelState()
                         if (generationDone.compareAndSet(false, true) && !cancelled.get()) {
                             callbacks.onError(friendlyMultimodalError(message), null)
                         }
@@ -134,6 +141,7 @@ class MultimodalBackendService {
 
             } catch (t: Throwable) {
                 nativeFinished.set(true)
+                resetModelState()
                 if (!cancelled.get()) {
                     logger.warn("Multimodal generation failed", t)
                     callbacks.onError(friendlyMultimodalError(t.message ?: "Multimodal generation failed"), t)
@@ -177,9 +185,12 @@ class MultimodalBackendService {
     private fun friendlyMultimodalError(raw: String): String {
         val lower = raw.lowercase()
         return when {
+            lower.contains("bitmap_init_from_buf") || lower.contains("failed to decode image bytes") ->
+                "Failed to decode the attached image.\n" +
+                    "Ensure the file is a valid image (PNG, JPG, or WebP) and try again."
             lower.contains("outofmemory") || lower.contains("out of memory") ||
                 lower.contains("insufficient memory") || lower.contains("kIOGPUCommandBufferCallbackErrorOutOfMemory", ignoreCase = true) ||
-                lower.contains("mtmd_helper_eval_chunks failed") || lower.contains("failed to decode image") ->
+                lower.contains("mtmd_helper_eval_chunks failed") ->
                 "GPU out of memory during image analysis.\n" +
                     "The model is too large for the available unified memory once the image KV cache is added.\n" +
                     "Switch to a smaller multimodal model (Gemma 4 E4B Q8 or Gemma 4 26B Q4) to use image analysis on this machine."
@@ -187,28 +198,48 @@ class MultimodalBackendService {
         }
     }
 
-    private fun resizeToMaxDimension(bytes: ByteArray, maxDim: Int): ByteArray {
-        val src = runCatching { ImageIO.read(ByteArrayInputStream(bytes)) }.getOrNull() ?: return bytes
+    private fun resizeAndEncodeJpeg(absolutePath: String, bytes: ByteArray, maxDim: Int): ByteArray {
+        // Prefer reading from disk to avoid any in-memory encoding artifacts
+        val src = runCatching {
+            val f = java.io.File(absolutePath)
+            if (f.exists() && f.isFile) ImageIO.read(f) else null
+        }.getOrNull()
+            ?: runCatching { ImageIO.read(ByteArrayInputStream(bytes)) }.getOrNull()
+            ?: return ByteArray(0)
+
         val w = src.width
         val h = src.height
-        if (w <= maxDim && h <= maxDim) return bytes
-        val scale = maxDim.toDouble() / maxOf(w, h)
-        val nw = (w * scale).toInt().coerceAtLeast(1)
-        val nh = (h * scale).toInt().coerceAtLeast(1)
+        val (nw, nh) = if (w > maxDim || h > maxDim) {
+            val scale = maxDim.toDouble() / maxOf(w, h)
+            (w * scale).toInt().coerceAtLeast(1) to (h * scale).toInt().coerceAtLeast(1)
+        } else {
+            w to h
+        }
         val dst = BufferedImage(nw, nh, BufferedImage.TYPE_INT_RGB)
         val g = dst.createGraphics()
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR)
         g.drawImage(src, 0, 0, nw, nh, null)
         g.dispose()
         val out = ByteArrayOutputStream()
-        ImageIO.write(dst, "JPEG", out)
+        val written = ImageIO.write(dst, "JPEG", out)
+        if (!written) {
+            logger.warn("ImageIO.write returned false — no JPEG writer available")
+            return ByteArray(0)
+        }
         return out.toByteArray()
     }
+
+    private fun resetModelState() = releaseSync()
 
     private fun ensureModel(modelPath: String, mmprojPath: String) {
         if (loadedModelPath == modelPath && loadedMmprojPath == mmprojPath) return
         synchronized(this) {
             if (loadedModelPath == modelPath && loadedMmprojPath == mmprojPath) return
+            if (loadedModelPath != null) {
+                runCatching { MultimodalBridge.release() }
+                loadedModelPath = null
+                loadedMmprojPath = null
+            }
             val ok = MultimodalBridge.initModel(modelPath, mmprojPath)
             if (!ok) error("Failed to initialize multimodal model: $modelPath + $mmprojPath")
             loadedModelPath = modelPath
