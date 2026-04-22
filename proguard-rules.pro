@@ -80,7 +80,10 @@
 }
 
 # ── Swing / UI components ────────────────────────────────────────────────────
-# Preserve all members of anonymous JPanel/JButton subclasses used for custom painting.
+# Single * intentionally does not cross package separators — this avoids
+# triggering ProGuard's class hierarchy check for platform types absent from
+# libraryjars (JDK modules, IntelliJ platform).  Full-package classes are
+# covered by the keepclassmembers rules below.
 -keep class * extends javax.swing.JPanel { *; }
 -keep class * extends javax.swing.JComponent { *; }
 -keep class * extends javax.swing.JButton { *; }
@@ -89,6 +92,35 @@
 -keep class * extends com.intellij.ui.components.JBTextArea { *; }
 -keep class * extends com.intellij.ui.components.JBLabel { *; }
 -keep class * extends javax.swing.plaf.basic.BasicTabbedPaneUI { *; }
+
+# ── Abstract method implementations ─────────────────────────────────────────
+# These methods are called via interface/abstract dispatch, so ProGuard's
+# reachability analysis does not see the call and would shrink them away.
+# Using keepclassmembers with exact signatures is safe regardless of libraryjars
+# because it does NOT trigger a class-hierarchy traversal.
+#
+# DialogWrapper.createCenterPanel()
+-keepclassmembers class ** {
+    javax.swing.JComponent createCenterPanel();
+}
+# ActionListener.actionPerformed()
+-keepclassmembers class ** {
+    void actionPerformed(java.awt.event.ActionEvent);
+}
+# DropTargetListener (image drag-and-drop in ImageAttachmentBar)
+-keepclassmembers class ** {
+    void drop(java.awt.dnd.DropTargetDropEvent);
+    void dragEnter(java.awt.dnd.DropTargetDragEvent);
+    void dragOver(java.awt.dnd.DropTargetDragEvent);
+    void dropActionChanged(java.awt.dnd.DropTargetDragEvent);
+    void dragExit(java.awt.dnd.DropTargetEvent);
+}
+# DocumentListener (AtMentionHandler, search fields)
+-keepclassmembers class ** {
+    void insertUpdate(javax.swing.event.DocumentEvent);
+    void removeUpdate(javax.swing.event.DocumentEvent);
+    void changedUpdate(javax.swing.event.DocumentEvent);
+}
 
 # ── JetBrains Marketplace recommendations ────────────────────────────────────
 # https://plugins.jetbrains.com/docs/marketplace/obfuscate-the-plugin.html
@@ -108,9 +140,12 @@
 #    rely on shrinking + obfuscation + preverification for a safe result.
 -dontoptimize
 #
-# 3. Preverification: re-enabled per JetBrains recommendation.  ProGuard adds
-#    StackMapTable attributes required by the JVM verifier on Java 7+.
-# (removed -dontpreverify — preverify is now ON)
+# 3. Preverification: disabled because IntelliJ platform classes are not in
+#    libraryjars, so ProGuard cannot resolve the full class hierarchy required
+#    to generate correct StackMapTable attributes.  The JDK and IntelliJ runtime
+#    already have correct stack maps from the Kotlin compiler — re-preverifying
+#    without the full platform classpath produces "incomplete class hierarchy" errors.
+-dontpreverify
 
 # ── General safety ───────────────────────────────────────────────────────────
 # Suppress warnings — cross-class references within our own code are safe,

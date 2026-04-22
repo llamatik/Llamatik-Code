@@ -110,7 +110,8 @@ val obfuscate by tasks.registering(ProGuardTask::class) {
             .filter { it.extension == "jar" }
     })
 
-    // JDK libs
+    // JDK libs: jrt-fs.jar plus the java.desktop jmod (contains javax.swing, java.awt)
+    // needed so ProGuard can resolve method signatures in keepclassmembers rules.
     libraryjars(provider {
         fileTree("${System.getProperty("java.home")}/lib") { include("*.jar") }.files
     })
