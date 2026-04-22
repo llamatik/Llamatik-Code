@@ -627,6 +627,16 @@ class AgentOrchestrator(private val project: Project) {
             localOnly = settings.localOnly,
         )
 
+        val memErr = multimodalBackend.checkCombinedMemoryHeadroom(
+            vlmModelPath = settings.modelPath,
+            textModelPath = settings.modelPath,
+            textContextLength = settings.contextSize,
+        )
+        if (memErr != null) {
+            onError(memErr)
+            return compositeHandle
+        }
+
         // Token filter for pass 2: routes <think> to onThinkingToken, blocks edit/tool XML from UI
         val tokenBuffer = StringBuilder()
         val inThink = AtomicBoolean(false)
@@ -711,37 +721,39 @@ class AgentOrchestrator(private val project: Project) {
                     multimodalBackend.releaseSync()
 
                     // Pass 2: text backend applies the described changes and produces edit_proposal blocks.
-                    // All context goes into systemPrompt so Gemma's chat template (which drops
-                    // ChatRole.SYSTEM messages) still sees the vision description and instructions.
-                    val secondPassSystemPrompt = buildString {
-                        append(buildSecondPassSystemPrompt())
-                        appendLine()
-                        appendLine()
-                        appendLine("Vision analysis of the attached image:")
+                    // For Gemma the systemPrompt is injected into the first user turn, so the user turn
+                    // must be the actual task. We keep systemPrompt minimal (identity only) and put all
+                    // context — vision description, file contents, format instructions — in the user turn.
+                    val secondPassSystemPrompt = buildSecondPassSystemPrompt()
+
+                    val secondPassUserContent = buildString {
+                        appendLine("Image analysis result:")
                         appendLine(visionDescription.take(1200))
                         if (fileContext.isNotBlank()) {
                             appendLine()
-                            appendLine("=== Attached files ===")
+                            appendLine("=== File to modify ===")
                             append(fileContext.take(2400))
                             appendLine()
-                            appendLine("=== End attached files ===")
+                            appendLine("=== End file ===")
                         }
                         appendLine()
-                        appendLine("Apply the changes described above to the attached files.")
-                        appendLine("Emit ONE <edit_proposal> per changed file with the COMPLETE new content:")
-                        append("<edit_proposal path=\"rel/path/File.kt\" summary=\"desc\"><new_content><![CDATA[...]]></new_content></edit_proposal>")
+                        appendLine("Task: ${cleanInstruction.take(300)}")
+                        appendLine()
+                        appendLine("Apply the changes from the image analysis to the file above.")
+                        appendLine("Output ONE <edit_proposal> with the COMPLETE new file content:")
+                        append("<edit_proposal path=\"rel/path/File.kt\" summary=\"desc\"><new_content><![CDATA[...full content...]]></new_content></edit_proposal>")
                         if (languageHint != null) { appendLine(); append("Language: $languageHint") }
                     }.trim()
 
                     val secondPassMessages = listOf(
-                        ChatMessage(role = ChatRole.USER, content = cleanInstruction.take(400)),
+                        ChatMessage(role = ChatRole.USER, content = secondPassUserContent),
                     )
 
                     val secondHandle = backend.generate(
                         GenerationRequest(
                             systemPrompt = secondPassSystemPrompt,
                             messages = secondPassMessages,
-                            config = config.copy(contextLength = minOf(config.contextLength, 8192)),
+                            config = config,
                             noThink = true,
                         ),
                         object : GenerationCallbacks {
@@ -752,6 +764,15 @@ class AgentOrchestrator(private val project: Project) {
                             override fun onCompleted(fullText: String) {
                                 if (cancelled.get()) return
                                 val text = ToolCallParser.stripThinking(fullText)
+                                if (text.isBlank()) {
+                                    onError(
+                                        "Image analysis completed, but the model produced no output.\n" +
+                                            "This is usually caused by insufficient memory after loading the text model " +
+                                            "at Context Size ${config.contextLength}.\n" +
+                                            "Try reducing Context Size in Settings → Inference (e.g. 8192)."
+                                    )
+                                    return
+                                }
                                 val proposals = extractEditProposals(text)
                                 val answer = if (proposals.isNotEmpty() || text.contains("<edit_proposal", ignoreCase = true)) "" else ToolCallParser.cleanForDisplay(text)
                                 onFinished(

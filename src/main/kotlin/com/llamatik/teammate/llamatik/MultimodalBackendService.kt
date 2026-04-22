@@ -161,10 +161,54 @@ class MultimodalBackendService {
     }
 
     /**
-     * Returns an error string if the model file is too large for the available system RAM,
-     * leaving insufficient headroom for the VLM KV cache (~1.8 GB at n_ctx=8192).
-     * On Apple Silicon the GPU uses unified memory, so model size + KV cache competes with RAM.
+     * Returns an error string if the two-pass pipeline (VLM + text model) will not fit in
+     * available unified memory. Called before pass 1 starts so the user sees a clear message
+     * instead of a silent failure midway through generation.
+     *
+     * Memory model (Apple Silicon unified RAM):
+     *   - VLM file size                      ≈ on-disk bytes
+     *   - Text model file size               ≈ on-disk bytes
+     *   - VLM KV cache + compute (n_ctx 4096) ≈ 1.5 GB
+     *   - Text model KV cache (n_ctx 16384)  ≈ 1.8 GB per GQA head group, typically ~2.0 GB
+     *   - Compute buffers + OS overhead      ≈ 1.5 GB
+     * The VLM is released before the text model loads, so we check each separately against
+     * (systemRam - otherModelSize - overhead) rather than summing both at once.
      */
+    fun checkCombinedMemoryHeadroom(vlmModelPath: String, textModelPath: String, textContextLength: Int): String? {
+        val systemRamGb = runCatching {
+            val bean = java.lang.management.ManagementFactory.getOperatingSystemMXBean()
+            if (bean is com.sun.management.OperatingSystemMXBean) bean.totalMemorySize.toDouble() / (1024.0 * 1024 * 1024) else 0.0
+        }.getOrDefault(0.0)
+        if (systemRamGb <= 0.0) return null
+
+        val vlmSizeGb = runCatching { File(vlmModelPath).length().toDouble() / (1024.0 * 1024 * 1024) }.getOrDefault(0.0)
+        val textSizeGb = runCatching { File(textModelPath).length().toDouble() / (1024.0 * 1024 * 1024) }.getOrDefault(0.0)
+
+        // KV cache grows linearly with n_ctx; empirically ~0.125 GB per 1024 tokens for typical GQA models
+        val kvCacheGb = (textContextLength / 1024.0) * 0.125
+        // Fixed overhead: OS + JVM + compute buffers
+        val fixedOverheadGb = 1.5
+
+        // Pass 1: VLM needs vlmSize + 1.5 GB (KV + compute) headroom
+        val vlmNeededGb = vlmSizeGb + 1.5
+        if (vlmNeededGb > systemRamGb) {
+            return "Not enough memory for image analysis.\n" +
+                "VLM model: ${"%.1f".format(vlmSizeGb)} GB, System RAM: ${"%.1f".format(systemRamGb)} GB.\n" +
+                "Use a smaller multimodal model (e.g. Gemma 4 E4B Q8) on this machine."
+        }
+
+        // Pass 2: text model needs textSize + kvCache + fixed overhead
+        val textNeededGb = textSizeGb + kvCacheGb + fixedOverheadGb
+        if (textNeededGb > systemRamGb) {
+            return "Not enough memory to apply changes after image analysis.\n" +
+                "Text model: ${"%.1f".format(textSizeGb)} GB + KV cache for Context Size $textContextLength " +
+                "(~${"%.1f".format(kvCacheGb)} GB) exceeds System RAM ${"%.1f".format(systemRamGb)} GB.\n" +
+                "Reduce Context Size in Settings → Inference (e.g. 8192), or use a smaller text model."
+        }
+
+        return null
+    }
+
     private fun checkVramHeadroom(modelPath: String): String? {
         val modelFileSizeGb = runCatching { File(modelPath).length().toDouble() / (1024.0 * 1024 * 1024) }.getOrDefault(0.0)
         if (modelFileSizeGb <= 0.0) return null
