@@ -359,6 +359,9 @@ class LlamatikToolWindowPanel(
                         agentTabPanel.appendThinkingToken(token, genId)
                     }
                 },
+                onTokenCount = { count ->
+                    SwingUtilities.invokeLater { agentTabPanel.updateTokenCount(count) }
+                },
                 onFinished = { msg, proposals ->
                     ApplicationManager.getApplication().invokeLater {
                         if (genId != activeGenId) return@invokeLater

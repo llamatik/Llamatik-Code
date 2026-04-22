@@ -43,6 +43,7 @@ class AgentOrchestrator(private val project: Project) {
         onFinished: (ChatMessage, List<EditProposal>) -> Unit,
         onError: (String) -> Unit,
         images: List<AttachedImage> = emptyList(),
+        onTokenCount: ((Int) -> Unit)? = null,
     ): GenerationHandle {
         // Route to multimodal pipeline when images are attached
         if (images.isNotEmpty()) {
@@ -133,6 +134,9 @@ class AgentOrchestrator(private val project: Project) {
             }
         }
 
+        var rawTokenCount = 0
+        fun countToken() { onTokenCount?.invoke(++rawTokenCount) }
+
         val compositeHandle = object : GenerationHandle {
             override fun cancel() {
                 cancelled.set(true)
@@ -195,6 +199,7 @@ class AgentOrchestrator(private val project: Project) {
             GenerationRequest(systemPrompt = systemPrompt, messages = toolAugmentedMessages, config = config),
             object : GenerationCallbacks {
                 override fun onToken(token: String) {
+                    countToken()
                     if (!cancelled.get()) filteredToken(token)
                 }
 
@@ -261,8 +266,9 @@ class AgentOrchestrator(private val project: Project) {
                             noThink = true,
                         ),
                         object : GenerationCallbacks {
-                            // Don't stream tokens — edit proposals surface via onCompleted/onFinished.
-                            override fun onToken(token: String) {}
+                            // Don't stream tokens to the UI — edit proposals surface via onCompleted/onFinished.
+                            // Still count every raw token for the counter display.
+                            override fun onToken(token: String) { countToken() }
 
                             override fun onCompleted(fullText: String) {
                                 if (cancelled.get()) return

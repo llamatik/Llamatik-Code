@@ -95,7 +95,7 @@ class AgentTabPanel(
     private val approveButton = JButton(Strings.Agent.APPROVE)
     private val rejectButton = JButton(Strings.Agent.REJECT)
 
-    // ── Response card: elapsed timer ──────────────────────────────────────────
+    // ── Response card: elapsed timer + token counter ──────────────────────────
     private var genStartMs = 0L
     private val elapsedLabel = JBLabel("").apply {
         foreground = mutedText
@@ -104,6 +104,11 @@ class AgentTabPanel(
     private val elapsedTimer = Timer(500) {
         elapsedLabel.text = formatElapsed(System.currentTimeMillis() - genStartMs)
     }
+    private val tokenLabel = JBLabel("0 tokens").apply {
+        foreground = mutedText
+        font = font.deriveFont(Font.PLAIN, font.size2D - 1f)
+    }
+    private lateinit var timerRow: JPanel
 
     // ── Single conversation scroll area ───────────────────────────────────────
     // ONE JScrollPane containing ONE vertical BoxLayout panel.
@@ -655,6 +660,7 @@ class AgentTabPanel(
         elapsedTimer.stop()
         elapsedLabel.text = "0s"
         elapsedTimer.start()
+        tokenLabel.text = "0 tok"
 
         autoApproveItem.isSelected = isAutoApprove()
         autoBuildItem.isSelected = isAutoBuild()
@@ -700,6 +706,15 @@ class AgentTabPanel(
         }
         flushToArea(token, streamBuffer, responseTextArea)
         scrollToBottom()
+    }
+
+    fun updateTokenCount(count: Int) {
+        tokenLabel.text = formatTokenCount(count)
+    }
+
+    private fun formatTokenCount(count: Int): String = when {
+        count >= 1_000 -> "${count / 1_000}.${(count % 1_000) / 100}k tokens"
+        else -> "$count tokens"
     }
 
     fun addToolCall(name: String, arg: String) {
@@ -994,11 +1009,12 @@ class AgentTabPanel(
             add(clearButton); add(copyButton)
         }
 
-        // Spinner sits inline next to the elapsed timer in the top bar
-        val timerRow = JPanel(FlowLayout(FlowLayout.LEFT, 16, 16)).apply {
+        // Spinner sits inline next to the elapsed timer and token counter in the top bar
+        timerRow = JPanel(FlowLayout(FlowLayout.LEFT, 16, 16)).apply {
             isOpaque = false
             add(spinnerPanel)
             add(elapsedLabel)
+            add(tokenLabel)
         }
 
         val topBar = JPanel(BorderLayout(8, 0)).apply {
