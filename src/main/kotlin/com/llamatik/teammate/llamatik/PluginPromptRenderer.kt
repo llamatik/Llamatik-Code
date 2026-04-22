@@ -59,8 +59,10 @@ object PluginPromptRenderer {
                     append("\n<end_of_turn>\n")
                 }
                 ChatRole.ASSISTANT -> {
+                    val body = msg.content.trim()
+                    if (body.isBlank()) continue  // skip empty assistant turns — they confuse the model
                     append("<start_of_turn>model\n")
-                    append(msg.content.trim())
+                    append(body)
                     append("\n<end_of_turn>\n")
                 }
                 ChatRole.SYSTEM, ChatRole.TOOL -> {
@@ -96,9 +98,11 @@ object PluginPromptRenderer {
         val lastMessage = messages.lastOrNull()
 
         for (msg in history) {
+            val body = msg.content.trim()
+            if (msg.role == ChatRole.ASSISTANT && body.isBlank()) continue
             val role = msg.role.toQwenRole()
             append("<|im_start|>$role\n")
-            append(msg.content.trim())
+            append(body)
             append("\n<|im_end|>\n")
         }
 

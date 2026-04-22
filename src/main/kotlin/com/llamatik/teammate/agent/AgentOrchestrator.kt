@@ -67,8 +67,8 @@ class AgentOrchestrator(private val project: Project) {
         // Once a blocked tag prefix is detected, drop all subsequent tokens for that pass.
         // Reset via resetStreamState() before each new generation pass.
         val streamBlocked = AtomicBoolean(false)
-        val uiBlockedPrefixes = listOf("<tool_call", "<edit_proposal", "<Tool_call", "<TOOL_CALL")
-        val holdTags = listOf("<think>", "<edit_proposal", "<tool_call", "<Tool_call", "<TOOL_CALL")
+        val uiBlockedPrefixes = listOf("<tool_call", "<edit_proposal", "<Tool_call", "<TOOL_CALL", "<end_of_turn>", "<eos>")
+        val holdTags = listOf("<think>", "<edit_proposal", "<tool_call", "<Tool_call", "<TOOL_CALL", "<end_of_turn>", "<eos>")
         val maxHoldTagLen = holdTags.maxOf { it.length }
         fun resetStreamState() {
             tokenBuffer.clear()
@@ -165,10 +165,19 @@ class AgentOrchestrator(private val project: Project) {
         val recentMessages = fitMessagesInBudget(session.messages, historyBudgetChars)
 
         // messages list: no leading SYSTEM turn — the renderer takes systemPrompt separately.
+        // Context hint is merged into the user turn so Gemma's chat template (which drops
+        // ChatRole.SYSTEM messages) still sees it.
+        val userContent = buildString {
+            append(cleanInstruction.take(800))
+            if (contextHint.isNotBlank()) {
+                appendLine()
+                appendLine()
+                append(contextHint)
+            }
+        }
         val toolAugmentedMessages = mutableListOf<ChatMessage>()
         toolAugmentedMessages += recentMessages
-        toolAugmentedMessages += ChatMessage(role = ChatRole.USER, content = cleanInstruction.take(800))
-        toolAugmentedMessages += ChatMessage(role = ChatRole.SYSTEM, content = contextHint)
+        toolAugmentedMessages += ChatMessage(role = ChatRole.USER, content = userContent)
 
         val config = BackendConfig(
             modelIdOrPath = settings.modelPath.ifBlank { settings.modelIdentifier },
@@ -229,15 +238,18 @@ class AgentOrchestrator(private val project: Project) {
                         "[${msg.toolName}]:\n${msg.content.take(600)}"
                     }
                     val secondPassMessages = listOf(
-                        ChatMessage(role = ChatRole.USER, content = cleanInstruction.take(400)),
                         ChatMessage(
-                            role = ChatRole.SYSTEM,
-                            content = "Project: ${contextService.projectName()}\n" +
-                                "Tool results:\n${toolResultsSummary.take(2000)}\n\n" +
-                                "Write ONE <edit_proposal> per file changed. Full file content only:\n" +
-                                "<edit_proposal path=\"rel/path/File.kt\" summary=\"desc\">\n" +
-                                "<new_content><![CDATA[...full content...]]></new_content>\n" +
-                                "</edit_proposal>",
+                            role = ChatRole.USER,
+                            content = buildString {
+                                appendLine(cleanInstruction.take(400))
+                                appendLine()
+                                appendLine("Project: ${contextService.projectName()}")
+                                appendLine("Tool results:")
+                                appendLine(toolResultsSummary.take(2000))
+                                appendLine()
+                                appendLine("Write ONE <edit_proposal> per file changed. Full file content only:")
+                                append("<edit_proposal path=\"rel/path/File.kt\" summary=\"desc\"><new_content><![CDATA[...full content...]]></new_content></edit_proposal>")
+                            },
                         ),
                     )
 
@@ -249,9 +261,8 @@ class AgentOrchestrator(private val project: Project) {
                             noThink = true,
                         ),
                         object : GenerationCallbacks {
-                            override fun onToken(token: String) {
-                                if (!cancelled.get()) filteredToken(token)
-                            }
+                            // Don't stream tokens — edit proposals surface via onCompleted/onFinished.
+                            override fun onToken(token: String) {}
 
                             override fun onCompleted(fullText: String) {
                                 if (cancelled.get()) return
@@ -641,8 +652,8 @@ class AgentOrchestrator(private val project: Project) {
         val tokenBuffer = StringBuilder()
         val inThink = AtomicBoolean(false)
         val streamBlocked = AtomicBoolean(false)
-        val uiBlockedPrefixes = listOf("<tool_call", "<edit_proposal", "<Tool_call", "<TOOL_CALL")
-        val holdTags = listOf("<think>", "<edit_proposal", "<tool_call", "<Tool_call", "<TOOL_CALL")
+        val uiBlockedPrefixes = listOf("<tool_call", "<edit_proposal", "<Tool_call", "<TOOL_CALL", "<end_of_turn>", "<eos>")
+        val holdTags = listOf("<think>", "<edit_proposal", "<tool_call", "<Tool_call", "<TOOL_CALL", "<end_of_turn>", "<eos>")
         val maxHoldTagLen = holdTags.maxOf { it.length }
         fun flushAnswerBuffer(buf: String) {
             if (buf.isEmpty()) return
@@ -757,9 +768,8 @@ class AgentOrchestrator(private val project: Project) {
                             noThink = true,
                         ),
                         object : GenerationCallbacks {
-                            override fun onToken(token: String) {
-                                if (!cancelled.get()) filteredToken(token)
-                            }
+                            // Don't stream tokens — edit proposals surface via onCompleted/onFinished.
+                            override fun onToken(token: String) {}
 
                             override fun onCompleted(fullText: String) {
                                 if (cancelled.get()) return
