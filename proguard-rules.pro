@@ -121,6 +121,10 @@
     void removeUpdate(javax.swing.event.DocumentEvent);
     void changedUpdate(javax.swing.event.DocumentEvent);
 }
+# DocumentAdapter (IntelliJ platform convenience class used in SkillLibraryDialog)
+-keepclassmembers class ** {
+    void textChanged(javax.swing.event.DocumentEvent);
+}
 
 # ── JetBrains Marketplace recommendations ────────────────────────────────────
 # https://plugins.jetbrains.com/docs/marketplace/obfuscate-the-plugin.html
