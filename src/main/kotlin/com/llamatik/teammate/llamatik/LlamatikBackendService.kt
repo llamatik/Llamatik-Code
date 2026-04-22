@@ -33,6 +33,17 @@ class LlamatikBackendService : AssistantBackend {
 
     override fun isModelLoaded(): Boolean = nativeLoadError == null && initializedModel != null
 
+    fun unload() {
+        executor.submit {
+            synchronized(modelLock) {
+                if (initializedModel != null) {
+                    runCatching { com.llamatik.library.platform.LlamaBridge.shutdown() }
+                    initializedModel = null
+                }
+            }
+        }
+    }
+
     override fun selectedModelLabel(): String = when {
         nativeLoadError != null -> "Native lib unavailable"
         else -> initializedModel?.let(::displayModelLabel) ?: "No model loaded"

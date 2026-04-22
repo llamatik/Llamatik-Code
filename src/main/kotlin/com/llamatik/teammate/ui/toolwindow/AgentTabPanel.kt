@@ -730,7 +730,7 @@ class AgentTabPanel(
             conversationPanel.revalidate()
         }
 
-        if (responseTextArea.text.isBlank() && text.isNotBlank()) {
+        if (text.isNotBlank()) {
             responseTextArea.text = text
             responseTextArea.caretPosition = 0
         }

@@ -227,7 +227,7 @@ class ModelCardPanel(
                 panel.add(JButton(Strings.ModelCard.ACTION_UNLOAD).apply {
                     addActionListener {
                         onActionRequested(ModelCardAction.UNLOAD, descriptor)
-                        Messages.showInfoMessage(project, Strings.ModelCard.COMING_SOON, Strings.App.NAME)
+                        unloadModel()
                     }
                 })
             }
@@ -246,6 +246,18 @@ class ModelCardPanel(
         settings.data().modelPath = localPath
         downloadedModelService.registerLocalModel(localPath)
 
+        // For VLMs, resolve the mmproj path and activate it alongside the model.
+        val mmprojUrl = descriptor.mmprojDownloadUrl
+        if (mmprojUrl != null) {
+            val mmprojFileName = mmprojUrl.substringAfterLast('/').substringBefore('?')
+                .takeIf { it.endsWith(".gguf") } ?: "${descriptor.id}-mmproj.gguf"
+            val mmprojLocalPath = settings.storageDir().resolve(mmprojFileName).toAbsolutePath().toString()
+            if (java.nio.file.Files.exists(java.nio.file.Path.of(mmprojLocalPath))) {
+                settings.data().mmprojPath = mmprojLocalPath
+                downloadedModelService.registerLocalMmproj(mmprojLocalPath)
+            }
+        }
+
         // Refresh all open tool windows — same as LlamatikSettingsConfigurable.apply()
         ProjectManager.getInstance().openProjects.forEach { p ->
             val tw = ToolWindowManager.getInstance(p).getToolWindow("Llamatik Code")
@@ -260,6 +272,26 @@ class ModelCardPanel(
             "\"${descriptor.displayName}\" is now the active model.",
             "Model Loaded",
         )
+    }
+
+    // ── Unload ────────────────────────────────────────────────────────────────
+
+    private fun unloadModel() {
+        service<com.llamatik.teammate.llamatik.LlamatikBackendService>().unload()
+        if (descriptor.mmprojDownloadUrl != null) {
+            service<com.llamatik.teammate.llamatik.MultimodalBackendService>().unload()
+            settings.data().mmprojPath = ""
+        }
+        settings.data().modelPath = ""
+
+        ProjectManager.getInstance().openProjects.forEach { p ->
+            val tw = ToolWindowManager.getInstance(p).getToolWindow("Llamatik Code")
+            val panel = tw?.contentManager?.getContent(0)?.component as? LlamatikToolWindowPanel
+            panel?.refreshState()
+        }
+
+        updateStatusBadge(ModelStatus.DOWNLOADED)
+        refreshActionsPanel()
     }
 
     // ── Delete ────────────────────────────────────────────────────────────────

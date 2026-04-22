@@ -194,7 +194,9 @@ class ModelDownloadManager {
         )
         progressMap[modelId] = done
         notifyListeners(modelId, done)
-        service<com.llamatik.teammate.settings.DownloadedModelService>().registerLocalModel(localPath)
+        val svc = service<com.llamatik.teammate.settings.DownloadedModelService>()
+        if (modelId.endsWith(":mmproj")) svc.registerLocalMmproj(localPath)
+        else svc.registerLocalModel(localPath)
     }
 
     /**

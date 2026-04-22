@@ -44,16 +44,18 @@ class LlamatikSettingsConfigurable : Configurable {
     private val skillService = service<SkillService>()
 
     private val onModelRegistered: () -> Unit = {
-        com.intellij.openapi.application.ApplicationManager.getApplication()
-            .invokeLater { reloadDownloadedModels() }
+        ApplicationManager.getApplication().invokeLater {
+            reloadModelsList()
+            reloadMmprojsList()
+        }
     }
 
     private val activeSkillsCountLabel = JBLabel("")
 
-    // Model path
+    // Active model path
     private val modelPathField = JBTextField()
 
-    // Multimodal projector path
+    // Active mmproj path
     private val mmprojPathField = JBTextField()
 
     // Behaviour
@@ -65,15 +67,25 @@ class LlamatikSettingsConfigurable : Configurable {
     private val ignoredDirectoriesArea = JBTextArea(3, 40)
     private val projectRulesArea = JBTextArea(4, 40)
 
-    // Registered models list
-    private val downloadedListModel = DefaultListModel<String>()
-    private val downloadedList = JBList(downloadedListModel)
+    // Wrapper that stores the raw path but displays "filename  (parent dir)"
+    private data class ModelEntry(val path: String) {
+        val fileName: String = Path.of(path).fileName?.toString() ?: path
+        val parentDir: String = Path.of(path).parent?.toString() ?: ""
+        override fun toString() = "$fileName  ($parentDir)"
+    }
+
+    // Separate lists for models and mmprojs
+    private val modelsListModel = DefaultListModel<ModelEntry>()
+    private val modelsList = JBList(modelsListModel)
+    private val mmprojsListModel = DefaultListModel<ModelEntry>()
+    private val mprojsList = JBList(mmprojsListModel)
 
     override fun getDisplayName(): String = Strings.Settings.PAGE_NAME
 
     override fun createComponent(): JComponent {
         downloadedModelService.addOnRegisteredListener(onModelRegistered)
 
+        // ── Model section ─────────────────────────────────────────────────────
         val browseModelButton = JButton(Strings.Settings.BROWSE).apply {
             addActionListener {
                 val chooser = JFileChooser().apply {
@@ -87,7 +99,7 @@ class LlamatikSettingsConfigurable : Configurable {
             }
         }
 
-        val registerLocalButton = JButton(Strings.Settings.REGISTER).apply {
+        val registerModelButton = JButton(Strings.Settings.REGISTER).apply {
             toolTipText = Strings.Settings.REGISTER_TOOLTIP
             addActionListener {
                 val path = modelPathField.text.trim()
@@ -101,39 +113,39 @@ class LlamatikSettingsConfigurable : Configurable {
                     return@addActionListener
                 }
                 downloadedModelService.registerLocalModel(path)
-                reloadDownloadedModels()
+                reloadModelsList()
                 Messages.showInfoMessage(Strings.Settings.SUCCESS_REGISTERED_MSG, Strings.App.NAME)
             }
         }
 
-        val useSelectedButton = JButton(Strings.Settings.USE_SELECTED).apply {
+        val useSelectedModelButton = JButton(Strings.Settings.USE_SELECTED).apply {
             toolTipText = Strings.Settings.USE_SELECTED_TOOLTIP
             addActionListener {
-                val selected = downloadedList.selectedValue
+                val selected = modelsList.selectedValue
                 if (selected == null) {
                     Messages.showInfoMessage(Strings.Settings.ERROR_NO_SELECTION_MSG, Strings.Settings.ERROR_NO_SELECTION_TITLE)
                     return@addActionListener
                 }
-                modelPathField.text = selected
+                modelPathField.text = selected.path
             }
         }
 
-        val deleteSelectedButton = JButton(Strings.Settings.DELETE_SELECTED).apply {
+        val deleteSelectedModelButton = JButton(Strings.Settings.DELETE_SELECTED).apply {
             toolTipText = Strings.Settings.DELETE_SELECTED_TOOLTIP
             addActionListener {
-                val selected = downloadedList.selectedValue
+                val selected = modelsList.selectedValue
                 if (selected == null) {
                     Messages.showInfoMessage(Strings.Settings.ERROR_NO_SELECTION_MSG, Strings.Settings.ERROR_NO_SELECTION_TITLE)
                     return@addActionListener
                 }
                 val confirm = Messages.showYesNoDialog(
-                    Strings.Settings.confirmDeleteMsg(selected),
+                    Strings.Settings.confirmDeleteMsg(selected.fileName),
                     Strings.Settings.CONFIRM_DELETE_TITLE,
                     null,
                 )
                 if (confirm == Messages.YES) {
-                    downloadedModelService.deleteModel(selected)
-                    reloadDownloadedModels()
+                    downloadedModelService.deleteModel(selected.path)
+                    reloadModelsList()
                 }
             }
         }
@@ -144,58 +156,39 @@ class LlamatikSettingsConfigurable : Configurable {
             val onRequestUpgrade: () -> Unit = {
                 catalogDialog?.close(DialogWrapper.CANCEL_EXIT_CODE)
                 val settingsWindow = javax.swing.SwingUtilities.getWindowAncestor(openModelLibraryButton)
-                // ModalityState.any() so this fires while the settings modal is still alive
                 ApplicationManager.getApplication().invokeLater({
                     settingsWindow?.dispose()
-                    // nonModal() so this fires only after settings is fully gone
                     ApplicationManager.getApplication().invokeLater({
                         service<TrialService>().requestLicense(Strings.ModelCard.TIER_3_PAYWALL_TITLE)
                     }, ModalityState.nonModal())
                 }, ModalityState.any())
             }
             catalogDialog = object : DialogWrapper(null, true) {
-                init {
-                    title = Strings.Settings.MODEL_LIBRARY_TITLE
-                    init()
-                }
+                init { title = Strings.Settings.MODEL_LIBRARY_TITLE; init() }
                 override fun createCenterPanel(): JComponent =
-                    ModelLibraryPanel(null, onRequestUpgrade).apply {
-                        preferredSize = Dimension(860, 640)
-                    }
+                    ModelLibraryPanel(null, onRequestUpgrade).apply { preferredSize = Dimension(860, 640) }
                 override fun createActions() = arrayOf(okAction)
             }
             catalogDialog.show()
-        }
-
-        val openSkillLibraryButton = JButton(Strings.Skills.OPEN_LIBRARY).apply {
-            addActionListener {
-                SkillLibraryDialog(skillService, onChanged = { reloadActiveSkills() }).show()
-            }
-        }
-
-        val resetOnboardingButton = JButton(Strings.Settings.RESET_ONBOARDING).apply {
-            toolTipText = Strings.Settings.RESET_ONBOARDING_TOOLTIP
-            addActionListener {
-                settings.data().onboardingCompleted = false
-                Messages.showInfoMessage(
-                    Strings.Settings.ONBOARDING_RESET_MSG,
-                    Strings.Settings.ONBOARDING_RESET_TITLE,
-                )
-            }
-        }
-
-        val aboutButton = JButton(Strings.About.BUTTON).apply {
-            addActionListener { showAboutDialog() }
         }
 
         val modelPathPanel = JPanel(BorderLayout(6, 0)).apply {
             add(modelPathField, BorderLayout.CENTER)
             add(JPanel().apply {
                 add(browseModelButton)
-                add(registerLocalButton)
+                add(registerModelButton)
             }, BorderLayout.EAST)
         }
 
+        val registeredModelsPanel = JPanel(BorderLayout(0, 4)).apply {
+            add(JBScrollPane(modelsList).apply { preferredSize = Dimension(300, 90) }, BorderLayout.CENTER)
+            add(JPanel().apply {
+                add(useSelectedModelButton)
+                add(deleteSelectedModelButton)
+            }, BorderLayout.SOUTH)
+        }
+
+        // ── Mmproj section ────────────────────────────────────────────────────
         val browseMmprojButton = JButton(Strings.Settings.BROWSE).apply {
             addActionListener {
                 val chooser = JFileChooser().apply {
@@ -209,21 +202,94 @@ class LlamatikSettingsConfigurable : Configurable {
             }
         }
 
+        val registerMmprojButton = JButton(Strings.Settings.REGISTER).apply {
+            toolTipText = Strings.Settings.REGISTER_MMPROJ_TOOLTIP
+            addActionListener {
+                val path = mmprojPathField.text.trim()
+                if (path.isBlank()) {
+                    Messages.showErrorDialog(Strings.Settings.ERROR_NO_PATH_MSG, Strings.Settings.ERROR_NO_PATH_TITLE)
+                    return@addActionListener
+                }
+                val err = validateLocalModelPath(path)
+                if (err != null) {
+                    Messages.showErrorDialog(err, Strings.Settings.ERROR_INVALID_PATH_TITLE)
+                    return@addActionListener
+                }
+                downloadedModelService.registerLocalMmproj(path)
+                reloadMmprojsList()
+                Messages.showInfoMessage(Strings.Settings.SUCCESS_REGISTERED_MMPROJ_MSG, Strings.App.NAME)
+            }
+        }
+
+        val useSelectedMmprojButton = JButton(Strings.Settings.USE_SELECTED).apply {
+            toolTipText = Strings.Settings.USE_SELECTED_MMPROJ_TOOLTIP
+            addActionListener {
+                val selected = mprojsList.selectedValue
+                if (selected == null) {
+                    Messages.showInfoMessage(Strings.Settings.ERROR_NO_SELECTION_MSG, Strings.Settings.ERROR_NO_SELECTION_TITLE)
+                    return@addActionListener
+                }
+                mmprojPathField.text = selected.path
+            }
+        }
+
+        val deleteSelectedMmprojButton = JButton(Strings.Settings.DELETE_SELECTED).apply {
+            toolTipText = Strings.Settings.DELETE_SELECTED_TOOLTIP
+            addActionListener {
+                val selected = mprojsList.selectedValue
+                if (selected == null) {
+                    Messages.showInfoMessage(Strings.Settings.ERROR_NO_SELECTION_MSG, Strings.Settings.ERROR_NO_SELECTION_TITLE)
+                    return@addActionListener
+                }
+                val confirm = Messages.showYesNoDialog(
+                    Strings.Settings.confirmDeleteMsg(selected.fileName),
+                    Strings.Settings.CONFIRM_DELETE_TITLE,
+                    null,
+                )
+                if (confirm == Messages.YES) {
+                    downloadedModelService.deleteMmproj(selected.path)
+                    reloadMmprojsList()
+                }
+            }
+        }
+
         val mmprojPathPanel = JPanel(BorderLayout(6, 0)).apply {
             add(mmprojPathField, BorderLayout.CENTER)
-            add(browseMmprojButton, BorderLayout.EAST)
+            add(JPanel().apply {
+                add(browseMmprojButton)
+                add(registerMmprojButton)
+            }, BorderLayout.EAST)
         }
 
-        val listButtonsPanel = JPanel().apply {
-            add(useSelectedButton)
-            add(deleteSelectedButton)
-        }
-        val registeredModelsPanel = JPanel(BorderLayout(0, 4)).apply {
-            add(JBScrollPane(downloadedList).apply { preferredSize = Dimension(300, 90) }, BorderLayout.CENTER)
-            add(listButtonsPanel, BorderLayout.SOUTH)
+        val registeredMmprojsPanel = JPanel(BorderLayout(0, 4)).apply {
+            add(JBScrollPane(mprojsList).apply { preferredSize = Dimension(300, 90) }, BorderLayout.CENTER)
+            add(JPanel().apply {
+                add(useSelectedMmprojButton)
+                add(deleteSelectedMmprojButton)
+            }, BorderLayout.SOUTH)
         }
 
-        reloadDownloadedModels()
+        // ── Other ─────────────────────────────────────────────────────────────
+        val openSkillLibraryButton = JButton(Strings.Skills.OPEN_LIBRARY).apply {
+            addActionListener {
+                SkillLibraryDialog(skillService, onChanged = { reloadActiveSkills() }).show()
+            }
+        }
+
+        val resetOnboardingButton = JButton(Strings.Settings.RESET_ONBOARDING).apply {
+            toolTipText = Strings.Settings.RESET_ONBOARDING_TOOLTIP
+            addActionListener {
+                settings.data().onboardingCompleted = false
+                Messages.showInfoMessage(Strings.Settings.ONBOARDING_RESET_MSG, Strings.Settings.ONBOARDING_RESET_TITLE)
+            }
+        }
+
+        val aboutButton = JButton(Strings.About.BUTTON).apply {
+            addActionListener { showAboutDialog() }
+        }
+
+        reloadModelsList()
+        reloadMmprojsList()
         reloadActiveSkills()
 
         val licensed = runCatching { LicenseChecker.isLicensed() == true }.getOrElse { false }
@@ -234,14 +300,15 @@ class LlamatikSettingsConfigurable : Configurable {
         }
 
         return FormBuilder.createFormBuilder()
+            .addComponent(openModelLibraryButton)
             .addSeparator()
             .addLabeledComponent(JBLabel(Strings.Settings.SECTION_ACTIVE_MODEL), modelPathPanel)
             .addTooltip(Strings.Settings.MODEL_PATH_TOOLTIP)
-            .addLabeledComponent(JBLabel(Strings.Multimodal.MMPROJ_PATH_LABEL), mmprojPathPanel)
-            .addTooltip(Strings.Multimodal.MMPROJ_PATH_TOOLTIP)
-            .addSeparator()
             .addLabeledComponent(JBLabel(Strings.Settings.SECTION_REGISTERED_MODELS), registeredModelsPanel)
-            .addComponent(openModelLibraryButton)
+            .addSeparator()
+            .addLabeledComponent(JBLabel(Strings.Settings.SECTION_ACTIVE_MMPROJ), mmprojPathPanel)
+            .addTooltip(Strings.Multimodal.MMPROJ_PATH_TOOLTIP)
+            .addLabeledComponent(JBLabel(Strings.Settings.SECTION_REGISTERED_MMPROJS), registeredMmprojsPanel)
             .addSeparator()
             .addLabeledComponent(JBLabel(Strings.Settings.SECTION_BEHAVIOUR), buildRunOptionsPaywallLabel())
             .addComponent(agentAutoApproveCheck)
@@ -309,13 +376,19 @@ class LlamatikSettingsConfigurable : Configurable {
         agentAutoFixCheck.isSelected = s.agentAutoFix
         ignoredDirectoriesArea.text = s.ignoredDirectories
         projectRulesArea.text = s.projectRules
-        reloadDownloadedModels()
+        reloadModelsList()
+        reloadMmprojsList()
         reloadActiveSkills()
     }
 
-    private fun reloadDownloadedModels() {
-        downloadedListModel.removeAllElements()
-        downloadedModelService.listDownloaded().forEach(downloadedListModel::addElement)
+    private fun reloadModelsList() {
+        modelsListModel.removeAllElements()
+        downloadedModelService.listDownloaded().forEach { modelsListModel.addElement(ModelEntry(it)) }
+    }
+
+    private fun reloadMmprojsList() {
+        mmprojsListModel.removeAllElements()
+        downloadedModelService.listDownloadedMmprojs().forEach { mmprojsListModel.addElement(ModelEntry(it)) }
     }
 
     private fun reloadActiveSkills() {

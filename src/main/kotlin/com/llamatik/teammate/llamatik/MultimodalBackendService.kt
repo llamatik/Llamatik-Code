@@ -30,6 +30,18 @@ class MultimodalBackendService {
 
     fun isAvailable(): Boolean = nativeLoadError == null
 
+    fun unload() {
+        executor.submit {
+            synchronized(this) {
+                if (loadedModelPath != null) {
+                    runCatching { MultimodalBridge.release() }
+                    loadedModelPath = null
+                    loadedMmprojPath = null
+                }
+            }
+        }
+    }
+
     /**
      * Returns true if a multimodal model + mmproj are configured in settings.
      */

@@ -72,6 +72,42 @@ class DownloadedModelService {
         }
     }
 
+    fun listDownloadedMmprojs(): List<String> {
+        val settings = service<LlamatikAppSettings>()
+        val storageDir = settings.storageDir()
+        val all = settings.data().downloadedMmprojs.toList()
+        val resolved = all.mapNotNull { path ->
+            val p = runCatching { Path.of(path) }.getOrNull() ?: return@mapNotNull null
+            when {
+                Files.exists(p) && Files.isRegularFile(p) -> p.toAbsolutePath().normalize().toString()
+                else -> {
+                    val fileName = p.fileName?.toString() ?: return@mapNotNull null
+                    val candidate = storageDir.resolve(fileName).toAbsolutePath().normalize()
+                    if (Files.exists(candidate) && Files.isRegularFile(candidate)) candidate.toString()
+                    else null
+                }
+            }
+        }.distinct()
+        if (resolved != all) {
+            settings.data().downloadedMmprojs.apply { clear(); addAll(resolved) }
+        }
+        return resolved
+    }
+
+    fun registerLocalMmproj(path: String) {
+        val normalized = normalizeLocalModelPath(path) ?: return
+        val settings = service<LlamatikAppSettings>()
+        if (normalized !in settings.data().downloadedMmprojs) {
+            settings.data().downloadedMmprojs.add(normalized)
+        }
+        notifyRegistered()
+    }
+
+    fun deleteMmproj(path: String) {
+        val settings = service<LlamatikAppSettings>()
+        settings.data().downloadedMmprojs.remove(path)
+    }
+
     fun deleteAll() {
         listDownloaded().forEach { deleteModel(it) }
     }
