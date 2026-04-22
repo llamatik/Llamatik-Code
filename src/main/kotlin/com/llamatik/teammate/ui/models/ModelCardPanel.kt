@@ -84,7 +84,10 @@ class ModelCardPanel(
             isOpaque = false
         }
 
-        val titleRow = JPanel(FlowLayout(FlowLayout.LEFT, 6, 0)).apply { isOpaque = false }
+        val titleRow = JPanel(FlowLayout(FlowLayout.LEFT, 4, 0)).apply {
+            isOpaque = false
+            alignmentX = LEFT_ALIGNMENT
+        }
         titleRow.add(JBLabel("<html><b>${descriptor.displayName}</b> <i>(${descriptor.quantization})</i></html>").apply {
             font = font.deriveFont(Font.BOLD)
         })
@@ -94,16 +97,16 @@ class ModelCardPanel(
         })
         topPanel.add(titleRow)
 
-        val metaRow = JPanel(FlowLayout(FlowLayout.LEFT, 6, 0)).apply { isOpaque = false }
-        metaRow.add(JBLabel(
+        val metaLabel = JBLabel(
             "<html>${specializationText(descriptor.specialization)} &nbsp;•&nbsp; ${catalogStatusText(descriptor.catalogStatus)}" +
                     (descriptor.recommendedFileName?.let { " &nbsp;•&nbsp; $it" } ?: "") +
                     "</html>",
         ).apply {
             foreground = JBColor.GRAY
             font = font.deriveFont(font.size2D - 1f)
-        })
-        topPanel.add(metaRow)
+            alignmentX = LEFT_ALIGNMENT
+        }
+        topPanel.add(metaLabel)
 
         val detailsLabel = JBLabel(
             "<html>" +

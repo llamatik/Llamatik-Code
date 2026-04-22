@@ -44,7 +44,7 @@ object BuiltInModelCatalog {
             id = "gemma-4-e2b-it",
             displayName = "Gemma 4 E2B it",
             quantization = "bf16",
-            diskSizeGb = 3.4,
+            diskSizeGb = 8.8,
             minRamGb = 4.0,
             recommendedRamGb = 8.0,
             tier = ModelTier.TIER_1,
