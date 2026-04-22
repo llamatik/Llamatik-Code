@@ -94,16 +94,16 @@ class ModelCardPanel(
         })
         topPanel.add(titleRow)
 
-        val metaLabel = JBLabel(
+        val metaRow = JPanel(FlowLayout(FlowLayout.LEFT, 6, 0)).apply { isOpaque = false }
+        metaRow.add(JBLabel(
             "<html>${specializationText(descriptor.specialization)} &nbsp;•&nbsp; ${catalogStatusText(descriptor.catalogStatus)}" +
                     (descriptor.recommendedFileName?.let { " &nbsp;•&nbsp; $it" } ?: "") +
                     "</html>",
         ).apply {
             foreground = JBColor.GRAY
             font = font.deriveFont(font.size2D - 1f)
-            alignmentX = LEFT_ALIGNMENT
-        }
-        topPanel.add(metaLabel)
+        })
+        topPanel.add(metaRow)
 
         val detailsLabel = JBLabel(
             "<html>" +
