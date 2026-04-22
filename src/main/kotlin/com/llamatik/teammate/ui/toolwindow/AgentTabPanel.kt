@@ -660,7 +660,7 @@ class AgentTabPanel(
         elapsedTimer.stop()
         elapsedLabel.text = "0s"
         elapsedTimer.start()
-        tokenLabel.text = "0 tok"
+        tokenLabel.text = "0 tokens"
 
         autoApproveItem.isSelected = isAutoApprove()
         autoBuildItem.isSelected = isAutoBuild()

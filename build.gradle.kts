@@ -40,7 +40,7 @@ dependencies {
 intellijPlatform {
     pluginConfiguration {
         ideaVersion {
-            sinceBuild = "261"
+            sinceBuild = "252"
         }
         changeNotes = """
             Initial local-first MVP for Llamatik Code.
