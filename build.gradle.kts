@@ -130,16 +130,45 @@ val obfuscate by tasks.registering(ProGuardTask::class) {
 }
 
 // Obfuscation only runs for buildPlugin (distribution), NOT for runIde (development).
-// Hooking into prepareSandbox would obfuscate every runIde cycle and breaks
-// virtual-dispatch for anonymous Swing/IntelliJ subclasses during development.
+// After Gradle assembles the zip, we rewrite it in-place: replace the unobfuscated
+// composedJar inside the archive with the ProGuard output.  This avoids fighting
+// Gradle's build cache (mutating composedJar's declared output breaks cache correctness).
 tasks.named("buildPlugin") {
     dependsOn(obfuscate)
-    doFirst {
+    doLast {
         val obfuscatedFile = proguardJar.get().asFile
-        val originalJar = (tasks.named("composedJar").get() as org.gradle.api.tasks.bundling.AbstractArchiveTask)
-            .archiveFile.get().asFile
-        if (obfuscatedFile.exists()) {
-            obfuscatedFile.copyTo(originalJar, overwrite = true)
-        }
+        if (!obfuscatedFile.exists()) return@doLast
+
+        val zipTask = this as org.gradle.api.tasks.bundling.Zip
+        val zipFile = zipTask.archiveFile.get().asFile
+        if (!zipFile.exists()) return@doLast
+
+        val composedJarName = (tasks.named("composedJar").get() as org.gradle.api.tasks.bundling.AbstractArchiveTask)
+            .archiveFileName.get()
+        val entryName = "LlamatikCode/lib/$composedJarName"
+
+        // Rewrite the zip in-place: replace the unobfuscated composedJar entry with the
+        // ProGuard output. Uses python3 (always available on macOS) to avoid JDK zip API
+        // classloader issues inside the Gradle Kotlin DSL doLast action.
+        val pyScript = """
+import zipfile, os, sys
+src = sys.argv[1]; entry = sys.argv[2]; replacement = sys.argv[3]
+tmp = src + '.obftmp'
+with zipfile.ZipFile(src, 'r') as zin, zipfile.ZipFile(tmp, 'w', zipfile.ZIP_DEFLATED) as zout:
+    for item in zin.infolist():
+        if item.filename == entry:
+            zout.write(replacement, item.filename)
+        else:
+            zout.writestr(item, zin.read(item.filename))
+os.replace(tmp, src)
+print('Replaced', entry, 'with obfuscated jar')
+""".trimIndent()
+        val proc = ProcessBuilder("python3", "-c", pyScript, zipFile.absolutePath, entryName, obfuscatedFile.absolutePath)
+            .redirectErrorStream(true)
+            .start()
+        val output = proc.inputStream.bufferedReader().readText()
+        val exitCode = proc.waitFor()
+        if (exitCode != 0) error("python3 zip rewrite failed (exit $exitCode):\n$output")
+        logger.lifecycle("Obfuscated jar injected into ${zipFile.name}")
     }
 }
