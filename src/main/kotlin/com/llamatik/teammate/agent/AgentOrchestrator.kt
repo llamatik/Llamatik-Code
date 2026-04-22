@@ -509,8 +509,9 @@ class AgentOrchestrator(private val project: Project) {
             }
         }
 
-        val recentMessages = fitMessagesInBudget(session.messages, 1200) +
-            ChatMessage(role = ChatRole.USER, content = cleanInstruction.take(800))
+        // session.messages already contains the current user message (added by the caller before
+        // invoking chat()), so we must not append it again here.
+        val recentMessages = fitMessagesInBudget(session.messages, 1200)
 
         val config = BackendConfig(
             modelIdOrPath = settings.modelPath.ifBlank { settings.modelIdentifier },
@@ -539,7 +540,7 @@ class AgentOrchestrator(private val project: Project) {
                         tokenBuffer.append(buf.substring(openIdx + "<think>".length))
                         continue
                     }
-                    val holdTags = listOf("<think>")
+                    val holdTags = listOf("<think>", "<end_of_turn>", "<eos>")
                     val maxHoldTagLen = holdTags.maxOf { it.length }
                     val holdLen = (1..minOf(maxHoldTagLen, buf.length)).reversed()
                         .firstOrNull { len -> holdTags.any { tag -> buf.lowercase().endsWith(tag.lowercase().take(len)) } } ?: 0
