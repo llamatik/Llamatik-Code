@@ -14,12 +14,15 @@ import com.llamatik.teammate.agent.AgentOrchestrator
 import com.llamatik.teammate.agent.BuildVerificationService
 import com.llamatik.teammate.backend.GenerationHandle
 import com.llamatik.teammate.diff.DiffPreviewService
+import com.llamatik.teammate.infrastructure.ModelDownloadManager
 import com.llamatik.teammate.licensing.TrialService
 import com.llamatik.teammate.model.AttachedImage
 import com.llamatik.teammate.model.ChatMessage
 import com.llamatik.teammate.model.ChatRole
 import com.llamatik.teammate.model.EditProposal
+import com.llamatik.teammate.model.ModelStatus
 import com.llamatik.teammate.model.PluginReadinessState
+import com.llamatik.teammate.models.BuiltInModelCatalog
 import com.llamatik.teammate.settings.LlamatikAppSettings
 import com.llamatik.teammate.settings.LlamatikSettingsConfigurable
 import com.llamatik.teammate.tools.ToolCallParser
@@ -501,7 +504,19 @@ class LlamatikToolWindowPanel(
         if (!trialService.isTrialActive()) {
             agentTabPanel.showReadinessOverlay(state, trialExpired = true)
         } else if (state == PluginReadinessState.NO_MODEL || state == PluginReadinessState.LOADING_MODEL) {
-            agentTabPanel.showReadinessOverlay(state, trialExpired = false)
+            val downloadManager = service<ModelDownloadManager>()
+            val downloading = BuiltInModelCatalog.models.firstOrNull {
+                downloadManager.getProgress(it.id)?.status == ModelStatus.DOWNLOADING
+            }
+            if (downloading != null) {
+                agentTabPanel.showDownloadingOverlay(
+                    modelId = downloading.id,
+                    displayName = downloading.displayName,
+                    diskSizeGb = downloading.diskSizeGb,
+                )
+            } else {
+                agentTabPanel.showReadinessOverlay(state, trialExpired = false)
+            }
         } else {
             agentTabPanel.hideReadinessOverlay()
         }

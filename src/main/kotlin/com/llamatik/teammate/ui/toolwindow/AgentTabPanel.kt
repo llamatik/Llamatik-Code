@@ -9,13 +9,17 @@ import com.intellij.ui.components.JBTextArea
 import com.intellij.util.ui.AsyncProcessIcon
 import com.intellij.util.ui.JBUI
 import com.intellij.openapi.components.service
+import com.llamatik.teammate.infrastructure.ModelDownloadManager
 import com.llamatik.teammate.licensing.LicenseChecker
 import com.llamatik.teammate.llamatik.MultimodalBackendService
 import com.llamatik.teammate.model.AgentPhase
 import com.llamatik.teammate.model.AgentTaskState
 import com.llamatik.teammate.model.AttachedImage
+import com.llamatik.teammate.model.DownloadProgressState
 import com.llamatik.teammate.model.EditProposal
+import com.llamatik.teammate.model.ModelStatus
 import com.llamatik.teammate.model.PluginReadinessState
+import com.llamatik.teammate.models.BuiltInModelCatalog
 import com.llamatik.teammate.skills.SkillService
 import com.llamatik.teammate.ui.LlamatikTheme
 import com.llamatik.teammate.ui.Strings
@@ -47,8 +51,10 @@ import javax.swing.JLabel
 import javax.swing.JLayeredPane
 import javax.swing.JPanel
 import javax.swing.JPopupMenu
+import javax.swing.JProgressBar
 import javax.swing.KeyStroke
 import javax.swing.ScrollPaneConstants
+import javax.swing.SwingUtilities
 import javax.swing.Timer
 
 private const val CARD_WELCOME = "WELCOME"
@@ -796,9 +802,126 @@ class AgentTabPanel(
     }
 
     fun hideReadinessOverlay() {
+        removeDownloadOverlayListener()
         cardLayout.show(cardPanel, CARD_WELCOME)
         cardPanel.revalidate()
         cardPanel.repaint()
+    }
+
+    private var downloadOverlayListener: ((DownloadProgressState) -> Unit)? = null
+    private var downloadOverlayModelId: String? = null
+
+    fun showDownloadingOverlay(modelId: String, displayName: String, diskSizeGb: Double) {
+        removeDownloadOverlayListener()
+        downloadOverlayModelId = modelId
+
+        val downloadManager = service<ModelDownloadManager>()
+        val totalEstimatedBytes = (diskSizeGb * 1_073_741_824).toLong()
+
+        val bar = JProgressBar(0, 100).apply {
+            isIndeterminate = true
+            preferredSize = Dimension(260, 14)
+            maximumSize = Dimension(Int.MAX_VALUE, 14)
+        }
+        val progressLabel = JBLabel("Connecting…").apply {
+            foreground = mutedText
+            font = font.deriveFont(Font.PLAIN, font.size2D - 1f)
+        }
+        val cancelBtn = JButton(Strings.Agent.OVERLAY_DOWNLOADING_CANCEL).apply {
+            isFocusPainted = false
+            isContentAreaFilled = false
+            border = JBUI.Borders.compound(
+                BorderFactory.createLineBorder(mutedText, 1, true),
+                JBUI.Borders.empty(3, 8),
+            )
+            addActionListener {
+                downloadManager.cancelDownload(modelId)
+                removeDownloadOverlayListener()
+            }
+        }
+
+        val listener: (DownloadProgressState) -> Unit = { state ->
+            SwingUtilities.invokeLater {
+                when (state.status) {
+                    ModelStatus.DOWNLOADING -> {
+                        if (state.totalBytes > 0) {
+                            bar.isIndeterminate = false
+                            bar.value = ((state.bytesDownloaded * 100) / state.totalBytes).toInt()
+                        }
+                        val dlMb = state.bytesDownloaded / 1_048_576.0
+                        val totalMb = (if (state.totalBytes > 0) state.totalBytes else totalEstimatedBytes) / 1_048_576.0
+                        progressLabel.text = "%.0f / %.0f MB".format(dlMb, totalMb)
+                    }
+                    ModelStatus.DOWNLOADED -> removeDownloadOverlayListener()
+                    ModelStatus.NOT_DOWNLOADED, ModelStatus.FAILED -> removeDownloadOverlayListener()
+                    else -> {}
+                }
+            }
+        }
+        downloadOverlayListener = listener
+        downloadManager.addProgressListener(modelId, listener)
+
+        val existingProgress = downloadManager.getProgress(modelId)
+        if (existingProgress != null && existingProgress.totalBytes > 0) {
+            bar.isIndeterminate = false
+            bar.value = ((existingProgress.bytesDownloaded * 100) / existingProgress.totalBytes).toInt()
+            val dlMb = existingProgress.bytesDownloaded / 1_048_576.0
+            val totalMb = existingProgress.totalBytes / 1_048_576.0
+            progressLabel.text = "%.0f / %.0f MB".format(dlMb, totalMb)
+        }
+
+        val titleLabel = JBLabel(
+            "<html><b>${Strings.Agent.OVERLAY_DOWNLOADING_TITLE}</b><br>" +
+                "<span style='color:${LlamatikTheme.htmlOnSurfaceVariant};'>$displayName</span></html>",
+        ).apply {
+            foreground = LlamatikTheme.onSurface
+            horizontalAlignment = JLabel.CENTER
+            border = JBUI.Borders.emptyBottom(14)
+        }
+
+        val content = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            isOpaque = false
+            titleLabel.alignmentX = CENTER_ALIGNMENT
+            bar.alignmentX = CENTER_ALIGNMENT
+            progressLabel.alignmentX = CENTER_ALIGNMENT
+            cancelBtn.alignmentX = CENTER_ALIGNMENT
+            add(titleLabel)
+            add(bar)
+            add(javax.swing.Box.createVerticalStrut(6))
+            add(progressLabel)
+            add(javax.swing.Box.createVerticalStrut(10))
+            add(cancelBtn)
+        }
+
+        val overlay = JPanel(BorderLayout()).apply {
+            background = rootBackground
+            add(
+                JPanel(BorderLayout()).apply {
+                    background = cardBackground
+                    border = JBUI.Borders.compound(
+                        BorderFactory.createLineBorder(panelStroke, 1, true),
+                        JBUI.Borders.empty(22),
+                    )
+                    add(content, BorderLayout.CENTER)
+                },
+                BorderLayout.CENTER,
+            )
+            border = JBUI.Borders.empty(40, 20)
+        }
+
+        cardPanel.add(overlay, CARD_OVERLAY)
+        cardLayout.show(cardPanel, CARD_OVERLAY)
+        cardPanel.revalidate()
+        cardPanel.repaint()
+    }
+
+    private fun removeDownloadOverlayListener() {
+        val id = downloadOverlayModelId ?: return
+        val listener = downloadOverlayListener ?: return
+        service<ModelDownloadManager>().removeProgressListener(id, listener)
+        downloadOverlayListener = null
+        downloadOverlayModelId = null
     }
 
     fun hideVerification() {

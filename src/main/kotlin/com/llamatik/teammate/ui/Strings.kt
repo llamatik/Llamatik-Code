@@ -64,6 +64,8 @@ object Strings {
         const val OVERLAY_TRIAL_EXPIRED = "Trial expired — Agent requires a subscription."
         const val OVERLAY_NO_MODEL = "Configure a model to use Agent mode."
         const val OVERLAY_LOADING_MODEL = "Loading model…"
+        const val OVERLAY_DOWNLOADING_TITLE = "Downloading model"
+        const val OVERLAY_DOWNLOADING_CANCEL = "Cancel"
         const val REASONING_STREAMING = "▼ Reasoning…"
         const val REASONING_PREFIX_COLLAPSED = "▶ Reasoned for "
         const val REASONING_PREFIX_EXPANDED = "▼ Reasoned for "
@@ -299,9 +301,10 @@ object Strings {
         const val STEP2_LOAD_FROM_FILE = "Load model from file (.gguf)"
         const val STEP2_SKIP = "Skip for now"
         const val STEP2_BACK = "Back"
-        const val STEP3_HEADING = "You're all set!"
-        const val STEP3_BODY =
-            "Your model selection has been noted. Automatic downloads will be available in a future release.<br><br>For now, download your chosen GGUF model manually and register it via <b>Settings &gt; Llamatik Code &gt; Model path</b>, or use the <b>Load model from file</b> option in the tool window."
+        const val STEP3_HEADING = "Downloading model…"
+        const val STEP3_HEADING_DONE = "Model ready!"
+        const val STEP3_BODY_DONE = "The model has been downloaded and registered. You can start using Llamatik Code now."
+        const val STEP3_OPEN_AGENT = "Open Agent"
         const val STEP3_FINISH = "Finish"
         const val MODEL_LIBRARY_TITLE = "Model Library"
     }

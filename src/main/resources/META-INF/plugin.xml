@@ -76,6 +76,11 @@
 
     <extensions defaultExtensionNs="com.intellij">
 
+        <!-- Notifications -->
+        <notificationGroup id="Llamatik Code"
+                           displayType="BALLOON"
+                           isLogByDefault="true"/>
+
         <!-- Tool window -->
         <toolWindow
                 id="Llamatik Code"
