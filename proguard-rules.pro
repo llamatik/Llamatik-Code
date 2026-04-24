@@ -14,7 +14,9 @@
 -keep class com.llamatik.teammate.settings.LlamatikAppSettings { *; }
 -keep class com.llamatik.teammate.settings.DownloadedModelService { *; }
 -keep class com.llamatik.teammate.settings.LlamatikSettingsConfigurable { *; }
+-keep class com.llamatik.teammate.settings.LlamatikSettingsConfigurable$* { *; }
 -keep class com.llamatik.teammate.settings.InferenceSettingsConfigurable { *; }
+-keep class com.llamatik.teammate.settings.InferenceSettingsConfigurable$* { *; }
 -keep class com.llamatik.teammate.settings.InferenceSettingsPanel { *; }
 
 -keep class com.llamatik.teammate.llamatik.LlamatikBackendService { *; }
