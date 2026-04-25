@@ -117,6 +117,15 @@
 -keepclassmembers class ** {
     void actionPerformed(java.awt.event.ActionEvent);
 }
+# Swing custom painting — called by RepaintManager via virtual dispatch.
+# Anonymous JPanel/JButton/JToggleButton subclasses that override these
+# lose their color/shape rendering if ProGuard renames or removes them.
+-keepclassmembers class ** {
+    protected void paintComponent(java.awt.Graphics);
+    protected void paintBorder(java.awt.Graphics);
+    public void paintComponent(java.awt.Graphics);
+    public void paintBorder(java.awt.Graphics);
+}
 # DropTargetListener (image drag-and-drop in ImageAttachmentBar)
 -keepclassmembers class ** {
     void drop(java.awt.dnd.DropTargetDropEvent);

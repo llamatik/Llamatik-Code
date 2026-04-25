@@ -147,6 +147,10 @@ val recomputeFrames by tasks.registering {
     dependsOn(obfuscate)
     inputs.file(proguardJar)
     outputs.file(recomputedJar)
+    // The anonymous ClassWriter subclass is compiled as a Kotlin script inner class,
+    // which holds an implicit reference to the Gradle script object.  That reference
+    // cannot be serialised by the configuration cache, so we opt this task out.
+    notCompatibleWithConfigurationCache("Uses a script-inner ClassWriter that captures Gradle script state")
 
     doLast {
         val inFile  = proguardJar.get().asFile

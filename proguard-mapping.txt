@@ -1782,6 +1782,7 @@ com.llamatik.teammate.ui.chat.ChatMessagePanel$bubble$1 -> com.llamatik.teammate
     com.intellij.ui.JBColor $bubbleColor -> a
     com.intellij.ui.JBColor $strokeColor -> b
     95:95:void <init>(com.intellij.ui.JBColor,com.intellij.ui.JBColor,java.awt.BorderLayout) -> <init>
+    97:104:void paintComponent(java.awt.Graphics) -> paintComponent
 com.llamatik.teammate.ui.chat.ChatSessionController -> com.llamatik.teammate.ui.a.b:
 # {"fileName":"ChatSessionController.kt","id":"sourceFile"}
     com.intellij.openapi.project.Project project -> a
@@ -2197,6 +2198,8 @@ com.llamatik.teammate.ui.toolwindow.AgentTabPanel -> com.llamatik.teammate.ui.to
     1439:1447:void buildProposalCard$lambda$9(kotlin.jvm.functions.Function1,com.llamatik.teammate.model.EditProposal,com.intellij.ui.components.JBLabel,com.llamatik.teammate.ui.toolwindow.AgentTabPanel,javax.swing.JButton,javax.swing.JButton,javax.swing.JButton,javax.swing.JPanel,java.awt.event.ActionEvent) -> a
     1457:1460:kotlin.Unit buildProposalCard$lambda$11(javax.swing.JButton,com.intellij.ui.components.JBLabel,javax.swing.JPanel) -> a
     1574:1648:kotlin.Unit showInferenceDialog$lambda$0(kotlin.jvm.internal.Ref$ObjectRef) -> a
+    65:65:com.intellij.ui.JBColor access$getCardBackground$p(com.llamatik.teammate.ui.toolwindow.AgentTabPanel) -> g
+    65:65:com.intellij.ui.JBColor access$getAccent$p(com.llamatik.teammate.ui.toolwindow.AgentTabPanel) -> h
     65:65:com.llamatik.teammate.ui.toolwindow.AgentTabPanel$composerInput$1 access$getComposerInput$p(com.llamatik.teammate.ui.toolwindow.AgentTabPanel) -> d
     65:65:com.llamatik.teammate.ui.toolwindow.ImageAttachmentBar access$getImageBar$p(com.llamatik.teammate.ui.toolwindow.AgentTabPanel) -> e
     65:65:kotlin.jvm.functions.Function2 access$getOnSend$p(com.llamatik.teammate.ui.toolwindow.AgentTabPanel) -> f
@@ -2223,15 +2226,20 @@ com.llamatik.teammate.ui.toolwindow.AgentTabPanel$buildComposer$shell$1 -> com.l
     int $arc -> a
     com.llamatik.teammate.ui.toolwindow.AgentTabPanel this$0 -> b
     1292:1292:void <init>(int,com.llamatik.teammate.ui.toolwindow.AgentTabPanel,java.awt.BorderLayout) -> <init>
+    1293:1293:java.awt.Shape getShape() -> a
+    1295:1300:void paintComponent(java.awt.Graphics) -> paintComponent
+    1302:1307:void paintBorder(java.awt.Graphics) -> paintBorder
 com.llamatik.teammate.ui.toolwindow.AgentTabPanel$buildPromptCard$1 -> com.llamatik.teammate.ui.toolwindow.a$d:
 # {"fileName":"AgentTabPanel.kt","id":"sourceFile"}
     int arc -> b
     com.llamatik.teammate.ui.toolwindow.AgentTabPanel this$0 -> a
     1337:1338:void <init>(com.llamatik.teammate.ui.toolwindow.AgentTabPanel,java.lang.String) -> <init>
+    1340:1348:void paintComponent(java.awt.Graphics) -> paintComponent
 com.llamatik.teammate.ui.toolwindow.AgentTabPanel$buildResponseCard$gradientOverlay$1 -> com.llamatik.teammate.ui.toolwindow.a$e:
 # {"fileName":"AgentTabPanel.kt","id":"sourceFile"}
     com.llamatik.teammate.ui.toolwindow.AgentTabPanel this$0 -> a
     1181:1181:void <init>(com.llamatik.teammate.ui.toolwindow.AgentTabPanel) -> <init>
+    1183:1190:void paintComponent(java.awt.Graphics) -> paintComponent
 com.llamatik.teammate.ui.toolwindow.AgentTabPanel$buildResponseCard$layered$1 -> com.llamatik.teammate.ui.toolwindow.a$f:
 # {"fileName":"AgentTabPanel.kt","id":"sourceFile"}
     com.llamatik.teammate.ui.toolwindow.AgentTabPanel this$0 -> a
@@ -2242,16 +2250,19 @@ com.llamatik.teammate.ui.toolwindow.AgentTabPanel$buildResponseCard$layered$1 ->
 com.llamatik.teammate.ui.toolwindow.AgentTabPanel$composerInput$1 -> com.llamatik.teammate.ui.toolwindow.a$g:
 # {"fileName":"AgentTabPanel.kt","id":"sourceFile"}
     463:463:void <init>() -> <init>
+    465:475:void paintComponent(java.awt.Graphics) -> paintComponent
 com.llamatik.teammate.ui.toolwindow.AgentTabPanel$roundedCard$1 -> com.llamatik.teammate.ui.toolwindow.a$h:
 # {"fileName":"AgentTabPanel.kt","id":"sourceFile"}
     java.awt.Color $bg -> a
     int $arc -> b
     java.awt.Color $borderColor -> c
     1555:1555:void <init>(java.awt.LayoutManager,java.awt.Color,int,java.awt.Color) -> <init>
+    1557:1564:void paintComponent(java.awt.Graphics) -> paintComponent
 com.llamatik.teammate.ui.toolwindow.AgentTabPanel$scrollToBottomButton$1 -> com.llamatik.teammate.ui.toolwindow.a$i:
 # {"fileName":"AgentTabPanel.kt","id":"sourceFile"}
     float arc -> a
     386:387:void <init>() -> <init>
+    389:395:void paintComponent(java.awt.Graphics) -> paintComponent
 com.llamatik.teammate.ui.toolwindow.AgentTabPanel$showInferenceDialog$1 -> com.llamatik.teammate.ui.toolwindow.a$j:
 # {"fileName":"AgentTabPanel.kt","id":"sourceFile"}
     com.llamatik.teammate.settings.InferenceSettingsPanel $panel -> a
@@ -2261,6 +2272,8 @@ com.llamatik.teammate.ui.toolwindow.AgentTabPanel$showInferenceDialog$1 -> com.l
 com.llamatik.teammate.ui.toolwindow.AgentTabPanel$userAvatar$1 -> com.llamatik.teammate.ui.toolwindow.a$k:
 # {"fileName":"AgentTabPanel.kt","id":"sourceFile"}
     152:152:void <init>() -> <init>
+    154:155:java.lang.String getInitials() -> a
+    158:171:void paintComponent(java.awt.Graphics) -> paintComponent
 com.llamatik.teammate.ui.toolwindow.AtMentionHandler -> com.llamatik.teammate.ui.toolwindow.b:
 # {"fileName":"AtMentionHandler.kt","id":"sourceFile"}
     javax.swing.text.JTextComponent textComponent -> a
@@ -2376,6 +2389,7 @@ com.llamatik.teammate.ui.toolwindow.ChatTabPanel -> com.llamatik.teammate.ui.too
     565:565:void buildComposer$lambda$2$0(com.llamatik.teammate.ui.toolwindow.ChatTabPanel,java.awt.event.ActionEvent) -> e
     645:647:void appendStreamingPanel$lambda$1(com.intellij.ui.components.JBScrollPane) -> a
     654:727:kotlin.Unit showInferenceDialog$lambda$0(kotlin.jvm.internal.Ref$ObjectRef) -> a
+    46:46:com.intellij.ui.JBColor access$getCardBackground$p(com.llamatik.teammate.ui.toolwindow.ChatTabPanel) -> f
     46:46:com.llamatik.teammate.ui.toolwindow.ChatTabPanel$composerInput$1 access$getComposerInput$p(com.llamatik.teammate.ui.toolwindow.ChatTabPanel) -> c
     46:46:kotlin.jvm.functions.Function2 access$getOnSend$p(com.llamatik.teammate.ui.toolwindow.ChatTabPanel) -> d
     46:46:com.llamatik.teammate.ui.toolwindow.ImageAttachmentBar access$getImageBar$p(com.llamatik.teammate.ui.toolwindow.ChatTabPanel) -> e
@@ -2410,19 +2424,25 @@ com.llamatik.teammate.ui.toolwindow.ChatTabPanel$buildComposer$shell$1 -> com.ll
     int $arc -> a
     com.llamatik.teammate.ui.toolwindow.ChatTabPanel this$0 -> b
     586:586:void <init>(int,com.llamatik.teammate.ui.toolwindow.ChatTabPanel,java.awt.BorderLayout) -> <init>
+    587:587:java.awt.Shape getShape() -> a
+    589:594:void paintComponent(java.awt.Graphics) -> paintComponent
+    596:601:void paintBorder(java.awt.Graphics) -> paintBorder
 com.llamatik.teammate.ui.toolwindow.ChatTabPanel$buildWelcomeCard$infoCard$1 -> com.llamatik.teammate.ui.toolwindow.c$e:
 # {"fileName":"ChatTabPanel.kt","id":"sourceFile"}
     int arc -> a
     416:417:void <init>(java.awt.BorderLayout) -> <init>
+    419:426:void paintComponent(java.awt.Graphics) -> paintComponent
 com.llamatik.teammate.ui.toolwindow.ChatTabPanel$composerInput$1 -> com.llamatik.teammate.ui.toolwindow.c$f:
 # {"fileName":"ChatTabPanel.kt","id":"sourceFile"}
     147:147:void <init>() -> <init>
+    149:159:void paintComponent(java.awt.Graphics) -> paintComponent
 com.llamatik.teammate.ui.toolwindow.ChatTabPanel$promptChip$1 -> com.llamatik.teammate.ui.toolwindow.c$g:
 # {"fileName":"ChatTabPanel.kt","id":"sourceFile"}
     int arc -> c
     com.llamatik.teammate.ui.toolwindow.ChatTabPanel this$0 -> a
     com.intellij.ui.JBColor $borderColor -> b
     497:498:void <init>(com.llamatik.teammate.ui.toolwindow.ChatTabPanel,com.intellij.ui.JBColor,java.lang.String) -> <init>
+    500:508:void paintComponent(java.awt.Graphics) -> paintComponent
 com.llamatik.teammate.ui.toolwindow.ChatTabPanel$showInferenceDialog$1 -> com.llamatik.teammate.ui.toolwindow.c$h:
 # {"fileName":"ChatTabPanel.kt","id":"sourceFile"}
     com.llamatik.teammate.settings.InferenceSettingsPanel $panel -> a
@@ -2478,6 +2498,7 @@ com.llamatik.teammate.ui.toolwindow.ImageAttachmentBar$buildChip$thumbLabel$1 ->
 # {"fileName":"ImageAttachmentBar.kt","id":"sourceFile"}
     java.awt.image.BufferedImage $thumb -> a
     195:195:void <init>(java.awt.image.BufferedImage) -> <init>
+    197:205:void paintComponent(java.awt.Graphics) -> paintComponent
 com.llamatik.teammate.ui.toolwindow.ImageAttachmentBar$installDropTarget$1 -> com.llamatik.teammate.ui.toolwindow.e$b:
 # {"fileName":"ImageAttachmentBar.kt","id":"sourceFile"}
     com.llamatik.teammate.ui.toolwindow.ImageAttachmentBar this$0 -> a
@@ -2609,6 +2630,8 @@ com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel -> com.llamatik.team
     623:624:void autoFixErrors$lambda$1(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel,java.lang.String) -> h
     641:642:void buildLogoButton$lambda$1(java.awt.event.ActionEvent) -> a
     664:667:void buildModeToggle$lambda$0$0(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel$buildModeToggle$1,java.lang.String,javax.swing.event.ChangeEvent) -> a
+    52:52:com.intellij.ui.JBColor access$getSelectedToggleBackground$p(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel) -> o
+    52:52:com.intellij.ui.JBColor access$getUnselectedToggleBackground$p(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel) -> p
     void <clinit>() -> <clinit>
 com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel$Companion -> com.llamatik.teammate.ui.toolwindow.f$a:
 # {"fileName":"LlamatikToolWindowPanel.kt","id":"sourceFile"}
@@ -2634,6 +2657,7 @@ com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel$buildModeToggle$1 ->
 # {"fileName":"LlamatikToolWindowPanel.kt","id":"sourceFile"}
     com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel this$0 -> a
     647:647:void <init>(com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowPanel) -> <init>
+    649:655:void paintComponent(java.awt.Graphics) -> paintComponent
 com.llamatik.teammate.ui.toolwindow.ModelPickerButton -> com.llamatik.teammate.ui.toolwindow.g:
 # {"fileName":"ModelPickerButton.kt","id":"sourceFile"}
     kotlin.jvm.functions.Function0 onModelChanged -> a
