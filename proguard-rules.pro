@@ -1,6 +1,14 @@
 # ── IntelliJ Platform ────────────────────────────────────────────────────────
 # The platform loads these by fully-qualified name from plugin.xml, so they
 # must not be renamed or removed.
+#
+# ProGuard's { *; } wildcard covers fields and methods but NOT constructors
+# (<init>). IntelliJ instantiates plugin entry points via reflection by trying
+# specific constructor signatures, so we must preserve them explicitly.
+-keepclassmembers class com.llamatik.** {
+    <init>();
+    <init>(...);
+}
 
 -keep class com.llamatik.teammate.ui.toolwindow.LlamatikToolWindowFactory { *; }
 

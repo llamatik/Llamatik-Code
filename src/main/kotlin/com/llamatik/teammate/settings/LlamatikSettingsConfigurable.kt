@@ -39,9 +39,9 @@ import javax.swing.JLabel
 import javax.swing.JPanel
 
 class LlamatikSettingsConfigurable : Configurable {
-    private val settings = service<LlamatikAppSettings>()
-    private val downloadedModelService = service<DownloadedModelService>()
-    private val skillService = service<SkillService>()
+    private val settings by lazy { service<LlamatikAppSettings>() }
+    private val downloadedModelService by lazy { service<DownloadedModelService>() }
+    private val skillService by lazy { service<SkillService>() }
 
     private val onModelRegistered: () -> Unit = {
         ApplicationManager.getApplication().invokeLater {
@@ -50,22 +50,22 @@ class LlamatikSettingsConfigurable : Configurable {
         }
     }
 
-    private val activeSkillsCountLabel = JBLabel("")
+    private lateinit var activeSkillsCountLabel: JBLabel
 
     // Active model path
-    private val modelPathField = JBTextField()
+    private lateinit var modelPathField: JBTextField
 
     // Active mmproj path
-    private val mmprojPathField = JBTextField()
+    private lateinit var mmprojPathField: JBTextField
 
     // Behaviour
-    private val agentAutoApproveCheck = JBCheckBox(Strings.Settings.AUTO_APPROVE)
-    private val agentAutoBuildCheck = JBCheckBox(Strings.Settings.AUTO_BUILD)
-    private val agentAutoFixCheck = JBCheckBox(Strings.Settings.AUTO_FIX)
+    private lateinit var agentAutoApproveCheck: JBCheckBox
+    private lateinit var agentAutoBuildCheck: JBCheckBox
+    private lateinit var agentAutoFixCheck: JBCheckBox
 
     // Context / indexing
-    private val ignoredDirectoriesArea = JBTextArea(3, 40)
-    private val projectRulesArea = JBTextArea(4, 40)
+    private lateinit var ignoredDirectoriesArea: JBTextArea
+    private lateinit var projectRulesArea: JBTextArea
 
     // Wrapper that stores the raw path but displays "filename  (parent dir)"
     private data class ModelEntry(val path: String) {
@@ -75,14 +75,27 @@ class LlamatikSettingsConfigurable : Configurable {
     }
 
     // Separate lists for models and mmprojs
-    private val modelsListModel = DefaultListModel<ModelEntry>()
-    private val modelsList = JBList(modelsListModel)
-    private val mmprojsListModel = DefaultListModel<ModelEntry>()
-    private val mprojsList = JBList(mmprojsListModel)
+    private lateinit var modelsListModel: DefaultListModel<ModelEntry>
+    private lateinit var modelsList: JBList<ModelEntry>
+    private lateinit var mmprojsListModel: DefaultListModel<ModelEntry>
+    private lateinit var mprojsList: JBList<ModelEntry>
 
     override fun getDisplayName(): String = Strings.Settings.PAGE_NAME
 
     override fun createComponent(): JComponent {
+        activeSkillsCountLabel = JBLabel("")
+        modelPathField = JBTextField()
+        mmprojPathField = JBTextField()
+        agentAutoApproveCheck = JBCheckBox(Strings.Settings.AUTO_APPROVE)
+        agentAutoBuildCheck = JBCheckBox(Strings.Settings.AUTO_BUILD)
+        agentAutoFixCheck = JBCheckBox(Strings.Settings.AUTO_FIX)
+        ignoredDirectoriesArea = JBTextArea(3, 40)
+        projectRulesArea = JBTextArea(4, 40)
+        modelsListModel = DefaultListModel()
+        modelsList = JBList(modelsListModel)
+        mmprojsListModel = DefaultListModel()
+        mprojsList = JBList(mmprojsListModel)
+
         downloadedModelService.addOnRegisteredListener(onModelRegistered)
 
         // ── Model section ─────────────────────────────────────────────────────

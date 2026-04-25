@@ -6,12 +6,15 @@ import javax.swing.JComponent
 
 class InferenceSettingsConfigurable : Configurable {
 
-    private val settings = service<LlamatikAppSettings>()
-    private val inferencePanel = InferenceSettingsPanel()
+    private val settings by lazy { service<LlamatikAppSettings>() }
+    private lateinit var inferencePanel: InferenceSettingsPanel
 
     override fun getDisplayName(): String = "Inference"
 
-    override fun createComponent(): JComponent = inferencePanel.panel
+    override fun createComponent(): JComponent {
+        inferencePanel = InferenceSettingsPanel()
+        return inferencePanel.panel
+    }
 
     override fun isModified(): Boolean = inferencePanel.isModified(settings.data())
 

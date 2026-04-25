@@ -1,5 +1,10 @@
 import org.jetbrains.intellij.platform.gradle.extensions.intellijPlatform
 import proguard.gradle.ProGuardTask
+import org.objectweb.asm.ClassReader
+import org.objectweb.asm.ClassWriter
+import java.util.zip.ZipEntry
+import java.util.zip.ZipFile
+import java.util.zip.ZipOutputStream
 
 buildscript {
     repositories {
@@ -7,6 +12,7 @@ buildscript {
     }
     dependencies {
         classpath("com.guardsquare:proguard-gradle:7.9.1")
+        classpath("org.ow2.asm:asm:9.7")
     }
 }
 
@@ -17,7 +23,7 @@ plugins {
 }
 
 group = "com.llamatik.teammate"
-version = "1.0.2"
+version = "1.0.3"
 
 repositories {
     mavenCentral()
@@ -130,6 +136,82 @@ val obfuscate by tasks.registering(ProGuardTask::class) {
     verbose()
 }
 
+// Recompute StackMapTable attributes that ProGuard's -dontpreverify strips.
+// Java 21 class files (major version 65) require StackMapTable for any method
+// containing branch instructions; without it MethodHandles.Lookup.findConstructor
+// throws a VerifyError that IntelliJ's findConstructorOrNull silently swallows,
+// producing "Cannot find suitable constructor".
+val recomputedJar = layout.buildDirectory.file("libs/${rootProject.name}-${version}-frames.jar")
+
+val recomputeFrames by tasks.registering {
+    dependsOn(obfuscate)
+    inputs.file(proguardJar)
+    outputs.file(recomputedJar)
+
+    doLast {
+        val inFile  = proguardJar.get().asFile
+        val outFile = recomputedJar.get().asFile
+        if (!inFile.exists()) return@doLast
+
+        // Pre-load all class bytes from the JAR so we can resolve superclass names
+        // without attempting to load IntelliJ/JDK classes from the Gradle classloader.
+        val allClassBytes = mutableMapOf<String, ByteArray>()
+        ZipFile(inFile).use { zf ->
+            zf.entries().asSequence()
+                .filter { it.name.endsWith(".class") }
+                .forEach { e -> allClassBytes[e.name.removeSuffix(".class")] = zf.getInputStream(e).readBytes() }
+        }
+
+        ZipFile(inFile).use { zin ->
+            ZipOutputStream(outFile.outputStream().buffered()).use { zout ->
+                zin.entries().asSequence().forEach { entry ->
+                    zout.putNextEntry(ZipEntry(entry.name))
+                    val bytes = zin.getInputStream(entry).readBytes()
+                    if (entry.name.endsWith(".class")) {
+                        try {
+                            val cr = ClassReader(bytes)
+                            // SafeClassWriter overrides getCommonSuperClass to avoid
+                            // loading platform classes that are absent from the Gradle classloader.
+                            val cw = object : ClassWriter(ClassWriter.COMPUTE_FRAMES) {
+                                override fun getCommonSuperClass(type1: String, type2: String): String {
+                                    // Walk up the superclass chain for type1 until we find an
+                                    // ancestor that is also an ancestor of type2.  For types we
+                                    // don't have bytes for (platform / JDK classes) fall back to
+                                    // "java/lang/Object", which is always safe.
+                                    fun ancestors(name: String): List<String> {
+                                        val result = mutableListOf<String>()
+                                        var current: String? = name
+                                        while (current != null && current != "java/lang/Object") {
+                                            result += current
+                                            val b = allClassBytes[current] ?: break
+                                            current = try { ClassReader(b).superName } catch (_: Exception) { break }
+                                        }
+                                        result += "java/lang/Object"
+                                        return result
+                                    }
+                                    val ancestors2 = ancestors(type2).toSet()
+                                    return ancestors(type1).firstOrNull { it in ancestors2 } ?: "java/lang/Object"
+                                }
+                            }
+                            // ClassReader.SKIP_FRAMES (= 4): discard existing (absent) frame info,
+                            // let ClassWriter.COMPUTE_FRAMES regenerate StackMapTable from scratch.
+                            cr.accept(cw, ClassReader.SKIP_FRAMES)
+                            zout.write(cw.toByteArray())
+                        } catch (e: Exception) {
+                            logger.warn("recomputeFrames: skipped ${entry.name}: ${e.message}")
+                            zout.write(bytes)
+                        }
+                    } else {
+                        zout.write(bytes)
+                    }
+                    zout.closeEntry()
+                }
+            }
+        }
+        logger.lifecycle("StackMapTable frames recomputed → ${outFile.name}")
+    }
+}
+
 // Obfuscation only runs for buildPlugin (distribution), NOT for runIde (development).
 // After Gradle assembles the zip, we rewrite it in-place: replace the unobfuscated
 // composedJar inside the archive with the ProGuard output.  This avoids fighting
@@ -140,10 +222,10 @@ val composedJarArchiveName = tasks.named("composedJar", org.gradle.api.tasks.bun
     .flatMap { it.archiveFileName }
 
 tasks.named("buildPlugin") {
-    dependsOn(obfuscate)
+    dependsOn(recomputeFrames)
     // Wire the composedJar archive name as an input so it is recorded in the cache entry.
     val composedJarNameProvider = composedJarArchiveName
-    val obfuscatedJarProvider = proguardJar
+    val obfuscatedJarProvider = recomputedJar
 
     doLast {
         val obfuscatedFile = obfuscatedJarProvider.get().asFile
