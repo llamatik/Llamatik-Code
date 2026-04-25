@@ -126,6 +126,12 @@
     public void paintComponent(java.awt.Graphics);
     public void paintBorder(java.awt.Graphics);
 }
+# JLayeredPane.doLayout() override — called by AWT layout manager via virtual dispatch.
+# Anonymous subclasses that override doLayout() to set child bounds lose their layout
+# if ProGuard renames the method, making the scroll pane inside invisible (zero bounds).
+-keepclassmembers class ** {
+    public void doLayout();
+}
 # DropTargetListener (image drag-and-drop in ImageAttachmentBar)
 -keepclassmembers class ** {
     void drop(java.awt.dnd.DropTargetDropEvent);
