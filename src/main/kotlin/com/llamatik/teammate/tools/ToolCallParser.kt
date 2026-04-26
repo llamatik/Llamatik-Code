@@ -42,16 +42,16 @@ object ToolCallParser {
      *    "read_file:\nsrc/Main.kt"  or  "write_file:\npath: ...\ncontent: ..."
      */
     fun parseIncludingIncomplete(text: String): List<ToolCall> {
-        val complete = parse(text)
-        if (complete.isNotEmpty()) return complete
-
-        val incomplete = incompleteToolPattern.findAll(text).map { match ->
+        // incompleteToolPattern handles both complete (stops at </tool_call>) and truncated
+        // (stops at end-of-string) calls, so all tool calls in the response are captured even
+        // when the model truncates the last one or emits a mix of complete and partial calls.
+        val calls = incompleteToolPattern.findAll(text).map { match ->
             val name = match.groupValues[1].trim()
             val argsBody = match.groupValues[2]
             val args = argPattern.findAll(argsBody).associate { it.groupValues[1].trim() to it.groupValues[2].trim() }
             ToolCall(name, args)
         }.toList()
-        if (incomplete.isNotEmpty()) return incomplete
+        if (calls.isNotEmpty()) return calls
 
         // Plain-text fallback: "toolname:\narg_value" or "toolname:\nkey: value\nkey2: value2"
         return parsePlainText(text)
