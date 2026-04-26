@@ -432,6 +432,10 @@ class AgentTabPanel(
     private var thinkingBlocked = false
     private var currentGenerationId = 0
     private val blockedPrefixes = listOf("<tool_call", "<edit_proposal")
+    // Tags that must never appear in the reasoning (think) text area — model-specific stop/control tokens.
+    private val thinkBlockedPrefixes = blockedPrefixes + listOf(
+        "</think>", "<|im_end|>", "<|endoftext|>", "<wait",
+    )
 
     // ── Skills info label (read-only, response card bottom bar) ──────────────
     private val skillService = service<SkillService>()
@@ -1492,7 +1496,7 @@ class AgentTabPanel(
     }
 
     private fun flushToArea(token: String, buffer: StringBuilder, target: JBTextArea) {
-        val allBlocked = if (target === thinkTextArea) blockedPrefixes
+        val allBlocked = if (target === thinkTextArea) thinkBlockedPrefixes
                          else blockedPrefixes + listOf("<think>", "<think ")
 
         buffer.append(token)

@@ -16,9 +16,17 @@ object ToolCallParser {
         "replace_in_file", "show_diff", "apply_patch",
     )
 
+    // Model-specific stop/control tokens that must never appear in output.
+    // <wait[^>]*>…</wait…> covers both <wait_for_approval> and <wait for user...> variants.
+    private val modelStopTokenPattern = Regex(
+        "<\\|im_end\\|>|<\\|endoftext\\|>|<wait[^>]*>.*?</wait[^>]*>|<wait[^>]*>.*$",
+        setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE),
+    )
+
     fun stripThinking(text: String): String =
         text.replace(thinkPattern, "")
             .replace(Regex("<think>.*$", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)), "")
+            .replace(modelStopTokenPattern, "")
             .trimStart()
 
     fun parse(text: String): List<ToolCall> {
@@ -110,6 +118,7 @@ object ToolCallParser {
             .replace(Regex("<edit_proposal\\b.*$", RegexOption.DOT_MATCHES_ALL), "")
             .replace(Regex("<tool_call\\b.*$", RegexOption.DOT_MATCHES_ALL), "")
             .replace(Regex("<result\\s+tool=.*$", RegexOption.DOT_MATCHES_ALL), "")
+            .replace(modelStopTokenPattern, "")
             // Strip plain-text tool call lines: "read_file:\n..." or "[read_file]:\n..."
             .replace(Regex("""^\[?($toolNamesAlt)\]?:\s*\n?.*""", setOf(RegexOption.MULTILINE, RegexOption.DOT_MATCHES_ALL)), "")
             .trim()

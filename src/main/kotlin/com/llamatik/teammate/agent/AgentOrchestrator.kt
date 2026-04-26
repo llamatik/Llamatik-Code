@@ -93,17 +93,32 @@ class AgentOrchestrator(private val project: Project) {
                     }
                     break
                 } else {
-                    val closeIdx = buf.indexOf("</think>")
-                    if (closeIdx >= 0) {
-                        val thinkContent = buf.substring(0, closeIdx)
+                    // Any of these terminates the think block; <wait covers all <wait...> variants.
+                    val thinkClosers = listOf("</think>", "<|im_end|>", "<|endoftext|>", "<wait")
+                    val bufLow = buf.lowercase()
+                    val closeMatch = thinkClosers.mapNotNull { tag ->
+                        val idx = bufLow.indexOf(tag.lowercase())
+                        if (idx >= 0) idx to tag else null
+                    }.minByOrNull { it.first }
+                    if (closeMatch != null) {
+                        val (idx, tag) = closeMatch
+                        val thinkContent = buf.substring(0, idx)
                         if (thinkContent.isNotEmpty()) onThinkingToken?.invoke(thinkContent)
                         inThink.set(false)
                         tokenBuffer.clear()
-                        tokenBuffer.append(buf.substring(closeIdx + "</think>".length))
+                        if (tag == "</think>") tokenBuffer.append(buf.substring(idx + tag.length))
                         continue
                     }
-                    onThinkingToken?.invoke(buf)
-                    tokenBuffer.clear()
+                    // Hold back a suffix that could be the start of a closer (inclusive upper bound).
+                    val maxCloserLen = thinkClosers.maxOf { it.length }
+                    val holdLen = (1..minOf(maxCloserLen, buf.length)).reversed()
+                        .firstOrNull { len -> thinkClosers.any { tag -> tag.lowercase().startsWith(bufLow.takeLast(len)) } } ?: 0
+                    val safeEnd = buf.length - holdLen
+                    if (safeEnd > 0) {
+                        onThinkingToken?.invoke(buf.substring(0, safeEnd))
+                        tokenBuffer.clear()
+                        tokenBuffer.append(buf.substring(safeEnd))
+                    }
                     break
                 }
             }
@@ -241,6 +256,8 @@ class AgentOrchestrator(private val project: Project) {
                             append("Original task: ${cleanInstruction.take(300)}")
                             val currentFile = contextService.getCurrentFile()
                             if (currentFile != null) append("\nProject file in focus: $currentFile")
+                            val lang = detectProjectLanguage()
+                            if (lang != null) append("\nProject language: $lang — write ALL code in $lang only")
                         }
                         val nextUserContent = buildString {
                             appendLine("Tool results (round $round):")
@@ -302,9 +319,30 @@ class AgentOrchestrator(private val project: Project) {
         if (activeNames.isNotEmpty()) appendLine("Active skills: $activeNames")
     }
 
+    private fun detectProjectLanguage(): String? {
+        val ext = contextService.getCurrentFile()?.substringAfterLast('.', "")?.lowercase()
+        return when (ext) {
+            "kt", "kts" -> "Kotlin"
+            "java" -> "Java"
+            "py" -> "Python"
+            "ts", "tsx" -> "TypeScript"
+            "js", "jsx" -> "JavaScript"
+            "swift" -> "Swift"
+            "go" -> "Go"
+            "rs" -> "Rust"
+            "cpp", "cc", "cxx", "h", "hpp" -> "C++"
+            "c" -> "C"
+            "cs" -> "C#"
+            "rb" -> "Ruby"
+            else -> null
+        }
+    }
+
     private fun buildContextHint(): String = buildString {
         appendLine("Project context:")
         appendLine("- project=${contextService.projectName()}")
+        val lang = detectProjectLanguage()
+        if (lang != null) appendLine("- language=$lang — ALL generated code MUST be written in $lang")
         val currentFilePath = contextService.getCurrentFile()
         appendLine("- currentFile=${currentFilePath ?: "none"}")
         // Include the content of the open file so the model can write code that matches it
@@ -628,24 +666,7 @@ class AgentOrchestrator(private val project: Project) {
             override val isCancelled: Boolean get() = cancelled.get()
         }
 
-        val languageHint = run {
-            val ext = contextService.getCurrentFile()?.substringAfterLast('.', "")?.lowercase()
-            when (ext) {
-                "kt", "kts" -> "Kotlin"
-                "java" -> "Java"
-                "py" -> "Python"
-                "ts", "tsx" -> "TypeScript"
-                "js", "jsx" -> "JavaScript"
-                "swift" -> "Swift"
-                "go" -> "Go"
-                "rs" -> "Rust"
-                "cpp", "cc", "cxx", "h", "hpp" -> "C++"
-                "c" -> "C"
-                "cs" -> "C#"
-                "rb" -> "Ruby"
-                else -> null
-            }
-        }
+        val languageHint = detectProjectLanguage()
 
         val (cleanInstruction, fileContext) = resolveFileReferences(userPrompt)
 
@@ -723,17 +744,30 @@ class AgentOrchestrator(private val project: Project) {
                     }
                     break
                 } else {
-                    val closeIdx = buf.indexOf("</think>")
-                    if (closeIdx >= 0) {
-                        val thinkContent = buf.substring(0, closeIdx)
+                    val thinkClosers = listOf("</think>", "<|im_end|>", "<|endoftext|>", "<wait")
+                    val bufLow = buf.lowercase()
+                    val closeMatch = thinkClosers.mapNotNull { tag ->
+                        val idx = bufLow.indexOf(tag.lowercase())
+                        if (idx >= 0) idx to tag else null
+                    }.minByOrNull { it.first }
+                    if (closeMatch != null) {
+                        val (idx, tag) = closeMatch
+                        val thinkContent = buf.substring(0, idx)
                         if (thinkContent.isNotEmpty()) onThinkingToken?.invoke(thinkContent)
                         inThink.set(false)
                         tokenBuffer.clear()
-                        tokenBuffer.append(buf.substring(closeIdx + "</think>".length))
+                        if (tag == "</think>") tokenBuffer.append(buf.substring(idx + tag.length))
                         continue
                     }
-                    onThinkingToken?.invoke(buf)
-                    tokenBuffer.clear()
+                    val maxCloserLen = thinkClosers.maxOf { it.length }
+                    val holdLen = (1..minOf(maxCloserLen, buf.length)).reversed()
+                        .firstOrNull { len -> thinkClosers.any { tag -> tag.lowercase().startsWith(bufLow.takeLast(len)) } } ?: 0
+                    val safeEnd = buf.length - holdLen
+                    if (safeEnd > 0) {
+                        onThinkingToken?.invoke(buf.substring(0, safeEnd))
+                        tokenBuffer.clear()
+                        tokenBuffer.append(buf.substring(safeEnd))
+                    }
                     break
                 }
             }
