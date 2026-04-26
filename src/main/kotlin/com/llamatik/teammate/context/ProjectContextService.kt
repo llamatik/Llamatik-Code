@@ -34,10 +34,54 @@ class ProjectContextService(private val project: Project) {
     fun pinnedInstructions(): String = project.service<ChatSessionStore>().pinnedInstructions()
 
     fun listFiles(relativePath: String?): List<String> {
-        val start = resolveFile(relativePath) ?: project.baseDir ?: return emptyList()
+        val base = project.baseDir ?: return emptyList()
+        val start = resolveFile(relativePath) ?: base
+        // For root or shallow paths, return a tree-style directory summary so the model can
+        // navigate purposefully instead of receiving a flat dump of build/cache files.
+        val depth = if (relativePath.isNullOrBlank() || relativePath == ".") 0
+                    else relativePath.trimEnd('/').count { it == '/' } + 1
+        if (depth <= 1 && start.isDirectory) {
+            return buildDirectoryTree(start, base)
+        }
         val result = mutableListOf<String>()
         collectFiles(start, result)
-        return result.sorted().take(1000)
+        return result.sorted().take(500)
+    }
+
+    /**
+     * Returns a mixed listing: immediate child directories annotated with file counts,
+     * followed by immediate source files. Helps the model understand project layout without
+     * flooding its context with hundreds of paths.
+     */
+    private fun buildDirectoryTree(dir: VirtualFile, base: VirtualFile): List<String> {
+        val lines = mutableListOf<String>()
+        val children = dir.children.sortedWith(compareBy({ !it.isDirectory }, { it.name }))
+        for (child in children) {
+            if (isIgnored(child)) continue
+            val rel = VfsUtilCore.getRelativePath(child, base, '/') ?: child.name
+            if (child.isDirectory) {
+                val count = countFiles(child)
+                if (count > 0) lines += "$rel/  ($count files)"
+            } else {
+                if (isSafe(child)) lines += rel
+            }
+        }
+        return lines
+    }
+
+    private fun countFiles(dir: VirtualFile): Int {
+        var count = 0
+        val stack = ArrayDeque<VirtualFile>()
+        stack += dir
+        while (stack.isNotEmpty()) {
+            val f = stack.removeLast()
+            if (f.isDirectory) {
+                if (!isIgnored(f)) stack += f.children
+            } else {
+                if (isSafe(f)) count++
+            }
+        }
+        return count
     }
 
     private fun collectFiles(file: VirtualFile, output: MutableList<String>) {
@@ -59,18 +103,25 @@ class ProjectContextService(private val project: Project) {
 
     fun searchFilenames(query: String): List<String> {
         if (query.isBlank()) return emptyList()
-        return listFiles(null).filter { it.contains(query, ignoreCase = true) }.take(50)
+        return allFiles().filter { it.contains(query, ignoreCase = true) }.take(50)
     }
 
     fun searchCode(query: String): List<String> {
         if (query.isBlank()) return emptyList()
         val results = mutableListOf<String>()
-        listFiles(null).forEach { path ->
+        allFiles().forEach { path ->
             if (results.size >= 50) return@forEach
             val content = runCatching { readFile(path) }.getOrNull() ?: return@forEach
             if (content.contains(query, ignoreCase = true)) results += path
         }
         return results
+    }
+
+    private fun allFiles(): List<String> {
+        val base = project.baseDir ?: return emptyList()
+        val result = mutableListOf<String>()
+        collectFiles(base, result)
+        return result.sorted().take(1000)
     }
 
     fun getCurrentFile(): String? = FileEditorManager.getInstance(project).selectedFiles.firstOrNull()?.let(::relativePath)

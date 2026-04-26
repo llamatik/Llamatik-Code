@@ -29,10 +29,12 @@
 
 -keep class com.llamatik.teammate.llamatik.LlamatikBackendService { *; }
 -keep class com.llamatik.teammate.llamatik.MultimodalBackendService { *; }
+-keep class com.llamatik.teammate.llamatik.PluginPromptRenderer { *; }
 -keep class com.llamatik.teammate.licensing.TrialService { *; }
 -keep class com.llamatik.teammate.licensing.LicenseChecker { *; }
 -keep class com.llamatik.teammate.infrastructure.ModelDownloadManager { *; }
 -keep class com.llamatik.teammate.infrastructure.ModelRuntimeTracker { *; }
+-keep class com.llamatik.teammate.infrastructure.HardwareDetector { *; }
 -keep class com.llamatik.teammate.skills.SkillService { *; }
 -keep class com.llamatik.teammate.persistence.LlamatikProjectState { *; }
 -keep class com.llamatik.teammate.persistence.ChatSessionStore { *; }
@@ -41,7 +43,13 @@
 -keep class com.llamatik.teammate.diff.DiffPreviewService { *; }
 -keep class com.llamatik.teammate.agent.BuildVerificationService { *; }
 -keep class com.llamatik.teammate.context.ProjectIndexingState { *; }
+-keep class com.llamatik.teammate.ui.onboarding.OnboardingDialog { *; }
+-keep class com.llamatik.teammate.ui.onboarding.OnboardingDialog$* { *; }
+-keep class com.llamatik.teammate.ui.onboarding.OnboardingLauncher { *; }
+-keep class com.llamatik.teammate.ui.models.LoadModelFromFileAction { *; }
+-keep class com.llamatik.teammate.ui.toolwindow.ToolWindowAccess { *; }
 
+-keep class com.llamatik.teammate.actions.BasePromptAction { *; }
 -keep class com.llamatik.teammate.actions.AskAboutSelectionAction { *; }
 -keep class com.llamatik.teammate.actions.ExplainFileAction { *; }
 -keep class com.llamatik.teammate.actions.RefactorSelectionAction { *; }
@@ -88,6 +96,16 @@
     public *;
     <fields>;
 }
+
+# XmlSerializer also serialises nested state data classes (inner classes of
+# PersistentStateComponent implementations) by field name via reflection.
+# The rule above only guards the outer component class; the inner State /
+# StoredXxx classes must be kept separately or their fields get renamed and
+# the XML round-trip silently drops all values (empty settings / proposals).
+-keep class com.llamatik.teammate.settings.LlamatikAppSettings$State { *; }
+-keep class com.llamatik.teammate.persistence.LlamatikProjectState$State { *; }
+-keep class com.llamatik.teammate.persistence.LlamatikProjectState$StoredSession { *; }
+-keep class com.llamatik.teammate.persistence.LlamatikProjectState$StoredMessage { *; }
 
 # ── Swing / UI components ────────────────────────────────────────────────────
 # Single * intentionally does not cross package separators — this avoids
@@ -149,6 +167,40 @@
 # DocumentAdapter (IntelliJ platform convenience class used in SkillLibraryDialog)
 -keepclassmembers class ** {
     void textChanged(javax.swing.event.DocumentEvent);
+}
+# FocusAdapter — composer input placeholder repaint on focus gain/loss
+-keepclassmembers class ** {
+    void focusGained(java.awt.event.FocusEvent);
+    void focusLost(java.awt.event.FocusEvent);
+}
+# MouseAdapter — click-to-select in AtMentionHandler popup list
+-keepclassmembers class ** {
+    void mousePressed(java.awt.event.MouseEvent);
+    void mouseReleased(java.awt.event.MouseEvent);
+    void mouseClicked(java.awt.event.MouseEvent);
+}
+# KeyAdapter — arrow/Enter/Escape navigation in AtMentionHandler popup
+-keepclassmembers class ** {
+    void keyPressed(java.awt.event.KeyEvent);
+    void keyReleased(java.awt.event.KeyEvent);
+    void keyTyped(java.awt.event.KeyEvent);
+}
+# ChangeListener / AdjustmentListener — tab switching and scroll-to-bottom button
+-keepclassmembers class ** {
+    void stateChanged(javax.swing.event.ChangeEvent);
+    void adjustmentValueChanged(java.awt.event.AdjustmentEvent);
+}
+# JWindow subclass in AtMentionHandler — must return false to stay non-focusable
+-keepclassmembers class ** {
+    public boolean getFocusableWindowState();
+}
+# BasicTabbedPaneUI anonymous subclass — custom rounded-tab painting in ChatTabPanel
+-keepclassmembers class ** {
+    protected void paintTabBorder(java.awt.Graphics, int, int, int, int, int, int, boolean);
+    protected void paintTabBackground(java.awt.Graphics, int, int, int, int, int, int, boolean);
+    protected void paintFocusIndicator(java.awt.Graphics, int, java.awt.Rectangle[], int, java.awt.Rectangle, java.awt.Rectangle, boolean);
+    protected void paintContentBorder(java.awt.Graphics, int, int);
+    protected void installDefaults();
 }
 
 # ── JetBrains Marketplace recommendations ────────────────────────────────────

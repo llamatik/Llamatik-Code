@@ -61,62 +61,38 @@ class AgentOrchestrator(private val project: Project) {
         // Tracks whichever backend call is currently active so cancel() always reaches the live handle.
         val activeHandle = AtomicReference<GenerationHandle>()
 
-        // Route <think>…</think> tokens to onThinkingToken; answer tokens to onToken.
-        // The buffer always holds content that hasn't been dispatched yet.
+        // Route <think>…</think> tokens to onThinkingToken only.
+        // Answer text is never streamed during tool-use rounds — it arrives via onFinished.
+        // This prevents planning prose written before <tool_call> tags from leaking into the panel.
         val tokenBuffer = StringBuilder()
         val inThink = AtomicBoolean(false)
-        // Once a blocked tag prefix is detected, drop all subsequent tokens for that pass.
-        // Reset via resetStreamState() before each new generation pass.
-        val streamBlocked = AtomicBoolean(false)
-        val uiBlockedPrefixes = listOf("<tool_call", "<edit_proposal", "<Tool_call", "<TOOL_CALL", "<end_of_turn>", "<eos>")
-        val holdTags = listOf("<think>", "<edit_proposal", "<tool_call", "<Tool_call", "<TOOL_CALL", "<end_of_turn>", "<eos>")
-        val maxHoldTagLen = holdTags.maxOf { it.length }
         fun resetStreamState() {
             tokenBuffer.clear()
             inThink.set(false)
-            streamBlocked.set(false)
-        }
-        fun flushAnswerBuffer(buf: String) {
-            if (buf.isEmpty()) return
-            val bufLower = buf.lowercase()
-            val cutAt = uiBlockedPrefixes.mapNotNull { p -> bufLower.indexOf(p.lowercase()).takeIf { it >= 0 } }.minOrNull()
-            if (cutAt != null) {
-                val safe = buf.substring(0, cutAt).trimEnd()
-                if (safe.isNotEmpty()) onToken(safe)
-                streamBlocked.set(true)
-            } else {
-                onToken(buf)
-            }
         }
         fun filteredToken(token: String) {
-            if (streamBlocked.get()) return
             tokenBuffer.append(token)
-            // Keep processing as long as there's actionable content in the buffer
             while (tokenBuffer.isNotEmpty()) {
                 val buf = tokenBuffer.toString()
                 if (!inThink.get()) {
                     val openIdx = buf.indexOf("<think>")
                     if (openIdx >= 0) {
-                        // Flush everything before the tag as answer text
-                        if (openIdx > 0) flushAnswerBuffer(buf.substring(0, openIdx))
-                        if (streamBlocked.get()) { tokenBuffer.clear(); break }
                         inThink.set(true)
                         tokenBuffer.clear()
                         tokenBuffer.append(buf.substring(openIdx + "<think>".length))
                         continue
                     }
-                    // Hold back any buffer tail that is a partial prefix of ANY intercepted tag.
-                    val holdLen = (1..minOf(maxHoldTagLen, buf.length)).reversed()
+                    // Discard answer text — hold only a partial tag prefix tail to avoid split tags.
+                    val holdTags = listOf("<think>", "<end_of_turn>", "<eos>")
+                    val maxLen = holdTags.maxOf { it.length }
+                    val holdLen = (1..minOf(maxLen, buf.length)).reversed()
                         .firstOrNull { len -> holdTags.any { tag -> buf.lowercase().endsWith(tag.lowercase().take(len)) } } ?: 0
-                    val safeEnd = buf.length - holdLen
-                    if (safeEnd > 0) {
-                        flushAnswerBuffer(buf.substring(0, safeEnd))
+                    if (buf.length > holdLen) {
                         tokenBuffer.clear()
-                        if (!streamBlocked.get()) tokenBuffer.append(buf.substring(safeEnd))
+                        if (holdLen > 0) tokenBuffer.append(buf.takeLast(holdLen))
                     }
                     break
                 } else {
-                    // Inside think block — look for closing tag
                     val closeIdx = buf.indexOf("</think>")
                     if (closeIdx >= 0) {
                         val thinkContent = buf.substring(0, closeIdx)
@@ -126,7 +102,6 @@ class AgentOrchestrator(private val project: Project) {
                         tokenBuffer.append(buf.substring(closeIdx + "</think>".length))
                         continue
                     }
-                    // Still inside think — forward all accumulated content
                     onThinkingToken?.invoke(buf)
                     tokenBuffer.clear()
                     break
@@ -195,108 +170,108 @@ class AgentOrchestrator(private val project: Project) {
             localOnly = settings.localOnly,
         )
 
-        val firstHandle = backend.generate(
-            GenerationRequest(systemPrompt = systemPrompt, messages = toolAugmentedMessages, config = config),
-            object : GenerationCallbacks {
-                override fun onToken(token: String) {
-                    countToken()
-                    if (!cancelled.get()) filteredToken(token)
-                }
+        // Multi-round agentic loop: model can call tools across up to MAX_ROUNDS before answering.
+        // Each round feeds tool results back so the model can: list files -> read files -> write files.
+        val MAX_ROUNDS = 7
+        fun runRound(messages: List<ChatMessage>, round: Int, accumulatedProposals: List<EditProposal>, hasReadContent: Boolean = false) {
+            if (cancelled.get()) return
+            val roundSystemPrompt = if (round == 1) systemPrompt else buildSecondPassSystemPrompt()
+            val handle = backend.generate(
+                GenerationRequest(
+                    systemPrompt = roundSystemPrompt,
+                    messages = messages,
+                    config = config,
+                    noThink = round > 1,
+                ),
+                object : GenerationCallbacks {
+                    override fun onToken(token: String) {
+                        countToken()
+                        if (!cancelled.get()) filteredToken(token)
+                    }
 
-                override fun onCompleted(fullText: String) {
-                    if (cancelled.get()) return
-                    val answerText = ToolCallParser.stripThinking(fullText)
-                    val toolCalls = ToolCallParser.parse(answerText).take(6)
-                    if (toolCalls.isEmpty()) {
-                        val proposals = extractEditProposals(answerText)
-                        val clean = ToolCallParser.cleanForDisplay(answerText)
-                        onFinished(
-                            ChatMessage(role = ChatRole.ASSISTANT, content = clean, editProposalId = proposals.firstOrNull()?.id),
-                            proposals,
+                    override fun onCompleted(fullText: String) {
+                        if (cancelled.get()) return
+                        val answerText = ToolCallParser.stripThinking(fullText)
+                        val toolCalls = ToolCallParser.parseIncludingIncomplete(answerText).take(6)
+
+                        if (toolCalls.isEmpty() || round >= MAX_ROUNDS) {
+                            val xmlProposals = extractEditProposals(answerText)
+                            val proposals = (accumulatedProposals + xmlProposals).distinctBy { it.filePath }
+                            val clean = ToolCallParser.cleanForDisplay(answerText)
+                            onFinished(
+                                ChatMessage(role = ChatRole.ASSISTANT, content = clean, editProposalId = proposals.firstOrNull()?.id),
+                                proposals,
+                            )
+                            return
+                        }
+
+                        if (!cancelled.get()) onToken(" STATUS:Gathering project context…")
+                        resetStreamState()
+
+                        val toolMessages = toolCalls.map { call ->
+                            val mainArg = call.arguments.values.firstOrNull().orEmpty().take(60)
+                            if (!cancelled.get()) onToken(" TOOL:${call.name}:$mainArg")
+                            val result = toolRegistry.execute(call, ToolExecutionContext(project))
+                            ChatMessage(role = ChatRole.TOOL, content = result.content, toolName = result.name)
+                        }
+
+                        val roundProposals = buildProposalsFromToolMessages(toolMessages)
+                        val allProposals = (accumulatedProposals + roundProposals).distinctBy { it.filePath }
+
+                        if (cancelled.get()) return
+                        if (!cancelled.get()) onToken(" STATUS:Thinking…")
+
+                        // Keep the raw tool call XML as the assistant turn so the renderer
+                        // doesn't skip it (blank content gets dropped, breaking the user/assistant alternation).
+                        val assistantTurn = ChatMessage(
+                            role = ChatRole.ASSISTANT,
+                            content = answerText.take(300).trimEnd(),
                         )
-                        return
-                    }
-
-                    // Signal to the UI that tool execution is in progress
-                    if (!cancelled.get()) onToken(" STATUS:Gathering project context…")
-
-                    val toolMessages = toolCalls.map { call ->
-                        val mainArg = call.arguments.values.firstOrNull().orEmpty().take(60)
-                        if (!cancelled.get()) onToken(" TOOL:${call.name}:$mainArg")
-                        val result = toolRegistry.execute(call, ToolExecutionContext(project))
-                        ChatMessage(role = ChatRole.TOOL, content = result.content, toolName = result.name)
-                    }
-
-                    if (cancelled.get()) return
-
-                    if (!cancelled.get()) onToken(" STATUS:Writing answer…")
-
-                    // Reset so second-pass answer tokens aren't dropped by streamBlocked set in pass 1.
-                    resetStreamState()
-
-                    // Second pass: keep only the immediate user turn + tool results to avoid
-                    // doubling history size and exceeding n_batch (2048 tokens ≈ 6000 chars).
-                    // Use a compact system prompt here — no full skills text — to stay within budget.
-                    // Second-pass budget: systemPrompt ≤600, userPrompt ≤400, toolResults ≤2000
-                    // → total ≤3000 chars + chat-template overhead ≤5400 (safely under 2048 tokens).
-                    val toolResultsSummary = toolMessages.joinToString("\n") { msg ->
-                        "[${msg.toolName}]:\n${msg.content.take(600)}"
-                    }
-                    val secondPassMessages = listOf(
-                        ChatMessage(
-                            role = ChatRole.USER,
-                            content = buildString {
-                                appendLine(cleanInstruction.take(400))
-                                appendLine()
-                                appendLine("Project: ${contextService.projectName()}")
-                                appendLine("Tool results:")
-                                appendLine(toolResultsSummary.take(2000))
-                                appendLine()
-                                appendLine("Write ONE <edit_proposal> per file changed. Full file content only:")
-                                append("<edit_proposal path=\"rel/path/File.kt\" summary=\"desc\"><new_content><![CDATA[...full content...]]></new_content></edit_proposal>")
-                            },
-                        ),
-                    )
-
-                    val secondHandle = backend.generate(
-                        GenerationRequest(
-                            systemPrompt = buildSecondPassSystemPrompt(),
-                            messages = secondPassMessages,
-                            config = config,
-                            noThink = true,
-                        ),
-                        object : GenerationCallbacks {
-                            // Don't stream tokens to the UI — edit proposals surface via onCompleted/onFinished.
-                            // Still count every raw token for the counter display.
-                            override fun onToken(token: String) { countToken() }
-
-                            override fun onCompleted(fullText: String) {
-                                if (cancelled.get()) return
-                                val answerText = ToolCallParser.stripThinking(fullText)
-                                val proposals = extractEditProposals(answerText)
-                                val answer = if (proposals.isNotEmpty() || answerText.contains("<edit_proposal", ignoreCase = true)) "" else ToolCallParser.cleanForDisplay(answerText)
-                                onFinished(
-                                    ChatMessage(role = ChatRole.ASSISTANT, content = answer, editProposalId = proposals.firstOrNull()?.id),
-                                    proposals,
-                                )
+                        val toolResultsSummary = toolMessages.joinToString("\n") { msg ->
+                            "<result tool=\"${msg.toolName}\">\n${msg.content.take(500)}\n</result>"
+                        }
+                        val readOnlyTools = setOf("list_files", "read_file", "search_code", "search_filenames", "get_current_file", "get_selected_text")
+                        val allReadOnly = toolCalls.all { it.name in readOnlyTools }
+                        val nowHasReadContent = hasReadContent || toolCalls.any { it.name == "read_file" || it.name == "search_code" }
+                        val nextUserContent = buildString {
+                            appendLine("Tool results (round $round):")
+                            appendLine(toolResultsSummary.take(1600))
+                            appendLine()
+                            when {
+                                allReadOnly && nowHasReadContent -> {
+                                    appendLine("You have read the necessary files. Now output write_file tool calls to apply the changes.")
+                                    appendLine("IMPORTANT: Use the ACTUAL code from the files you just read. Do NOT invent placeholder code.")
+                                    appendLine("Output ONLY tool call XML — no prose.")
+                                    appendLine("<tool_call name=\"write_file\"><arg name=\"path\">src/Example.kt</arg><arg name=\"content\">...complete file content...</arg></tool_call>")
+                                    append("Call write_file once per file that needs changes.")
+                                }
+                                allReadOnly && !nowHasReadContent -> {
+                                    append("Use read_file to read the relevant source files before making changes.")
+                                }
+                                round + 1 >= MAX_ROUNDS -> {
+                                    append("Now write the final changes using write_file or create_file. Output ONLY the tool call XML, no prose.")
+                                }
+                                else -> {
+                                    append("Continue: read more files if needed, or use write_file/create_file to apply changes.")
+                                }
                             }
+                        }
+                        val nextMessages = messages + assistantTurn +
+                            ChatMessage(role = ChatRole.USER, content = nextUserContent)
 
-                            override fun onError(message: String, throwable: Throwable?) {
-                                if (!cancelled.get()) onError(message)
-                            }
-                        },
-                    )
-                    activeHandle.set(secondHandle)
-                    // If cancel was requested between the two passes, forward it now.
-                    if (cancelled.get()) secondHandle.cancel()
-                }
+                        runRound(nextMessages, round + 1, allProposals, nowHasReadContent)
+                    }
 
-                override fun onError(message: String, throwable: Throwable?) {
-                    if (!cancelled.get()) onError(message)
-                }
-            },
-        )
-        activeHandle.set(firstHandle)
+                    override fun onError(message: String, throwable: Throwable?) {
+                        if (!cancelled.get()) onError(message)
+                    }
+                },
+            )
+            activeHandle.set(handle)
+            if (cancelled.get()) handle.cancel()
+        }
+
+        runRound(toolAugmentedMessages, 1, emptyList())
 
         return compositeHandle
     }
@@ -308,10 +283,14 @@ class AgentOrchestrator(private val project: Project) {
      */
     private fun buildSecondPassSystemPrompt(): String = buildString {
         appendLine("You are Llamatik Code, a local IntelliJ coding agent.")
-        appendLine("Write COMPLETE file content inside each <edit_proposal>. Never truncate.")
-        appendLine("Use package/imports/class names that match the existing project files.")
+        appendLine("Output ONLY tool call XML. No prose, no explanation, no 'I will...'.")
+        appendLine("If you have enough context, call write_file immediately with the complete new file content.")
+        appendLine("If you need more context, call read_file. Otherwise call write_file.")
+        appendLine("Tool call format:")
+        appendLine("<tool_call name=\"write_file\"><arg name=\"path\">src/Foo.kt</arg><arg name=\"content\">...complete file...</arg></tool_call>")
+        appendLine("Tools: ${toolRegistry.describeTools().take(300)}")
         val activeNames = skillService.activeSkills().joinToString(", ") { it.displayName }
-        if (activeNames.isNotEmpty()) appendLine("Active skills (apply their conventions): $activeNames")
+        if (activeNames.isNotEmpty()) appendLine("Active skills: $activeNames")
     }
 
     private fun buildContextHint(): String = buildString {
@@ -353,17 +332,16 @@ class AgentOrchestrator(private val project: Project) {
 
     private fun buildSystemPrompt(): String = buildString {
         appendLine("You are Llamatik Code, a local IntelliJ coding agent.")
-        appendLine("CRITICAL RULES:")
-        appendLine("1. You MAY use <think>…</think> to reason briefly. Keep it under 15 sentences.")
-        appendLine("2. After </think> (or immediately if you skip thinking), you MUST produce your actual answer — tool calls OR edit_proposal blocks OR a direct answer. NEVER end after </think> with only prose describing what you plan to do.")
-        appendLine("3. When writing code in <edit_proposal>, write the COMPLETE file — do not truncate.")
-        appendLine("4. Use currentFileContent to write code matching the actual project (correct package, imports, class names). Never use placeholder or dummy code.")
-        appendLine("5. Multi-file changes: call list_files to discover the project structure, then read_file for EVERY file you need to see — all tool calls in the SAME response. Never assume file contents you haven't read.")
-        appendLine("Use tools for project data. Up to 6 tool calls per response. Format:")
+        appendLine("OUTPUT FORMAT — strictly follow this every response:")
+        appendLine("  Optional: <think>brief reasoning</think>")
+        appendLine("  Then IMMEDIATELY one of:")
+        appendLine("    A) One or more tool calls (no prose before or after the XML)")
+        appendLine("    B) write_file/create_file tool calls to apply changes")
+        appendLine("    C) A plain-text answer (only when no file changes are needed)")
+        appendLine("NEVER write prose like 'I will now...' or 'I'll start by...' — go straight to the tool call or answer.")
+        appendLine("Tool call format (no extra text around the XML):")
         appendLine("<tool_call name=\"read_file\"><arg name=\"path\">src/Main.kt</arg></tool_call>")
         appendLine("Tools: ${toolRegistry.describeTools().take(400)}")
-        appendLine("Emit ONE <edit_proposal> per file changed:")
-        appendLine("<edit_proposal path=\"rel/path/File.kt\" summary=\"desc\"><new_content><![CDATA[...]]></new_content></edit_proposal>")
         val skillsAddition = skillService.buildSkillsPromptAddition()
         if (skillsAddition.isNotBlank()) append(skillsAddition.take(400))
     }
@@ -465,6 +443,44 @@ class AgentOrchestrator(private val project: Project) {
         val cleanContent = newContent.trim()
             .removePrefix("<![CDATA[").removeSuffix("]]>").trim()
         return EditProposal(filePath = trimmedPath, oldContent = oldContent, newContent = cleanContent, summary = summary)
+    }
+
+    /**
+     * Extracts EditProposals directly from tool result messages, bypassing the need for the
+     * second-pass LLM to re-emit file content inside <edit_proposal> XML (unreliable on small models).
+     *
+     * Handles write_file / replace_in_file (---OLD--- / ---NEW--- format) and create_file (no separator).
+     */
+    private fun buildProposalsFromToolMessages(toolMessages: List<ChatMessage>): List<EditProposal> {
+        val editTools = setOf("write_file", "replace_in_file", "create_file")
+        return toolMessages.mapNotNull { msg ->
+            val toolName = msg.toolName ?: return@mapNotNull null
+            if (toolName !in editTools) return@mapNotNull null
+            val content = msg.content
+
+            val path = when {
+                content.startsWith("Prepared file replacement for ") ->
+                    content.removePrefix("Prepared file replacement for ").substringBefore("\n")
+                content.startsWith("Prepared replacement for ") ->
+                    content.removePrefix("Prepared replacement for ").substringBefore("\n")
+                content.startsWith("Prepared new file for ") ->
+                    content.removePrefix("Prepared new file for ").substringBefore("\n")
+                else -> return@mapNotNull null
+            }.trim()
+
+            val newContent = when {
+                content.contains("\n---NEW---\n") -> content.substringAfter("\n---NEW---\n").trim()
+                content.startsWith("Prepared new file for ") -> content.substringAfter("\n").trim()
+                else -> return@mapNotNull null
+            }
+            val oldContent = when {
+                content.contains("\n---OLD---\n") -> content.substringAfter("\n---OLD---\n").substringBefore("\n---NEW---\n").trim()
+                else -> runCatching { contextService.readFile(path) }.getOrDefault("")
+            }
+
+            if (newContent.isEmpty()) return@mapNotNull null
+            EditProposal(filePath = path, oldContent = oldContent, newContent = newContent, summary = "Changes from $toolName")
+        }
     }
 
     /**
