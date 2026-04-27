@@ -83,7 +83,7 @@ class AgentOrchestrator(private val project: Project) {
                         continue
                     }
                     // Discard answer text — hold only a partial tag prefix tail to avoid split tags.
-                    val holdLen = holdLenForTags(buf, listOf("<think>", "<end_of_turn>", "<eos>"))
+                    val holdLen = holdLenForTags(buf, ANSWER_HOLD_TAGS)
                     if (buf.length > holdLen) {
                         tokenBuffer.clear()
                         if (holdLen > 0) tokenBuffer.append(buf.takeLast(holdLen))
@@ -91,9 +91,8 @@ class AgentOrchestrator(private val project: Project) {
                     break
                 } else {
                     // Any of these terminates the think block; <wait covers all <wait...> variants.
-                    val thinkClosers = listOf("</think>", "<|im_end|>", "<|endoftext|>", "<wait")
                     val bufLow = buf.lowercase()
-                    val closeMatch = thinkClosers.mapNotNull { tag ->
+                    val closeMatch = THINK_CLOSERS.mapNotNull { tag ->
                         val idx = bufLow.indexOf(tag.lowercase())
                         if (idx >= 0) idx to tag else null
                     }.minByOrNull { it.first }
@@ -106,7 +105,7 @@ class AgentOrchestrator(private val project: Project) {
                         if (tag == "</think>") tokenBuffer.append(buf.substring(idx + tag.length))
                         continue
                     }
-                    val holdLen = holdLenForStartsWith(buf, thinkClosers)
+                    val holdLen = holdLenForStartsWith(buf, THINK_CLOSERS)
                     val safeEnd = buf.length - holdLen
                     if (safeEnd > 0) {
                         onThinkingToken?.invoke(buf.substring(0, safeEnd))
@@ -143,20 +142,19 @@ class AgentOrchestrator(private val project: Project) {
                 appendLine()
                 appendLine()
                 appendLine("=== Attached files ===")
-                append(fileContext.take(3000))
+                append(fileContext.take(FILE_CONTEXT_MAX_CHARS))
                 appendLine()
                 appendLine("=== End attached files ===")
             }
         }
         val contextHint = buildContextHint()
-        val historyBudgetChars = 1200
-        val recentMessages = fitMessagesInBudget(session.messages, historyBudgetChars)
+        val recentMessages = fitMessagesInBudget(session.messages, HISTORY_BUDGET_CHARS)
 
         // messages list: no leading SYSTEM turn — the renderer takes systemPrompt separately.
         // Context hint is merged into the user turn so Gemma's chat template (which drops
         // ChatRole.SYSTEM messages) still sees it.
         val userContent = buildString {
-            append(cleanInstruction.take(800))
+            append(cleanInstruction.take(USER_INSTRUCTION_MAX_CHARS))
             if (contextHint.isNotBlank()) {
                 appendLine()
                 appendLine()
@@ -181,12 +179,6 @@ class AgentOrchestrator(private val project: Project) {
 
         // Multi-round agentic loop: model can call tools across up to MAX_ROUNDS before answering.
         // Each round feeds tool results back so the model can: list files -> read files -> write files.
-        val MAX_ROUNDS = 5
-        val knownToolNames = setOf(
-            "list_files", "read_file", "search_code", "search_filenames",
-            "get_current_file", "get_selected_text", "write_file", "create_file",
-            "replace_in_file", "show_diff", "apply_patch",
-        )
         fun runRound(messages: List<ChatMessage>, round: Int, accumulatedProposals: List<EditProposal>, hasReadContent: Boolean = false) {
             if (cancelled.get()) return
             val roundSystemPrompt = if (round == 1) systemPrompt else buildSecondPassSystemPrompt()
@@ -208,8 +200,8 @@ class AgentOrchestrator(private val project: Project) {
                         val answerText = ToolCallParser.stripThinking(fullText)
                         // Filter to known tool names — hallucinated names (e.g. "diff_tool") would loop forever
                         val toolCalls = ToolCallParser.parseIncludingIncomplete(answerText)
-                            .filter { it.name in knownToolNames }
-                            .take(4)
+                            .filter { it.name in KNOWN_TOOL_NAMES }
+                            .take(MAX_TOOL_CALLS_PER_ROUND)
 
                         if (toolCalls.isEmpty() || round >= MAX_ROUNDS) {
                             val xmlProposals = extractEditProposals(answerText)
@@ -223,12 +215,12 @@ class AgentOrchestrator(private val project: Project) {
                             return
                         }
 
-                        if (!cancelled.get()) onToken(" STATUS:Gathering project context…")
+                        if (!cancelled.get()) onToken(" STATUS:Gathering project context…")
                         resetStreamState()
 
                         val toolMessages = toolCalls.map { call ->
-                            val mainArg = call.arguments.values.firstOrNull().orEmpty().take(60)
-                            if (!cancelled.get()) onToken(" TOOL:${call.name}:$mainArg")
+                            val mainArg = call.arguments.values.firstOrNull().orEmpty().take(TOOL_ARG_DISPLAY_MAX_CHARS)
+                            if (!cancelled.get()) onToken(" TOOL:${call.name}:$mainArg")
                             val result = toolRegistry.execute(call, ToolExecutionContext(project))
                             ChatMessage(role = ChatRole.TOOL, content = result.content, toolName = result.name)
                         }
@@ -238,13 +230,12 @@ class AgentOrchestrator(private val project: Project) {
                         val allProposals = (roundProposals + accumulatedProposals).distinctBy { it.filePath }
 
                         if (cancelled.get()) return
-                        if (!cancelled.get()) onToken(" STATUS:Thinking…")
+                        if (!cancelled.get()) onToken(" STATUS:Thinking…")
 
                         val toolResultsSummary = toolMessages.joinToString("\n") { msg ->
-                            "<result tool=\"${msg.toolName}\">\n${msg.content.take(400)}\n</result>"
+                            "<result tool=\"${msg.toolName}\">\n${msg.content.take(TOOL_RESULT_CONTENT_MAX_CHARS)}\n</result>"
                         }
-                        val readOnlyTools = setOf("list_files", "read_file", "search_code", "search_filenames", "get_current_file", "get_selected_text")
-                        val allReadOnly = toolCalls.all { it.name in readOnlyTools }
+                        val allReadOnly = toolCalls.all { it.name in READ_ONLY_TOOL_NAMES }
                         val nowHasReadContent = hasReadContent || toolCalls.any { it.name == "read_file" || it.name == "search_code" }
                         val directive = when {
                             allReadOnly && nowHasReadContent ->
@@ -260,9 +251,9 @@ class AgentOrchestrator(private val project: Project) {
                         // accumulated history. This keeps every round's prompt small and prevents the
                         // "Prompt too long" batch-size error when rounds accumulate.
                         val nextUserContent = buildString {
-                            appendLine("Task: ${cleanInstruction.take(200)}")
+                            appendLine("Task: ${cleanInstruction.take(TASK_EXCERPT_MAX_CHARS)}")
                             appendLine("Tool results:")
-                            appendLine(toolResultsSummary.take(900))
+                            appendLine(toolResultsSummary.take(TOOL_RESULTS_MAX_CHARS))
                             appendLine()
                             append(directive)
                         }
@@ -317,7 +308,7 @@ class AgentOrchestrator(private val project: Project) {
         appendLine("Use the ACTUAL file paths from the project. Do NOT invent or guess paths.")
         appendLine("If you have enough context, call write_file with the complete new file content.")
         appendLine("If you need more context, call read_file first.")
-        appendLine("Tools: ${toolRegistry.describeTools().take(300)}")
+        appendLine("Tools: ${toolRegistry.describeTools().take(TOOL_DESCRIPTIONS_SHORT_MAX_CHARS)}")
         val activeNames = skillService.activeSkills().joinToString(", ") { it.displayName }
         if (activeNames.isNotEmpty()) appendLine("Active skills: $activeNames")
     }
@@ -368,13 +359,13 @@ class AgentOrchestrator(private val project: Project) {
             val content = runCatching { contextService.readFile(currentFilePath) }.getOrNull()
             if (!content.isNullOrBlank()) {
                 appendLine("- open file content:")
-                appendLine(content.take(800))
+                appendLine(content.take(OPEN_FILE_CONTENT_MAX_CHARS))
             }
         }
-        val selected = contextService.getSelectedText()?.take(300)
+        val selected = contextService.getSelectedText()?.take(SELECTED_TEXT_MAX_CHARS)
         if (!selected.isNullOrBlank()) appendLine("- selected text: ${selected}")
         val pinned = contextService.pinnedInstructions()
-        if (pinned.isNotBlank()) appendLine("- instructions: ${pinned.take(200)}")
+        if (pinned.isNotBlank()) appendLine("- instructions: ${pinned.take(PINNED_INSTRUCTIONS_MAX_CHARS)}")
     }
 
     /**
@@ -383,7 +374,7 @@ class AgentOrchestrator(private val project: Project) {
      */
     private fun fitMessagesInBudget(messages: List<ChatMessage>, budgetChars: Int): List<ChatMessage> {
         if (messages.isEmpty()) return emptyList()
-        val recent = messages.takeLast(20)
+        val recent = messages.takeLast(MAX_HISTORY_MESSAGES)
         var used = 0
         val result = mutableListOf<ChatMessage>()
         for (msg in recent.asReversed()) {
@@ -412,9 +403,9 @@ class AgentOrchestrator(private val project: Project) {
         appendLine("Use ONLY file paths that exist in the project. Never invent paths.")
         appendLine("Tool call format:")
         appendLine("<tool_call name=\"read_file\"><arg name=\"path\">ACTUAL/PATH/FROM/PROJECT</arg></tool_call>")
-        appendLine("Tools: ${toolRegistry.describeTools().take(400)}")
+        appendLine("Tools: ${toolRegistry.describeTools().take(TOOL_DESCRIPTIONS_FULL_MAX_CHARS)}")
         val skillsAddition = skillService.buildSkillsPromptAddition()
-        if (skillsAddition.isNotBlank()) append(skillsAddition.take(400))
+        if (skillsAddition.isNotBlank()) append(skillsAddition.take(SKILLS_PROMPT_MAX_CHARS))
     }
 
     /**
@@ -438,7 +429,7 @@ class AgentOrchestrator(private val project: Project) {
             if (!content.isNullOrBlank()) {
                 attachments.appendLine("### File: $path")
                 attachments.appendLine("```")
-                attachments.appendLine(content.take(2000))
+                attachments.appendLine(content.take(FILE_ATTACHMENT_MAX_CHARS))
                 attachments.appendLine("```")
                 attachments.appendLine()
             }
@@ -523,10 +514,9 @@ class AgentOrchestrator(private val project: Project) {
      * Handles write_file / replace_in_file (---OLD--- / ---NEW--- format) and create_file (no separator).
      */
     private fun buildProposalsFromToolMessages(toolMessages: List<ChatMessage>): List<EditProposal> {
-        val editTools = setOf("write_file", "replace_in_file", "create_file")
         return toolMessages.mapNotNull { msg ->
             val toolName = msg.toolName ?: return@mapNotNull null
-            if (toolName !in editTools) return@mapNotNull null
+            if (toolName !in EDIT_TOOL_NAMES) return@mapNotNull null
             val content = msg.content
 
             val path = when {
@@ -588,23 +578,23 @@ class AgentOrchestrator(private val project: Project) {
                 val content = runCatching { contextService.readFile(currentFilePath) }.getOrNull()
                 if (!content.isNullOrBlank()) {
                     appendLine("File content:")
-                    appendLine(content.take(800))
+                    appendLine(content.take(OPEN_FILE_CONTENT_MAX_CHARS))
                 }
             }
-            val selected = contextService.getSelectedText()?.take(300)
+            val selected = contextService.getSelectedText()?.take(SELECTED_TEXT_MAX_CHARS)
             if (!selected.isNullOrBlank()) appendLine("Selected text: $selected")
             val pinned = contextService.pinnedInstructions()
-            if (pinned.isNotBlank()) appendLine("Project instructions: ${pinned.take(200)}")
+            if (pinned.isNotBlank()) appendLine("Project instructions: ${pinned.take(PINNED_INSTRUCTIONS_MAX_CHARS)}")
             if (fileContext.isNotBlank()) {
                 appendLine("=== Attached files ===")
-                append(fileContext.take(3000))
+                append(fileContext.take(FILE_CONTEXT_MAX_CHARS))
                 appendLine("=== End attached files ===")
             }
         }
 
         // session.messages already contains the current user message (added by the caller before
         // invoking chat()), so we must not append it again here.
-        val recentMessages = fitMessagesInBudget(session.messages, 1200)
+        val recentMessages = fitMessagesInBudget(session.messages, HISTORY_BUDGET_CHARS)
 
         val config = BackendConfig(
             modelIdOrPath = settings.modelPath.ifBlank { settings.modelIdentifier },
@@ -633,7 +623,7 @@ class AgentOrchestrator(private val project: Project) {
                         tokenBuffer.append(buf.substring(openIdx + "<think>".length))
                         continue
                     }
-                    val holdLen = holdLenForTags(buf, listOf("<think>", "<end_of_turn>", "<eos>"))
+                    val holdLen = holdLenForTags(buf, ANSWER_HOLD_TAGS)
                     val safeEnd = buf.length - holdLen
                     if (safeEnd > 0) {
                         onToken(buf.substring(0, safeEnd))
@@ -763,9 +753,8 @@ class AgentOrchestrator(private val project: Project) {
                     }
                     break
                 } else {
-                    val thinkClosers = listOf("</think>", "<|im_end|>", "<|endoftext|>", "<wait")
                     val bufLow = buf.lowercase()
-                    val closeMatch = thinkClosers.mapNotNull { tag ->
+                    val closeMatch = THINK_CLOSERS.mapNotNull { tag ->
                         val idx = bufLow.indexOf(tag.lowercase())
                         if (idx >= 0) idx to tag else null
                     }.minByOrNull { it.first }
@@ -778,7 +767,7 @@ class AgentOrchestrator(private val project: Project) {
                         if (tag == "</think>") tokenBuffer.append(buf.substring(idx + tag.length))
                         continue
                     }
-                    val holdLen = holdLenForStartsWith(buf, thinkClosers)
+                    val holdLen = holdLenForStartsWith(buf, THINK_CLOSERS)
                     val safeEnd = buf.length - holdLen
                     if (safeEnd > 0) {
                         onThinkingToken?.invoke(buf.substring(0, safeEnd))
@@ -790,10 +779,10 @@ class AgentOrchestrator(private val project: Project) {
             }
         }
 
-        onToken(" STATUS:Analyzing image…")
+        onToken(" STATUS:Analyzing image…")
         val firstHandle = multimodalBackend.generateWithImages(
             systemPrompt = visionSystemPrompt,
-            userPrompt = cleanInstruction.take(800),
+            userPrompt = cleanInstruction.take(USER_INSTRUCTION_MAX_CHARS),
             images = images,
             callbacks = object : GenerationCallbacks {
                 override fun onToken(token: String) {
@@ -807,7 +796,7 @@ class AgentOrchestrator(private val project: Project) {
                         .replace(Regex("</?end_of_turn>"), "")
                         .trim()
 
-                    if (!cancelled.get()) onToken(" STATUS:Applying changes…")
+                    if (!cancelled.get()) onToken(" STATUS:Applying changes…")
 
                     // releaseSync() frees the VLM inline; unload() would re-queue on the same
                     // single-thread executor we're already running on, so the VLM would still be
@@ -822,16 +811,16 @@ class AgentOrchestrator(private val project: Project) {
 
                     val secondPassUserContent = buildString {
                         appendLine("Image analysis result:")
-                        appendLine(visionDescription.take(1200))
+                        appendLine(visionDescription.take(VISION_DESCRIPTION_MAX_CHARS))
                         if (fileContext.isNotBlank()) {
                             appendLine()
                             appendLine("=== File to modify ===")
-                            append(fileContext.take(2400))
+                            append(fileContext.take(FILE_CONTEXT_MULTIMODAL_MAX_CHARS))
                             appendLine()
                             appendLine("=== End file ===")
                         }
                         appendLine()
-                        appendLine("Task: ${cleanInstruction.take(300)}")
+                        appendLine("Task: ${cleanInstruction.take(SECOND_PASS_TASK_MAX_CHARS)}")
                         appendLine()
                         appendLine("Apply the changes from the image analysis to the file above.")
                         appendLine("Output ONE <edit_proposal> with the COMPLETE new file content:")
@@ -891,5 +880,48 @@ class AgentOrchestrator(private val project: Project) {
         activeHandle.set(firstHandle)
 
         return compositeHandle
+    }
+
+    companion object {
+        // Agentic loop limits
+        private const val MAX_ROUNDS = 5
+        private const val MAX_TOOL_CALLS_PER_ROUND = 4
+        private const val MAX_HISTORY_MESSAGES = 20
+
+        // Character budgets for prompt sections
+        private const val HISTORY_BUDGET_CHARS = 1200
+        private const val USER_INSTRUCTION_MAX_CHARS = 800
+        private const val OPEN_FILE_CONTENT_MAX_CHARS = 800
+        private const val SELECTED_TEXT_MAX_CHARS = 300
+        private const val PINNED_INSTRUCTIONS_MAX_CHARS = 200
+        private const val TASK_EXCERPT_MAX_CHARS = 200
+        private const val FILE_CONTEXT_MAX_CHARS = 3000
+        private const val FILE_CONTEXT_MULTIMODAL_MAX_CHARS = 2400
+        private const val FILE_ATTACHMENT_MAX_CHARS = 2000
+        private const val VISION_DESCRIPTION_MAX_CHARS = 1200
+        private const val SECOND_PASS_TASK_MAX_CHARS = 300
+        private const val TOOL_DESCRIPTIONS_FULL_MAX_CHARS = 400
+        private const val TOOL_DESCRIPTIONS_SHORT_MAX_CHARS = 300
+        private const val SKILLS_PROMPT_MAX_CHARS = 400
+        private const val TOOL_RESULTS_MAX_CHARS = 900
+        private const val TOOL_RESULT_CONTENT_MAX_CHARS = 400
+        private const val TOOL_ARG_DISPLAY_MAX_CHARS = 60
+
+        // Token streaming: tags that signal end-of-answer or start of a think block
+        private val ANSWER_HOLD_TAGS = listOf("<think>", "<end_of_turn>", "<eos>")
+        // Tags that close a <think> block; <wait covers all <wait...> variants
+        private val THINK_CLOSERS = listOf("</think>", "<|im_end|>", "<|endoftext|>", "<wait")
+
+        // Tool name sets used in the agentic loop
+        private val KNOWN_TOOL_NAMES = setOf(
+            "list_files", "read_file", "search_code", "search_filenames",
+            "get_current_file", "get_selected_text", "write_file", "create_file",
+            "replace_in_file", "show_diff", "apply_patch",
+        )
+        private val READ_ONLY_TOOL_NAMES = setOf(
+            "list_files", "read_file", "search_code", "search_filenames",
+            "get_current_file", "get_selected_text",
+        )
+        private val EDIT_TOOL_NAMES = setOf("write_file", "replace_in_file", "create_file")
     }
 }
