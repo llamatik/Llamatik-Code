@@ -215,12 +215,12 @@ class AgentOrchestrator(private val project: Project) {
                             return
                         }
 
-                        if (!cancelled.get()) onToken(" STATUS:Gathering project context…")
+                        if (!cancelled.get()) onToken("${STATUS_PREFIX}Gathering project context…")
                         resetStreamState()
 
                         val toolMessages = toolCalls.map { call ->
                             val mainArg = call.arguments.values.firstOrNull().orEmpty().take(TOOL_ARG_DISPLAY_MAX_CHARS)
-                            if (!cancelled.get()) onToken(" TOOL:${call.name}:$mainArg")
+                            if (!cancelled.get()) onToken("${TOOL_PREFIX}${call.name}:$mainArg")
                             val result = toolRegistry.execute(call, ToolExecutionContext(project))
                             ChatMessage(role = ChatRole.TOOL, content = result.content, toolName = result.name)
                         }
@@ -230,7 +230,7 @@ class AgentOrchestrator(private val project: Project) {
                         val allProposals = (roundProposals + accumulatedProposals).distinctBy { it.filePath }
 
                         if (cancelled.get()) return
-                        if (!cancelled.get()) onToken(" STATUS:Thinking…")
+                        if (!cancelled.get()) onToken("${STATUS_PREFIX}Thinking…")
 
                         val toolResultsSummary = toolMessages.joinToString("\n") { msg ->
                             "<result tool=\"${msg.toolName}\">\n${msg.content.take(TOOL_RESULT_CONTENT_MAX_CHARS)}\n</result>"
@@ -779,7 +779,7 @@ class AgentOrchestrator(private val project: Project) {
             }
         }
 
-        onToken(" STATUS:Analyzing image…")
+        onToken("${STATUS_PREFIX}Analyzing image…")
         val firstHandle = multimodalBackend.generateWithImages(
             systemPrompt = visionSystemPrompt,
             userPrompt = cleanInstruction.take(USER_INSTRUCTION_MAX_CHARS),
@@ -796,7 +796,7 @@ class AgentOrchestrator(private val project: Project) {
                         .replace(Regex("</?end_of_turn>"), "")
                         .trim()
 
-                    if (!cancelled.get()) onToken(" STATUS:Applying changes…")
+                    if (!cancelled.get()) onToken("${STATUS_PREFIX}Applying changes…")
 
                     // releaseSync() frees the VLM inline; unload() would re-queue on the same
                     // single-thread executor we're already running on, so the VLM would still be
@@ -906,6 +906,10 @@ class AgentOrchestrator(private val project: Project) {
         private const val TOOL_RESULTS_MAX_CHARS = 900
         private const val TOOL_RESULT_CONTENT_MAX_CHARS = 400
         private const val TOOL_ARG_DISPLAY_MAX_CHARS = 60
+
+        // Sentinel prefixes used to route special tokens through the onToken callback
+        const val STATUS_PREFIX = " STATUS:"
+        const val TOOL_PREFIX = " TOOL:"
 
         // Token streaming: tags that signal end-of-answer or start of a think block
         private val ANSWER_HOLD_TAGS = listOf("<think>", "<end_of_turn>", "<eos>")

@@ -344,10 +344,10 @@ class LlamatikToolWindowPanel(
                 onToken = { token ->
                     SwingUtilities.invokeLater {
                         when {
-                            token.startsWith("\u0000STATUS:") ->
-                                agentTabPanel.setStatus(token.removePrefix("\u0000STATUS:"))
-                            token.startsWith("\u0000TOOL:") -> {
-                                val payload = token.removePrefix("\u0000TOOL:")
+                            token.startsWith(AgentOrchestrator.STATUS_PREFIX) ->
+                                agentTabPanel.setStatus(token.removePrefix(AgentOrchestrator.STATUS_PREFIX))
+                            token.startsWith(AgentOrchestrator.TOOL_PREFIX) -> {
+                                val payload = token.removePrefix(AgentOrchestrator.TOOL_PREFIX)
                                 val sep = payload.indexOf(':')
                                 val name = if (sep >= 0) payload.substring(0, sep) else payload
                                 val arg = if (sep >= 0) payload.substring(sep + 1) else ""
