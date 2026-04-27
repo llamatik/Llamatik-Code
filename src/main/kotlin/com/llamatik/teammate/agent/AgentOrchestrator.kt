@@ -131,7 +131,11 @@ class AgentOrchestrator(private val project: Project) {
         // Resolve @{path} file references typed in the composer.
         // cleanInstruction = user text with @{…} tokens replaced by bare filenames.
         // fileContext = fenced file contents to append into the system prompt.
-        val (cleanInstruction, fileContext) = resolveFileReferences(userPrompt)
+        val (afterAtRefs, atFileContext) = resolveFileReferences(userPrompt)
+        // Rewrite vague "current file" / "this file" phrases to the actual filename so small
+        // models don't search_code for the instruction text instead of reading the file.
+        val (cleanInstruction, currentFileContext) = resolveCurrentFileReference(afterAtRefs)
+        val fileContext = listOf(atFileContext, currentFileContext).filter { it.isNotBlank() }.joinToString("\n\n")
 
         // Build the single system prompt that the renderer will place at the top.
         // File context is appended here so it is always visible to the model and never
@@ -177,6 +181,10 @@ class AgentOrchestrator(private val project: Project) {
             localOnly = settings.localOnly,
         )
 
+        // Collects rejection reasons across all rounds so they can be shown in the final message
+        // if the agent exhausts rounds without producing a valid proposal.
+        val accumulatedRejections = mutableListOf<String>()
+
         // Multi-round agentic loop: model can call tools across up to MAX_ROUNDS before answering.
         // Each round feeds tool results back so the model can: list files -> read files -> write files.
         fun runRound(messages: List<ChatMessage>, round: Int, accumulatedProposals: List<EditProposal>, hasReadContent: Boolean = false) {
@@ -205,12 +213,26 @@ class AgentOrchestrator(private val project: Project) {
 
                         if (toolCalls.isEmpty() || round >= MAX_ROUNDS) {
                             val xmlProposals = extractEditProposals(answerText)
-                            // xmlProposals (from final LLM pass) wins over earlier tool-result proposals.
                             val proposals = (xmlProposals + accumulatedProposals).distinctBy { it.filePath }
-                            // Only fall back to think content on round 1 (no tools ran at all).
-                            // If tools executed in prior rounds, a blank answer is correct — the tool
-                            // call list is already visible and the reasoning must never leak into the panel.
-                            val clean = ToolCallParser.cleanForDisplay(fullText, allowThinkFallback = round == 1 && proposals.isEmpty())
+                            // After tool-use rounds the model's final answer is unreliable (hallucinated
+                            // tool syntax, echoed system prompt markers, etc.). Only surface it on round 1
+                            // with no proposals — every other terminal case uses the structured fallback.
+                            val clean = if (round == 1 && proposals.isEmpty()) {
+                                ToolCallParser.cleanForDisplay(fullText, allowThinkFallback = true)
+                            } else if (proposals.isNotEmpty()) {
+                                ""
+                            } else {
+                                buildString {
+                                    append("The agent completed without producing a file change. ")
+                                    if (accumulatedRejections.isNotEmpty()) {
+                                        append("All write attempts were rejected: ")
+                                        append(accumulatedRejections.joinToString("; "))
+                                        append(". Try using @filename to attach the source file directly.")
+                                    } else {
+                                        append("The model may not have found the right file. Try using @filename to attach it.")
+                                    }
+                                }
+                            }
                             onFinished(
                                 ChatMessage(role = ChatRole.ASSISTANT, content = clean, editProposalId = proposals.firstOrNull()?.id),
                                 proposals,
@@ -228,31 +250,56 @@ class AgentOrchestrator(private val project: Project) {
                             ChatMessage(role = ChatRole.TOOL, content = result.content, toolName = result.name)
                         }
 
-                        val roundProposals = buildProposalsFromToolMessages(toolMessages)
+                        val proposalResult = buildProposalsFromToolMessages(toolMessages)
+                        val roundProposals = proposalResult.proposals
+                        accumulatedRejections += proposalResult.rejectionReasons
                         // roundProposals wins over older accumulated proposals for the same file.
                         val allProposals = (roundProposals + accumulatedProposals).distinctBy { it.filePath }
 
                         if (cancelled.get()) return
+
+                        // Valid proposals produced → task done. Stop immediately.
+                        val wroteFiles = toolCalls.any { it.name in EDIT_TOOL_NAMES }
+                        if (wroteFiles && roundProposals.isNotEmpty()) {
+                            onFinished(
+                                ChatMessage(role = ChatRole.ASSISTANT, content = "", editProposalId = allProposals.firstOrNull()?.id),
+                                allProposals,
+                            )
+                            return
+                        }
+
                         if (!cancelled.get()) onToken("${STATUS_PREFIX}Thinking…")
 
                         val toolResultsSummary = toolMessages.joinToString("\n") { msg ->
                             "<result tool=\"${msg.toolName}\">\n${msg.content.take(TOOL_RESULT_CONTENT_MAX_CHARS)}\n</result>"
                         }
                         val allReadOnly = toolCalls.all { it.name in READ_ONLY_TOOL_NAMES }
+                        val readFilePath = toolCalls.firstOrNull { it.name == "read_file" }?.arguments?.get("path")
                         val nowHasReadContent = hasReadContent || toolCalls.any { it.name == "read_file" || it.name == "search_code" }
-                        val directive = when {
-                            round + 1 >= MAX_ROUNDS ->
-                                "Final round: call write_file or create_file now. ONLY use paths from the results above."
-                            allReadOnly && !nowHasReadContent ->
-                                "Call read_file on the relevant source files."
-                            else ->
-                                "Continue: read more files if needed, or call write_file/create_file when you have enough context."
-                        }
+                        val directive = RoundDirective.get(RoundDirective.RoundState(
+                            round = round,
+                            maxRounds = MAX_ROUNDS,
+                            hasReadContent = nowHasReadContent,
+                            wroteFilesThisRound = wroteFiles,
+                            validProposalsProduced = roundProposals.isNotEmpty(),
+                            allToolsWereReadOnly = allReadOnly,
+                            rejectionReasons = proposalResult.rejectionReasons,
+                            readFilePath = readFilePath,
+                        ))
                         // Each round sends only the current tool results as the user turn — NOT the full
                         // accumulated history. This keeps every round's prompt small and prevents the
                         // "Prompt too long" batch-size error when rounds accumulate.
+                        // Re-attach the source file context so the model always has the full source
+                        // when writing (the read_file tool result gets truncated at TOOL_RESULT_CONTENT_MAX_CHARS).
                         val nextUserContent = buildString {
                             appendLine("Task: ${cleanInstruction.take(TASK_EXCERPT_MAX_CHARS)}")
+                            if (fileContext.isNotBlank()) {
+                                appendLine()
+                                appendLine("=== Source file ===")
+                                appendLine(fileContext.take(FILE_CONTEXT_MAX_CHARS))
+                                appendLine("=== End source file ===")
+                            }
+                            appendLine()
                             appendLine("Tool results:")
                             appendLine(toolResultsSummary.take(TOOL_RESULTS_MAX_CHARS))
                             appendLine()
@@ -304,7 +351,7 @@ class AgentOrchestrator(private val project: Project) {
         if (lang != null) appendLine("Language: $lang. Write ALL code in $lang only.")
         appendLine("Respond with tool calls ONLY. No prose. Optional: <think>reasoning</think> then tool XML.")
         appendLine("<tool_call name=\"write_file\"><arg name=\"path\">p</arg><arg name=\"content\">c</arg></tool_call>")
-        appendLine("Use ONLY paths from the results. Read more files if needed before writing.")
+        appendLine("Use ONLY paths from the results. Do NOT read the same file twice. Write immediately after reading.")
         appendLine("Tools: ${toolRegistry.describeTools().take(TOOL_DESCRIPTIONS_SHORT_MAX_CHARS)}")
     }
 
@@ -438,6 +485,42 @@ class AgentOrchestrator(private val project: Project) {
         return Pair(cleanInstruction, attachments.trimEnd().toString())
     }
 
+    /**
+     * Rewrites vague "current file" / "this file" / "open file" phrases in [prompt] to the
+     * actual filename, and returns the file content as fenced context.
+     *
+     * This prevents small models from using the instruction text as a search_code query
+     * instead of reading the file the user actually has open.
+     *
+     * Returns (rewritten prompt, fenced file content string).
+     * If no current file is open, returns the original prompt unchanged with empty context.
+     */
+    private fun resolveCurrentFileReference(prompt: String): Pair<String, String> {
+        val currentFilePath = contextService.getCurrentFile() ?: return Pair(prompt, "")
+        val fileName = currentFilePath.substringAfterLast('/')
+
+        val hasVagueRef = CURRENT_FILE_PHRASES.any { prompt.contains(it, ignoreCase = true) }
+        if (!hasVagueRef) return Pair(prompt, "")
+
+        val content = runCatching { contextService.readFile(currentFilePath) }.getOrNull()
+            ?: return Pair(prompt, "")
+
+        // Replace vague references with the concrete filename
+        var rewritten = prompt
+        for (phrase in CURRENT_FILE_PHRASES) {
+            rewritten = rewritten.replace(phrase, fileName, ignoreCase = true)
+        }
+
+        val context = buildString {
+            appendLine("### File: $currentFilePath")
+            appendLine("```")
+            appendLine(content.take(FILE_ATTACHMENT_MAX_CHARS))
+            appendLine("```")
+        }.trimEnd()
+
+        return Pair(rewritten, context)
+    }
+
     // Matches path and summary in any order, with single or double quotes, arbitrary spacing.
     private val editRegex = Regex(
         "<edit_proposal\\b([^>]*)>\\s*<new_content>(?:<!\\[CDATA\\[(.*?)]]>|(.*?))</new_content>\\s*</edit_proposal>",
@@ -502,18 +585,26 @@ class AgentOrchestrator(private val project: Project) {
         return EditProposal(filePath = trimmedPath, oldContent = oldContent, newContent = cleanContent, summary = summary)
     }
 
+    data class ProposalResult(
+        val proposals: List<EditProposal>,
+        val rejectionReasons: List<String>,
+    )
+
     /**
-     * Extracts EditProposals directly from tool result messages, bypassing the need for the
-     * second-pass LLM to re-emit file content inside <edit_proposal> XML (unreliable on small models).
-     *
-     * Handles write_file / replace_in_file (---OLD--- / ---NEW--- format) and create_file (no separator).
+     * Extracts EditProposals directly from tool result messages.
+     * Only hard-rejects structurally broken proposals (corrupt path, hallucinated tool syntax).
+     * Stub or low-quality content is surfaced as a proposal so the user can review and decide.
      */
-    private fun buildProposalsFromToolMessages(toolMessages: List<ChatMessage>): List<EditProposal> {
-        return toolMessages.mapNotNull { msg ->
-            val toolName = msg.toolName ?: return@mapNotNull null
-            if (toolName !in EDIT_TOOL_NAMES) return@mapNotNull null
+    private fun buildProposalsFromToolMessages(toolMessages: List<ChatMessage>): ProposalResult {
+        val proposals = mutableListOf<EditProposal>()
+        val rejections = mutableListOf<String>()
+
+        for (msg in toolMessages) {
+            val toolName = msg.toolName ?: continue
+            if (toolName !in EDIT_TOOL_NAMES) continue
             val content = msg.content
 
+            // Silently skip results whose format we don't recognise (e.g. tool returned an error).
             val path = when {
                 content.startsWith("Prepared file replacement for ") ->
                     content.removePrefix("Prepared file replacement for ").substringBefore("\n")
@@ -521,23 +612,30 @@ class AgentOrchestrator(private val project: Project) {
                     content.removePrefix("Prepared replacement for ").substringBefore("\n")
                 content.startsWith("Prepared new file for ") ->
                     content.removePrefix("Prepared new file for ").substringBefore("\n")
-                else -> return@mapNotNull null
+                else -> continue
             }.trim()
 
             val newContent = when {
                 content.contains("\n---NEW---\n") -> content.substringAfter("\n---NEW---\n").trim()
                 content.startsWith("Prepared new file for ") -> content.substringAfter("\n").trim()
-                else -> return@mapNotNull null
+                else -> continue
             }
             val oldContent = when {
                 content.contains("\n---OLD---\n") -> content.substringAfter("\n---OLD---\n").substringBefore("\n---NEW---\n").trim()
                 else -> runCatching { contextService.readFile(path) }.getOrDefault("")
             }
 
-            if (newContent.isEmpty()) return@mapNotNull null
-            if (!path.contains('.')) return@mapNotNull null
-            EditProposal(filePath = path, oldContent = oldContent, newContent = newContent, summary = "Changes from $toolName")
+            when (val v = ProposalValidator.validate(path, newContent)) {
+                is ProposalValidator.Result.Invalid -> {
+                    rejections += "write to '$path' rejected: ${v.reason}"
+                    continue
+                }
+                is ProposalValidator.Result.Valid -> Unit
+            }
+            proposals += EditProposal(filePath = path, oldContent = oldContent, newContent = newContent, summary = "Changes from $toolName")
         }
+
+        return ProposalResult(proposals, rejections)
     }
 
     /**
@@ -900,7 +998,7 @@ class AgentOrchestrator(private val project: Project) {
         private const val TOOL_DESCRIPTIONS_SHORT_MAX_CHARS = 300
         private const val SKILLS_PROMPT_MAX_CHARS = 400
         private const val TOOL_RESULTS_MAX_CHARS = 4000
-        private const val TOOL_RESULT_CONTENT_MAX_CHARS = 1200
+        private const val TOOL_RESULT_CONTENT_MAX_CHARS = 2000
         private const val TOOL_ARG_DISPLAY_MAX_CHARS = 60
 
         // Sentinel prefixes used to route special tokens through the onToken callback
@@ -923,5 +1021,15 @@ class AgentOrchestrator(private val project: Project) {
             "get_current_file", "get_selected_text",
         )
         private val EDIT_TOOL_NAMES = setOf("write_file", "replace_in_file", "create_file")
+
+        // Vague phrases that refer to the currently open file; replaced with the actual filename.
+        internal val CURRENT_FILE_PHRASES = listOf(
+            "the current file",
+            "this file",
+            "the open file",
+            "the opened file",
+            "current file",
+            "open file",
+        )
     }
 }

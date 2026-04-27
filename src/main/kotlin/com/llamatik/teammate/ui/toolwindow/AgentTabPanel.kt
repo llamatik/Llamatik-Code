@@ -689,6 +689,9 @@ class AgentTabPanel(
     }
 
     fun setStatus(message: String) {
+        // A new round is starting — unblock streaming so round 2+ thinking/answer tokens are accepted.
+        thinkingBlocked = false
+        streamingBlocked = false
         statusPill.text = message
         statusPill.isVisible = true
     }
@@ -698,6 +701,11 @@ class AgentTabPanel(
         statusPill.isVisible = false
         if (!thinkHasContent) {
             thinkHasContent = true
+            thinkStartMs = System.currentTimeMillis()
+        }
+        // Re-expand the thinking section when a new round starts (it may have been collapsed
+        // after round 1's </think> tag caused thinkContent to hide).
+        if (!thinkingSection.isVisible || !thinkContent.isVisible) {
             thinkStartMs = System.currentTimeMillis()
             thinkingSection.isVisible = true
             thinkContent.isVisible = true
