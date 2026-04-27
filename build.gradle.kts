@@ -52,6 +52,7 @@ intellijPlatform {
             Initial local-first MVP for Llamatik Code.
         """.trimIndent()
     }
+    buildSearchableOptions = false
 }
 
 tasks {
