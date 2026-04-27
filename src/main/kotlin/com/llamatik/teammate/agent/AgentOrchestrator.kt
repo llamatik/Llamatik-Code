@@ -187,7 +187,12 @@ class AgentOrchestrator(private val project: Project) {
 
         // Multi-round agentic loop: model can call tools across up to MAX_ROUNDS before answering.
         // Each round feeds tool results back so the model can: list files -> read files -> write files.
-        val MAX_ROUNDS = 7
+        val MAX_ROUNDS = 5
+        val knownToolNames = setOf(
+            "list_files", "read_file", "search_code", "search_filenames",
+            "get_current_file", "get_selected_text", "write_file", "create_file",
+            "replace_in_file", "show_diff", "apply_patch",
+        )
         fun runRound(messages: List<ChatMessage>, round: Int, accumulatedProposals: List<EditProposal>, hasReadContent: Boolean = false) {
             if (cancelled.get()) return
             val roundSystemPrompt = if (round == 1) systemPrompt else buildSecondPassSystemPrompt()
@@ -207,7 +212,10 @@ class AgentOrchestrator(private val project: Project) {
                     override fun onCompleted(fullText: String) {
                         if (cancelled.get()) return
                         val answerText = ToolCallParser.stripThinking(fullText)
-                        val toolCalls = ToolCallParser.parseIncludingIncomplete(answerText).take(6)
+                        // Filter to known tool names — hallucinated names (e.g. "diff_tool") would loop forever
+                        val toolCalls = ToolCallParser.parseIncludingIncomplete(answerText)
+                            .filter { it.name in knownToolNames }
+                            .take(4)
 
                         if (toolCalls.isEmpty() || round >= MAX_ROUNDS) {
                             val xmlProposals = extractEditProposals(answerText)
@@ -238,53 +246,33 @@ class AgentOrchestrator(private val project: Project) {
                         if (cancelled.get()) return
                         if (!cancelled.get()) onToken(" STATUS:Thinking…")
 
-                        // Keep the raw tool call XML as the assistant turn so the renderer
-                        // doesn't skip it (blank content gets dropped, breaking the user/assistant alternation).
-                        val assistantTurn = ChatMessage(
-                            role = ChatRole.ASSISTANT,
-                            content = answerText.take(300).trimEnd(),
-                        )
                         val toolResultsSummary = toolMessages.joinToString("\n") { msg ->
-                            "<result tool=\"${msg.toolName}\">\n${msg.content.take(500)}\n</result>"
+                            "<result tool=\"${msg.toolName}\">\n${msg.content.take(400)}\n</result>"
                         }
                         val readOnlyTools = setOf("list_files", "read_file", "search_code", "search_filenames", "get_current_file", "get_selected_text")
                         val allReadOnly = toolCalls.all { it.name in readOnlyTools }
                         val nowHasReadContent = hasReadContent || toolCalls.any { it.name == "read_file" || it.name == "search_code" }
-                        // A short reminder anchors the model to the original task and project
-                        // so it doesn't hallucinate generic boilerplate in the write phase.
-                        val taskReminder = buildString {
-                            append("Original task: ${cleanInstruction.take(300)}")
-                            val currentFile = contextService.getCurrentFile()
-                            if (currentFile != null) append("\nProject file in focus: $currentFile")
-                            val lang = detectProjectLanguage()
-                            if (lang != null) append("\nProject language: $lang — write ALL code in $lang only")
+                        val directive = when {
+                            allReadOnly && nowHasReadContent ->
+                                "You have the file content. Call write_file with the complete new content. Use ONLY paths from the results above."
+                            allReadOnly && !nowHasReadContent ->
+                                "Call read_file on the relevant source files."
+                            round + 1 >= MAX_ROUNDS ->
+                                "Final round: call write_file or create_file now. ONLY use paths from the results above."
+                            else ->
+                                "Continue: read more files if needed, or call write_file/create_file."
                         }
+                        // Each round sends only the current tool results as the user turn — NOT the full
+                        // accumulated history. This keeps every round's prompt small and prevents the
+                        // "Prompt too long" batch-size error when rounds accumulate.
                         val nextUserContent = buildString {
-                            appendLine("Tool results (round $round):")
-                            appendLine(toolResultsSummary.take(1400))
+                            appendLine("Task: ${cleanInstruction.take(200)}")
+                            appendLine("Tool results:")
+                            appendLine(toolResultsSummary.take(900))
                             appendLine()
-                            appendLine(taskReminder)
-                            appendLine()
-                            when {
-                                allReadOnly && nowHasReadContent -> {
-                                    appendLine("You have read the necessary files. Now output write_file tool calls to apply the changes.")
-                                    appendLine("CRITICAL: Only use file paths that appear in the tool results above. Do NOT invent paths, package names, or code.")
-                                    append("Output ONLY tool call XML — no prose. Call write_file once per file that needs changes.")
-                                }
-                                allReadOnly && !nowHasReadContent -> {
-                                    append("Use read_file to read the relevant source files before making changes.")
-                                }
-                                round + 1 >= MAX_ROUNDS -> {
-                                    appendLine("CRITICAL: Only use file paths that appear in the tool results above. Do NOT invent paths, package names, or code.")
-                                    append("Now write the final changes using write_file or create_file. Output ONLY the tool call XML, no prose.")
-                                }
-                                else -> {
-                                    append("Continue: read more files if needed, or use write_file/create_file to apply changes.")
-                                }
-                            }
+                            append(directive)
                         }
-                        val nextMessages = messages + assistantTurn +
-                            ChatMessage(role = ChatRole.USER, content = nextUserContent)
+                        val nextMessages = listOf(ChatMessage(role = ChatRole.USER, content = nextUserContent))
 
                         runRound(nextMessages, round + 1, allProposals, nowHasReadContent)
                     }
@@ -310,7 +298,13 @@ class AgentOrchestrator(private val project: Project) {
      */
     private fun buildSecondPassSystemPrompt(): String = buildString {
         appendLine("You are Llamatik Code, a local IntelliJ coding agent.")
+        val lang = detectProjectLanguage()
+        if (lang != null) {
+            appendLine("LANGUAGE: $lang project. Write ALL code in $lang ONLY. Never Python or other languages.")
+        }
         appendLine("Output ONLY tool call XML. No prose, no explanation, no 'I will...'.")
+        appendLine("Tool call format:")
+        appendLine("<tool_call name=\"write_file\"><arg name=\"path\">src/Foo.kt</arg><arg name=\"content\">...</arg></tool_call>")
         appendLine("Use the ACTUAL file paths from the project. Do NOT invent or guess paths.")
         appendLine("If you have enough context, call write_file with the complete new file content.")
         appendLine("If you need more context, call read_file first.")
@@ -320,8 +314,9 @@ class AgentOrchestrator(private val project: Project) {
     }
 
     private fun detectProjectLanguage(): String? {
-        val ext = contextService.getCurrentFile()?.substringAfterLast('.', "")?.lowercase()
-        return when (ext) {
+        // Check open file first (most reliable signal)
+        val openExt = contextService.getCurrentFile()?.substringAfterLast('.', "")?.lowercase()
+        val fromOpenFile = when (openExt) {
             "kt", "kts" -> "Kotlin"
             "java" -> "Java"
             "py" -> "Python"
@@ -336,27 +331,41 @@ class AgentOrchestrator(private val project: Project) {
             "rb" -> "Ruby"
             else -> null
         }
+        if (fromOpenFile != null) return fromOpenFile
+
+        // Fallback: detect from project build files in the root
+        val projectFiles = contextService.listFiles(null).map { it.lowercase() }
+        return when {
+            projectFiles.any { it == "build.gradle.kts" || it.endsWith("/build.gradle.kts") } -> "Kotlin"
+            projectFiles.any { it == "cargo.toml" || it.endsWith("/cargo.toml") } -> "Rust"
+            projectFiles.any { it == "go.mod" || it.endsWith("/go.mod") } -> "Go"
+            projectFiles.any { it == "package.json" || it.endsWith("/package.json") } -> "TypeScript"
+            projectFiles.any { it == "build.gradle" || it.endsWith("/build.gradle") } -> "Java"
+            projectFiles.any { it == "pom.xml" || it.endsWith("/pom.xml") } -> "Java"
+            projectFiles.any { it == "setup.py" || it == "pyproject.toml" } -> "Python"
+            else -> null
+        }
     }
 
     private fun buildContextHint(): String = buildString {
         appendLine("Project context:")
-        appendLine("- project=${contextService.projectName()}")
+        appendLine("- project: ${contextService.projectName()}")
         val lang = detectProjectLanguage()
-        if (lang != null) appendLine("- language=$lang — ALL generated code MUST be written in $lang")
+        if (lang != null) appendLine("- language: $lang — ALL generated code MUST be written in $lang")
         val currentFilePath = contextService.getCurrentFile()
-        appendLine("- currentFile=${currentFilePath ?: "none"}")
+        appendLine("- open file: ${currentFilePath ?: "none"}")
         // Include the content of the open file so the model can write code that matches it
         if (currentFilePath != null) {
             val content = runCatching { contextService.readFile(currentFilePath) }.getOrNull()
             if (!content.isNullOrBlank()) {
-                appendLine("- currentFileContent:")
+                appendLine("- open file content:")
                 appendLine(content.take(800))
             }
         }
         val selected = contextService.getSelectedText()?.take(300)
-        if (!selected.isNullOrBlank()) appendLine("- selectedText=${selected}")
+        if (!selected.isNullOrBlank()) appendLine("- selected text: ${selected}")
         val pinned = contextService.pinnedInstructions()
-        if (pinned.isNotBlank()) appendLine("- instructions=${pinned.take(200)}")
+        if (pinned.isNotBlank()) appendLine("- instructions: ${pinned.take(200)}")
     }
 
     /**
@@ -379,6 +388,11 @@ class AgentOrchestrator(private val project: Project) {
 
     private fun buildSystemPrompt(): String = buildString {
         appendLine("You are Llamatik Code, a local IntelliJ coding agent.")
+        val lang = detectProjectLanguage()
+        if (lang != null) {
+            appendLine("LANGUAGE: This is a $lang project. You MUST write ALL code exclusively in $lang.")
+            appendLine("NEVER output Python, Java, or any other language. Only $lang.")
+        }
         appendLine("OUTPUT FORMAT — strictly follow this every response:")
         appendLine("  Optional: <think>brief reasoning</think>")
         appendLine("  Then IMMEDIATELY one of:")
@@ -386,7 +400,8 @@ class AgentOrchestrator(private val project: Project) {
         appendLine("    B) write_file/create_file tool calls to apply changes")
         appendLine("    C) A plain-text answer (only when no file changes are needed)")
         appendLine("NEVER write prose like 'I will now...' or 'I'll start by...' — go straight to the tool call or answer.")
-        appendLine("Tool call format — use actual project paths, never invent filenames:")
+        appendLine("Use ONLY file paths that exist in the project. Never invent paths.")
+        appendLine("Tool call format:")
         appendLine("<tool_call name=\"read_file\"><arg name=\"path\">ACTUAL/PATH/FROM/PROJECT</arg></tool_call>")
         appendLine("Tools: ${toolRegistry.describeTools().take(400)}")
         val skillsAddition = skillService.buildSkillsPromptAddition()
@@ -560,7 +575,7 @@ class AgentOrchestrator(private val project: Project) {
             appendLine("Do not use tool calls or edit proposals — only provide text answers.")
             val currentFilePath = contextService.getCurrentFile()
             if (currentFilePath != null) {
-                appendLine("Current file: $currentFilePath")
+                appendLine("Open file: $currentFilePath")
                 val content = runCatching { contextService.readFile(currentFilePath) }.getOrNull()
                 if (!content.isNullOrBlank()) {
                     appendLine("File content:")

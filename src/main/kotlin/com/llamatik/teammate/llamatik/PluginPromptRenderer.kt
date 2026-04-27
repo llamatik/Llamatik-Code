@@ -15,6 +15,7 @@ object PluginPromptRenderer {
 
     val STOP_SEQUENCES = listOf("<|im_end|>", "<|endoftext|>")
     private val GEMMA_STOP_SEQUENCES = listOf("<end_of_turn>", "<eos>")
+    private val PHI3_STOP_SEQUENCES = listOf("<|end|>", "<|endoftext|>")
 
     /**
      * Model-aware entry point. Detects the model family from [modelPath] and renders
@@ -25,15 +26,55 @@ object PluginPromptRenderer {
         messages: List<ChatMessage>,
         noThink: Boolean = false,
         modelPath: String = "",
-    ): RenderedPrompt = if (isGemmaModel(modelPath)) {
-        RenderedPrompt(renderGemma(system, messages), GEMMA_STOP_SEQUENCES)
-    } else {
-        RenderedPrompt(render(system, messages, noThink), STOP_SEQUENCES)
+    ): RenderedPrompt = when {
+        isGemmaModel(modelPath) -> RenderedPrompt(renderGemma(system, messages), GEMMA_STOP_SEQUENCES)
+        isPhiModel(modelPath) -> RenderedPrompt(renderPhi3(system, messages), PHI3_STOP_SEQUENCES)
+        else -> RenderedPrompt(render(system, messages, noThink), STOP_SEQUENCES)
     }
 
     private fun isGemmaModel(modelPath: String): Boolean {
         val name = modelPath.substringAfterLast('/').substringAfterLast('\\').lowercase()
         return name.contains("gemma")
+    }
+
+    private fun isPhiModel(modelPath: String): Boolean {
+        val name = modelPath.substringAfterLast('/').substringAfterLast('\\').lowercase()
+        return name.contains("phi")
+    }
+
+    /**
+     * Phi-3 chat template: <|system|>…<|end|>\n<|user|>…<|end|>\n<|assistant|>
+     * Stop token is <|end|> (token id 32007 in Phi-3-mini-4k-instruct).
+     */
+    private fun renderPhi3(system: String, messages: List<ChatMessage>): String = buildString {
+        val sys = system.trim()
+        if (sys.isNotBlank()) {
+            append("<|system|>\n")
+            append(sys)
+            append("<|end|>\n")
+        }
+
+        for (msg in messages) {
+            val body = msg.content.trim()
+            when (msg.role) {
+                ChatRole.USER -> {
+                    append("<|user|>\n")
+                    append(body)
+                    append("<|end|>\n")
+                }
+                ChatRole.ASSISTANT -> {
+                    if (body.isBlank()) continue
+                    append("<|assistant|>\n")
+                    append(body)
+                    append("<|end|>\n")
+                }
+                ChatRole.SYSTEM, ChatRole.TOOL -> {
+                    // TOOL results are embedded in user turns by the caller
+                }
+            }
+        }
+
+        append("<|assistant|>\n")
     }
 
     /**

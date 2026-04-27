@@ -91,14 +91,53 @@ class LlamatikBackendService : AssistantBackend {
                 )
                 ensureModel(request.config.modelIdOrPath)
 
-                val rendered = PluginPromptRenderer.renderForModel(
-                    system = request.systemPrompt,
-                    messages = request.messages,
-                    noThink = request.noThink,
-                    modelPath = request.config.modelIdOrPath,
-                )
-                val prompt = rendered.text
-                val stopSequences = rendered.stopSequences
+                // Build message list for the native chat template.
+                // System prompt is prepended as a "system" turn if non-blank.
+                val chatMessages = buildList {
+                    if (request.systemPrompt.isNotBlank()) {
+                        add("system" to request.systemPrompt)
+                    }
+                    request.messages.forEach { msg ->
+                        val role = when (msg.role) {
+                            com.llamatik.teammate.model.ChatRole.SYSTEM -> "system"
+                            com.llamatik.teammate.model.ChatRole.USER -> "user"
+                            com.llamatik.teammate.model.ChatRole.ASSISTANT -> "assistant"
+                            com.llamatik.teammate.model.ChatRole.TOOL -> "user"
+                        }
+                        add(role to msg.content)
+                    }
+                }
+
+                // Use the model's own embedded chat template via the native API.
+                // Falls back to PluginPromptRenderer if the template is unavailable
+                // (e.g. GGUF has no embedded template).
+                val nativePrompt = com.llamatik.library.platform.LlamaBridge
+                    .applyChatTemplate(chatMessages, addAssistantPrefix = true)
+                    ?.removePrefix("<s>")   // strip BOS — tokenizer adds it; double BOS corrupts model
+                    ?.takeIf { it.isNotBlank() }
+
+                val (prompt, stopSequences) = if (nativePrompt != null) {
+                    nativePrompt to emptyList()
+                } else {
+                    val rendered = PluginPromptRenderer.renderForModel(
+                        system = request.systemPrompt,
+                        messages = request.messages,
+                        noThink = request.noThink,
+                        modelPath = request.config.modelIdOrPath,
+                    )
+                    rendered.text to rendered.stopSequences
+                }
+
+                // Guard against n_tokens_all > n_batch assert in llama_decode.
+                // ~3 chars/token on average; keep a safety margin below batchSize.
+                val maxPromptChars = request.config.batchSize * 3
+                if (prompt.length > maxPromptChars) {
+                    callbacks.onError(
+                        "Prompt too long for current Batch Size (${request.config.batchSize} tokens). " +
+                        "Reduce context or increase Batch Size in Inference Settings.",
+                    )
+                    return@submit
+                }
 
                 val acc = StringBuilder()
                 var tokenCount = 0

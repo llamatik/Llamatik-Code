@@ -19,7 +19,7 @@ object ToolCallParser {
     // Model-specific stop/control tokens that must never appear in output.
     // <wait[^>]*>…</wait…> covers both <wait_for_approval> and <wait for user...> variants.
     private val modelStopTokenPattern = Regex(
-        "<\\|im_end\\|>|<\\|endoftext\\|>|<wait[^>]*>.*?</wait[^>]*>|<wait[^>]*>.*$",
+        "<\\|im_end\\|>|<\\|endoftext\\|>|<\\|end\\|>|<wait[^>]*>.*?</wait[^>]*>|<wait[^>]*>.*$",
         setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE),
     )
 
@@ -62,7 +62,11 @@ object ToolCallParser {
         if (calls.isNotEmpty()) return calls
 
         // Plain-text fallback: "toolname:\narg_value" or "toolname:\nkey: value\nkey2: value2"
-        return parsePlainText(text)
+        val plainCalls = parsePlainText(text)
+        if (plainCalls.isNotEmpty()) return plainCalls
+
+        // Python-style fallback: toolname("arg") or toolname("path", "content")
+        return parsePythonStyle(text)
     }
 
     private fun parsePlainText(text: String): List<ToolCall> {
@@ -95,6 +99,32 @@ object ToolCallParser {
         return results
     }
 
+    private fun parsePythonStyle(text: String): List<ToolCall> {
+        val results = mutableListOf<ToolCall>()
+        // Match: toolname("arg1") or toolname("arg1", "arg2") at start of line
+        val pythonPattern = Regex("""^([\w_]+)\s*\(\s*([\s\S]*?)\s*\)\s*$""", setOf(RegexOption.MULTILINE))
+        for (match in pythonPattern.findAll(text)) {
+            val name = match.groupValues[1].trim()
+            if (name !in knownTools) continue
+            val argsRaw = match.groupValues[2]
+            // Split on comma, stripping surrounding quotes
+            val argValues = argsRaw.split(Regex(""",\s*(?=(?:[^"]*"[^"]*")*[^"]*$)"""))
+                .map { it.trim().removeSurrounding("\"").removeSurrounding("'") }
+                .filter { it.isNotEmpty() }
+            val argNames = when (name) {
+                "write_file", "replace_in_file" -> listOf("path", "content")
+                "create_file" -> listOf("path", "content")
+                "read_file", "show_diff", "apply_patch" -> listOf("path")
+                "list_files" -> listOf("path")
+                "search_code", "search_filenames" -> listOf("query")
+                else -> listOf("path")
+            }
+            val args = argNames.zip(argValues).toMap()
+            if (args.isNotEmpty()) results += ToolCall(name, args)
+        }
+        return results
+    }
+
     fun removeToolMarkup(text: String): String = text.replace(toolPattern, "").trim()
 
     /**
@@ -119,8 +149,12 @@ object ToolCallParser {
             .replace(Regex("<tool_call\\b.*$", RegexOption.DOT_MATCHES_ALL), "")
             .replace(Regex("<result\\s+tool=.*$", RegexOption.DOT_MATCHES_ALL), "")
             .replace(modelStopTokenPattern, "")
+            // Strip stray model-hallucinated closing tags that should never appear in output
+            .replace(Regex("</?(answer|result|results|action)>", RegexOption.IGNORE_CASE), "")
             // Strip plain-text tool call lines: "read_file:\n..." or "[read_file]:\n..."
             .replace(Regex("""^\[?($toolNamesAlt)\]?:\s*\n?.*""", setOf(RegexOption.MULTILINE, RegexOption.DOT_MATCHES_ALL)), "")
+            // Strip Python-style function calls: "read_file("...")" or "write_file("path", "...")"
+            .replace(Regex("""^($toolNamesAlt)\s*\(.*""", setOf(RegexOption.MULTILINE, RegexOption.DOT_MATCHES_ALL)), "")
             .trim()
         if (withoutThink.isNotEmpty()) return withoutThink
         // Edit proposals surface via the edit UI.

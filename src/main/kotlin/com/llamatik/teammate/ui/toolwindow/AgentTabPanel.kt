@@ -431,10 +431,13 @@ class AgentTabPanel(
     private val thinkBuffer = StringBuilder()
     private var thinkingBlocked = false
     private var currentGenerationId = 0
-    private val blockedPrefixes = listOf("<tool_call", "<edit_proposal")
+    private val blockedPrefixes = listOf(
+        "<tool_call", "<edit_proposal", "<action>", "<action ",
+        "</answer>", "</result>", "</results>",
+    )
     // Tags that must never appear in the reasoning (think) text area — model-specific stop/control tokens.
     private val thinkBlockedPrefixes = blockedPrefixes + listOf(
-        "</think>", "<|im_end|>", "<|endoftext|>", "<wait",
+        "</think>", "<|im_end|>", "<|endoftext|>", "<|end|>", "<wait",
     )
 
     // ── Skills info label (read-only, response card bottom bar) ──────────────
