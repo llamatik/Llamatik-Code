@@ -83,10 +83,7 @@ class AgentOrchestrator(private val project: Project) {
                         continue
                     }
                     // Discard answer text — hold only a partial tag prefix tail to avoid split tags.
-                    val holdTags = listOf("<think>", "<end_of_turn>", "<eos>")
-                    val maxLen = holdTags.maxOf { it.length }
-                    val holdLen = (1..minOf(maxLen, buf.length)).reversed()
-                        .firstOrNull { len -> holdTags.any { tag -> buf.lowercase().endsWith(tag.lowercase().take(len)) } } ?: 0
+                    val holdLen = holdLenForTags(buf, listOf("<think>", "<end_of_turn>", "<eos>"))
                     if (buf.length > holdLen) {
                         tokenBuffer.clear()
                         if (holdLen > 0) tokenBuffer.append(buf.takeLast(holdLen))
@@ -109,10 +106,7 @@ class AgentOrchestrator(private val project: Project) {
                         if (tag == "</think>") tokenBuffer.append(buf.substring(idx + tag.length))
                         continue
                     }
-                    // Hold back a suffix that could be the start of a closer (inclusive upper bound).
-                    val maxCloserLen = thinkClosers.maxOf { it.length }
-                    val holdLen = (1..minOf(maxCloserLen, buf.length)).reversed()
-                        .firstOrNull { len -> thinkClosers.any { tag -> tag.lowercase().startsWith(bufLow.takeLast(len)) } } ?: 0
+                    val holdLen = holdLenForStartsWith(buf, thinkClosers)
                     val safeEnd = buf.length - holdLen
                     if (safeEnd > 0) {
                         onThinkingToken?.invoke(buf.substring(0, safeEnd))
@@ -289,6 +283,21 @@ class AgentOrchestrator(private val project: Project) {
         runRound(toolAugmentedMessages, 1, emptyList())
 
         return compositeHandle
+    }
+
+    /** Returns how many trailing characters of [buf] must be held back because they could be the start of any [tags] (suffix match). */
+    private fun holdLenForTags(buf: String, tags: List<String>): Int {
+        val maxLen = tags.maxOf { it.length }
+        return (1..minOf(maxLen, buf.length)).reversed()
+            .firstOrNull { len -> tags.any { tag -> buf.lowercase().endsWith(tag.lowercase().take(len)) } } ?: 0
+    }
+
+    /** Returns how many trailing characters of [buf] must be held back because they could be the start of any [tags] (startsWith match). */
+    private fun holdLenForStartsWith(buf: String, tags: List<String>): Int {
+        val bufLow = buf.lowercase()
+        val maxLen = tags.maxOf { it.length }
+        return (1..minOf(maxLen, buf.length)).reversed()
+            .firstOrNull { len -> tags.any { tag -> tag.lowercase().startsWith(bufLow.takeLast(len)) } } ?: 0
     }
 
     /**
@@ -624,10 +633,7 @@ class AgentOrchestrator(private val project: Project) {
                         tokenBuffer.append(buf.substring(openIdx + "<think>".length))
                         continue
                     }
-                    val holdTags = listOf("<think>", "<end_of_turn>", "<eos>")
-                    val maxHoldTagLen = holdTags.maxOf { it.length }
-                    val holdLen = (1..minOf(maxHoldTagLen, buf.length)).reversed()
-                        .firstOrNull { len -> holdTags.any { tag -> buf.lowercase().endsWith(tag.lowercase().take(len)) } } ?: 0
+                    val holdLen = holdLenForTags(buf, listOf("<think>", "<end_of_turn>", "<eos>"))
                     val safeEnd = buf.length - holdLen
                     if (safeEnd > 0) {
                         onToken(buf.substring(0, safeEnd))
@@ -722,7 +728,6 @@ class AgentOrchestrator(private val project: Project) {
         val streamBlocked = AtomicBoolean(false)
         val uiBlockedPrefixes = listOf("<tool_call", "<edit_proposal", "<Tool_call", "<TOOL_CALL", "<end_of_turn>", "<eos>")
         val holdTags = listOf("<think>", "<edit_proposal", "<tool_call", "<Tool_call", "<TOOL_CALL", "<end_of_turn>", "<eos>")
-        val maxHoldTagLen = holdTags.maxOf { it.length }
         fun flushAnswerBuffer(buf: String) {
             if (buf.isEmpty()) return
             val cutAt = uiBlockedPrefixes.mapNotNull { p -> buf.lowercase().indexOf(p.lowercase()).takeIf { it >= 0 } }.minOrNull()
@@ -749,8 +754,7 @@ class AgentOrchestrator(private val project: Project) {
                         tokenBuffer.append(buf.substring(openIdx + "<think>".length))
                         continue
                     }
-                    val holdLen = (1..minOf(maxHoldTagLen, buf.length)).reversed()
-                        .firstOrNull { len -> holdTags.any { tag -> buf.lowercase().endsWith(tag.lowercase().take(len)) } } ?: 0
+                    val holdLen = holdLenForTags(buf, holdTags)
                     val safeEnd = buf.length - holdLen
                     if (safeEnd > 0) {
                         flushAnswerBuffer(buf.substring(0, safeEnd))
@@ -774,9 +778,7 @@ class AgentOrchestrator(private val project: Project) {
                         if (tag == "</think>") tokenBuffer.append(buf.substring(idx + tag.length))
                         continue
                     }
-                    val maxCloserLen = thinkClosers.maxOf { it.length }
-                    val holdLen = (1..minOf(maxCloserLen, buf.length)).reversed()
-                        .firstOrNull { len -> thinkClosers.any { tag -> tag.lowercase().startsWith(bufLow.takeLast(len)) } } ?: 0
+                    val holdLen = holdLenForStartsWith(buf, thinkClosers)
                     val safeEnd = buf.length - holdLen
                     if (safeEnd > 0) {
                         onThinkingToken?.invoke(buf.substring(0, safeEnd))
