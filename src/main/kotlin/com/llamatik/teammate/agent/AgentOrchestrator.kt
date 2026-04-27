@@ -187,7 +187,7 @@ class AgentOrchestrator(private val project: Project) {
                     systemPrompt = roundSystemPrompt,
                     messages = messages,
                     config = config,
-                    noThink = round > 1,
+                    noThink = false,
                 ),
                 object : GenerationCallbacks {
                     override fun onToken(token: String) {
@@ -207,7 +207,10 @@ class AgentOrchestrator(private val project: Project) {
                             val xmlProposals = extractEditProposals(answerText)
                             // xmlProposals (from final LLM pass) wins over earlier tool-result proposals.
                             val proposals = (xmlProposals + accumulatedProposals).distinctBy { it.filePath }
-                            val clean = ToolCallParser.cleanForDisplay(answerText)
+                            // Only fall back to think content on round 1 (no tools ran at all).
+                            // If tools executed in prior rounds, a blank answer is correct — the tool
+                            // call list is already visible and the reasoning must never leak into the panel.
+                            val clean = ToolCallParser.cleanForDisplay(fullText, allowThinkFallback = round == 1 && proposals.isEmpty())
                             onFinished(
                                 ChatMessage(role = ChatRole.ASSISTANT, content = clean, editProposalId = proposals.firstOrNull()?.id),
                                 proposals,
@@ -238,14 +241,12 @@ class AgentOrchestrator(private val project: Project) {
                         val allReadOnly = toolCalls.all { it.name in READ_ONLY_TOOL_NAMES }
                         val nowHasReadContent = hasReadContent || toolCalls.any { it.name == "read_file" || it.name == "search_code" }
                         val directive = when {
-                            allReadOnly && nowHasReadContent ->
-                                "You have the file content. Call write_file with the complete new content. Use ONLY paths from the results above."
-                            allReadOnly && !nowHasReadContent ->
-                                "Call read_file on the relevant source files."
                             round + 1 >= MAX_ROUNDS ->
                                 "Final round: call write_file or create_file now. ONLY use paths from the results above."
+                            allReadOnly && !nowHasReadContent ->
+                                "Call read_file on the relevant source files."
                             else ->
-                                "Continue: read more files if needed, or call write_file/create_file."
+                                "Continue: read more files if needed, or call write_file/create_file when you have enough context."
                         }
                         // Each round sends only the current tool results as the user turn — NOT the full
                         // accumulated history. This keeps every round's prompt small and prevents the
@@ -294,23 +295,17 @@ class AgentOrchestrator(private val project: Project) {
     /**
      * Minimal system prompt for the second (tool-results) pass.
      * Must stay small — the second pass already carries tool results + user prompt,
-     * and the entire prompt must fit within n_batch = 2048 tokens (≈ 6000 chars).
+     * and the entire prompt must fit within n_batch tokens (≈ batchSize × 3 chars).
+     * Target: ≤ 500 chars so tool results get the most budget.
      */
     private fun buildSecondPassSystemPrompt(): String = buildString {
         appendLine("You are Llamatik Code, a local IntelliJ coding agent.")
         val lang = detectProjectLanguage()
-        if (lang != null) {
-            appendLine("LANGUAGE: $lang project. Write ALL code in $lang ONLY. Never Python or other languages.")
-        }
-        appendLine("Output ONLY tool call XML. No prose, no explanation, no 'I will...'.")
-        appendLine("Tool call format:")
-        appendLine("<tool_call name=\"write_file\"><arg name=\"path\">src/Foo.kt</arg><arg name=\"content\">...</arg></tool_call>")
-        appendLine("Use the ACTUAL file paths from the project. Do NOT invent or guess paths.")
-        appendLine("If you have enough context, call write_file with the complete new file content.")
-        appendLine("If you need more context, call read_file first.")
+        if (lang != null) appendLine("Language: $lang. Write ALL code in $lang only.")
+        appendLine("Respond with tool calls ONLY. No prose. Optional: <think>reasoning</think> then tool XML.")
+        appendLine("<tool_call name=\"write_file\"><arg name=\"path\">p</arg><arg name=\"content\">c</arg></tool_call>")
+        appendLine("Use ONLY paths from the results. Read more files if needed before writing.")
         appendLine("Tools: ${toolRegistry.describeTools().take(TOOL_DESCRIPTIONS_SHORT_MAX_CHARS)}")
-        val activeNames = skillService.activeSkills().joinToString(", ") { it.displayName }
-        if (activeNames.isNotEmpty()) appendLine("Active skills: $activeNames")
     }
 
     private fun detectProjectLanguage(): String? {
@@ -540,6 +535,7 @@ class AgentOrchestrator(private val project: Project) {
             }
 
             if (newContent.isEmpty()) return@mapNotNull null
+            if (!path.contains('.')) return@mapNotNull null
             EditProposal(filePath = path, oldContent = oldContent, newContent = newContent, summary = "Changes from $toolName")
         }
     }
@@ -903,8 +899,8 @@ class AgentOrchestrator(private val project: Project) {
         private const val TOOL_DESCRIPTIONS_FULL_MAX_CHARS = 400
         private const val TOOL_DESCRIPTIONS_SHORT_MAX_CHARS = 300
         private const val SKILLS_PROMPT_MAX_CHARS = 400
-        private const val TOOL_RESULTS_MAX_CHARS = 900
-        private const val TOOL_RESULT_CONTENT_MAX_CHARS = 400
+        private const val TOOL_RESULTS_MAX_CHARS = 4000
+        private const val TOOL_RESULT_CONTENT_MAX_CHARS = 1200
         private const val TOOL_ARG_DISPLAY_MAX_CHARS = 60
 
         // Sentinel prefixes used to route special tokens through the onToken callback

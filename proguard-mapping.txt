@@ -36,6 +36,7 @@ com.llamatik.teammate.actions.RefactorSelectionAction -> com.llamatik.teammate.a
     15:15:java.lang.String _init_$lambda$0(com.intellij.openapi.project.Project,com.intellij.openapi.actionSystem.AnActionEvent) -> _init_$lambda$0
 com.llamatik.teammate.agent.AgentOrchestrator -> com.llamatik.teammate.agent.AgentOrchestrator:
 # {"fileName":"AgentOrchestrator.kt","id":"sourceFile"}
+    com.llamatik.teammate.agent.AgentOrchestrator$Companion Companion -> Companion
     com.intellij.openapi.project.Project project -> project
     com.llamatik.teammate.backend.AssistantBackend backend -> backend
     com.llamatik.teammate.llamatik.MultimodalBackendService multimodalBackend -> multimodalBackend
@@ -46,70 +47,105 @@ com.llamatik.teammate.agent.AgentOrchestrator -> com.llamatik.teammate.agent.Age
     kotlin.text.Regex attrPath -> attrPath
     kotlin.text.Regex attrSummary -> attrSummary
     kotlin.text.Regex editHeaderRegex -> editHeaderRegex
-    27:890:void <init>(com.intellij.openapi.project.Project) -> <init>
+    int MAX_ROUNDS -> MAX_ROUNDS
+    int MAX_TOOL_CALLS_PER_ROUND -> MAX_TOOL_CALLS_PER_ROUND
+    int MAX_HISTORY_MESSAGES -> MAX_HISTORY_MESSAGES
+    int HISTORY_BUDGET_CHARS -> HISTORY_BUDGET_CHARS
+    int USER_INSTRUCTION_MAX_CHARS -> USER_INSTRUCTION_MAX_CHARS
+    int OPEN_FILE_CONTENT_MAX_CHARS -> OPEN_FILE_CONTENT_MAX_CHARS
+    int SELECTED_TEXT_MAX_CHARS -> SELECTED_TEXT_MAX_CHARS
+    int PINNED_INSTRUCTIONS_MAX_CHARS -> PINNED_INSTRUCTIONS_MAX_CHARS
+    int TASK_EXCERPT_MAX_CHARS -> TASK_EXCERPT_MAX_CHARS
+    int FILE_CONTEXT_MAX_CHARS -> FILE_CONTEXT_MAX_CHARS
+    int FILE_CONTEXT_MULTIMODAL_MAX_CHARS -> FILE_CONTEXT_MULTIMODAL_MAX_CHARS
+    int FILE_ATTACHMENT_MAX_CHARS -> FILE_ATTACHMENT_MAX_CHARS
+    int VISION_DESCRIPTION_MAX_CHARS -> VISION_DESCRIPTION_MAX_CHARS
+    int SECOND_PASS_TASK_MAX_CHARS -> SECOND_PASS_TASK_MAX_CHARS
+    int TOOL_DESCRIPTIONS_FULL_MAX_CHARS -> TOOL_DESCRIPTIONS_FULL_MAX_CHARS
+    int TOOL_DESCRIPTIONS_SHORT_MAX_CHARS -> TOOL_DESCRIPTIONS_SHORT_MAX_CHARS
+    int SKILLS_PROMPT_MAX_CHARS -> SKILLS_PROMPT_MAX_CHARS
+    int TOOL_RESULTS_MAX_CHARS -> TOOL_RESULTS_MAX_CHARS
+    int TOOL_RESULT_CONTENT_MAX_CHARS -> TOOL_RESULT_CONTENT_MAX_CHARS
+    int TOOL_ARG_DISPLAY_MAX_CHARS -> TOOL_ARG_DISPLAY_MAX_CHARS
+    java.lang.String STATUS_PREFIX -> STATUS_PREFIX
+    java.lang.String TOOL_PREFIX -> TOOL_PREFIX
+    java.util.List ANSWER_HOLD_TAGS -> ANSWER_HOLD_TAGS
+    java.util.List THINK_CLOSERS -> THINK_CLOSERS
+    java.util.Set KNOWN_TOOL_NAMES -> KNOWN_TOOL_NAMES
+    java.util.Set READ_ONLY_TOOL_NAMES -> READ_ONLY_TOOL_NAMES
+    java.util.Set EDIT_TOOL_NAMES -> EDIT_TOOL_NAMES
+    27:943:void <init>(com.intellij.openapi.project.Project) -> <init>
     35:35:java.lang.String selectedModelLabel() -> selectedModelLabel
     36:36:boolean isModelLoaded() -> isModelLoaded
-    49:894:com.llamatik.teammate.backend.GenerationHandle submit(com.llamatik.teammate.model.ChatSession,java.lang.String,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function2,kotlin.jvm.functions.Function1,java.util.List,kotlin.jvm.functions.Function1) -> submit
+    49:947:com.llamatik.teammate.backend.GenerationHandle submit(com.llamatik.teammate.model.ChatSession,java.lang.String,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function2,kotlin.jvm.functions.Function1,java.util.List,kotlin.jvm.functions.Function1) -> submit
     38:46:com.llamatik.teammate.backend.GenerationHandle submit$default(com.llamatik.teammate.agent.AgentOrchestrator,com.llamatik.teammate.model.ChatSession,java.lang.String,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function2,kotlin.jvm.functions.Function1,java.util.List,kotlin.jvm.functions.Function1,int,java.lang.Object) -> submit$default
-    311:320:java.lang.String buildSecondPassSystemPrompt() -> buildSecondPassSystemPrompt
-    323:337:java.lang.String detectProjectLanguage() -> detectProjectLanguage
-    341:894:java.lang.String buildContextHint() -> buildContextHint
-    367:377:java.util.List fitMessagesInBudget(java.util.List,int) -> fitMessagesInBudget
-    380:394:java.lang.String buildSystemPrompt() -> buildSystemPrompt
-    406:896:kotlin.Pair resolveFileReferences(java.lang.String) -> resolveFileReferences
-    444:462:java.util.List extractEditProposals(java.lang.String) -> extractEditProposals
-    467:483:java.lang.String extractNewContent(java.lang.String) -> extractNewContent
-    487:894:com.llamatik.teammate.model.EditProposal buildProposal(java.lang.String,java.lang.String,java.lang.String) -> buildProposal
-    502:910:java.util.List buildProposalsFromToolMessages(java.util.List) -> buildProposalsFromToolMessages
-    545:913:com.llamatik.teammate.backend.GenerationHandle chat(com.llamatik.teammate.model.ChatSession,java.lang.String,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function1,java.util.List) -> chat
-    537:543:com.llamatik.teammate.backend.GenerationHandle chat$default(com.llamatik.teammate.agent.AgentOrchestrator,com.llamatik.teammate.model.ChatSession,java.lang.String,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function1,java.util.List,int,java.lang.Object) -> chat$default
-    658:916:com.llamatik.teammate.backend.GenerationHandle submitMultimodal(java.lang.String,java.util.List,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function2,kotlin.jvm.functions.Function1) -> submitMultimodal
-    650:654:com.llamatik.teammate.backend.GenerationHandle submitMultimodal$default(com.llamatik.teammate.agent.AgentOrchestrator,java.lang.String,java.util.List,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function2,kotlin.jvm.functions.Function1,int,java.lang.Object) -> submitMultimodal$default
+    281:952:int holdLenForTags(java.lang.String,java.util.List) -> holdLenForTags
+    288:957:int holdLenForStartsWith(java.lang.String,java.util.List) -> holdLenForStartsWith
+    299:314:java.lang.String buildSecondPassSystemPrompt() -> buildSecondPassSystemPrompt
+    318:982:java.lang.String detectProjectLanguage() -> detectProjectLanguage
+    350:947:java.lang.String buildContextHint() -> buildContextHint
+    376:386:java.util.List fitMessagesInBudget(java.util.List,int) -> fitMessagesInBudget
+    389:409:java.lang.String buildSystemPrompt() -> buildSystemPrompt
+    421:984:kotlin.Pair resolveFileReferences(java.lang.String) -> resolveFileReferences
+    459:477:java.util.List extractEditProposals(java.lang.String) -> extractEditProposals
+    482:498:java.lang.String extractNewContent(java.lang.String) -> extractNewContent
+    502:947:com.llamatik.teammate.model.EditProposal buildProposal(java.lang.String,java.lang.String,java.lang.String) -> buildProposal
+    517:998:java.util.List buildProposalsFromToolMessages(java.util.List) -> buildProposalsFromToolMessages
+    559:1001:com.llamatik.teammate.backend.GenerationHandle chat(com.llamatik.teammate.model.ChatSession,java.lang.String,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function1,java.util.List) -> chat
+    551:557:com.llamatik.teammate.backend.GenerationHandle chat$default(com.llamatik.teammate.agent.AgentOrchestrator,com.llamatik.teammate.model.ChatSession,java.lang.String,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function1,java.util.List,int,java.lang.Object) -> chat$default
+    669:1004:com.llamatik.teammate.backend.GenerationHandle submitMultimodal(java.lang.String,java.util.List,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function2,kotlin.jvm.functions.Function1) -> submitMultimodal
+    661:665:com.llamatik.teammate.backend.GenerationHandle submitMultimodal$default(com.llamatik.teammate.agent.AgentOrchestrator,java.lang.String,java.util.List,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function2,kotlin.jvm.functions.Function1,int,java.lang.Object) -> submitMultimodal$default
     70:72:void submit$resetStreamState(java.lang.StringBuilder,java.util.concurrent.atomic.AtomicBoolean) -> submit$resetStreamState
-    74:954:void submit$filteredToken(java.lang.StringBuilder,java.util.concurrent.atomic.AtomicBoolean,kotlin.jvm.functions.Function1,java.lang.String) -> submit$filteredToken
-    128:128:void submit$countToken(kotlin.jvm.functions.Function1,kotlin.jvm.internal.Ref$IntRef) -> submit$countToken
-    192:299:void submit$runRound(java.util.concurrent.atomic.AtomicBoolean,java.lang.String,com.llamatik.teammate.agent.AgentOrchestrator,com.llamatik.teammate.backend.BackendConfig,java.util.concurrent.atomic.AtomicReference,kotlin.jvm.functions.Function1,kotlin.jvm.internal.Ref$IntRef,java.lang.StringBuilder,java.util.concurrent.atomic.AtomicBoolean,kotlin.jvm.functions.Function1,int,kotlin.jvm.functions.Function2,kotlin.jvm.functions.Function1,java.lang.String,kotlin.jvm.functions.Function1,java.util.List,int,java.util.List,boolean) -> submit$runRound
-    191:191:void submit$runRound$default(java.util.concurrent.atomic.AtomicBoolean,java.lang.String,com.llamatik.teammate.agent.AgentOrchestrator,com.llamatik.teammate.backend.BackendConfig,java.util.concurrent.atomic.AtomicReference,kotlin.jvm.functions.Function1,kotlin.jvm.internal.Ref$IntRef,java.lang.StringBuilder,java.util.concurrent.atomic.AtomicBoolean,kotlin.jvm.functions.Function1,int,kotlin.jvm.functions.Function2,kotlin.jvm.functions.Function1,java.lang.String,kotlin.jvm.functions.Function1,java.util.List,int,java.util.List,boolean,int,java.lang.Object) -> submit$runRound$default
-    318:318:java.lang.CharSequence buildSecondPassSystemPrompt$lambda$0$0(com.llamatik.teammate.skills.SkillDescriptor) -> buildSecondPassSystemPrompt$lambda$0$0
-    425:425:java.lang.CharSequence resolveFileReferences$lambda$1(kotlin.text.MatchResult) -> resolveFileReferences$lambda$1
-    445:894:com.llamatik.teammate.model.EditProposal extractEditProposals$lambda$0(com.llamatik.teammate.agent.AgentOrchestrator,kotlin.text.MatchResult) -> extractEditProposals$lambda$0
-    456:461:com.llamatik.teammate.model.EditProposal extractEditProposals$lambda$1(com.llamatik.teammate.agent.AgentOrchestrator,java.lang.String,kotlin.text.MatchResult) -> extractEditProposals$lambda$1
-    550:550:kotlin.Unit chat$lambda$0(kotlin.jvm.functions.Function1,com.llamatik.teammate.model.ChatMessage,java.util.List) -> chat$lambda$0
-    600:959:void chat$filteredChatToken(java.lang.StringBuilder,java.util.concurrent.atomic.AtomicBoolean,kotlin.jvm.functions.Function1,java.lang.String) -> chat$filteredChatToken
-    712:973:void submitMultimodal$flushAnswerBuffer(java.util.List,kotlin.jvm.functions.Function1,java.util.concurrent.atomic.AtomicBoolean,java.lang.String) -> submitMultimodal$flushAnswerBuffer
-    723:1011:void submitMultimodal$filteredToken(java.util.concurrent.atomic.AtomicBoolean,java.lang.StringBuilder,java.util.concurrent.atomic.AtomicBoolean,int,kotlin.jvm.functions.Function1,java.util.List,kotlin.jvm.functions.Function1,java.util.List,java.lang.String) -> submitMultimodal$filteredToken
-    27:27:void access$chat$filteredChatToken(java.lang.StringBuilder,java.util.concurrent.atomic.AtomicBoolean,kotlin.jvm.functions.Function1,java.lang.String) -> access$chat$filteredChatToken
+    74:1032:void submit$filteredToken(java.lang.StringBuilder,java.util.concurrent.atomic.AtomicBoolean,com.llamatik.teammate.agent.AgentOrchestrator,kotlin.jvm.functions.Function1,java.lang.String) -> submit$filteredToken
+    121:121:void submit$countToken(kotlin.jvm.functions.Function1,kotlin.jvm.internal.Ref$IntRef) -> submit$countToken
+    183:272:void submit$runRound(java.util.concurrent.atomic.AtomicBoolean,java.lang.String,com.llamatik.teammate.agent.AgentOrchestrator,com.llamatik.teammate.backend.BackendConfig,java.util.concurrent.atomic.AtomicReference,kotlin.jvm.functions.Function1,kotlin.jvm.internal.Ref$IntRef,java.lang.StringBuilder,java.util.concurrent.atomic.AtomicBoolean,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function2,kotlin.jvm.functions.Function1,java.lang.String,kotlin.jvm.functions.Function1,java.util.List,int,java.util.List,boolean) -> submit$runRound
+    182:182:void submit$runRound$default(java.util.concurrent.atomic.AtomicBoolean,java.lang.String,com.llamatik.teammate.agent.AgentOrchestrator,com.llamatik.teammate.backend.BackendConfig,java.util.concurrent.atomic.AtomicReference,kotlin.jvm.functions.Function1,kotlin.jvm.internal.Ref$IntRef,java.lang.StringBuilder,java.util.concurrent.atomic.AtomicBoolean,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function2,kotlin.jvm.functions.Function1,java.lang.String,kotlin.jvm.functions.Function1,java.util.List,int,java.util.List,boolean,int,java.lang.Object) -> submit$runRound$default
+    312:312:java.lang.CharSequence buildSecondPassSystemPrompt$lambda$0$0(com.llamatik.teammate.skills.SkillDescriptor) -> buildSecondPassSystemPrompt$lambda$0$0
+    440:440:java.lang.CharSequence resolveFileReferences$lambda$1(kotlin.text.MatchResult) -> resolveFileReferences$lambda$1
+    460:947:com.llamatik.teammate.model.EditProposal extractEditProposals$lambda$0(com.llamatik.teammate.agent.AgentOrchestrator,kotlin.text.MatchResult) -> extractEditProposals$lambda$0
+    471:476:com.llamatik.teammate.model.EditProposal extractEditProposals$lambda$1(com.llamatik.teammate.agent.AgentOrchestrator,java.lang.String,kotlin.text.MatchResult) -> extractEditProposals$lambda$1
+    564:564:kotlin.Unit chat$lambda$0(kotlin.jvm.functions.Function1,com.llamatik.teammate.model.ChatMessage,java.util.List) -> chat$lambda$0
+    614:646:void chat$filteredChatToken(java.lang.StringBuilder,java.util.concurrent.atomic.AtomicBoolean,kotlin.jvm.functions.Function1,com.llamatik.teammate.agent.AgentOrchestrator,java.lang.String) -> chat$filteredChatToken
+    722:1046:void submitMultimodal$flushAnswerBuffer(java.util.List,kotlin.jvm.functions.Function1,java.util.concurrent.atomic.AtomicBoolean,java.lang.String) -> submitMultimodal$flushAnswerBuffer
+    733:1074:void submitMultimodal$filteredToken(java.util.concurrent.atomic.AtomicBoolean,java.lang.StringBuilder,java.util.concurrent.atomic.AtomicBoolean,com.llamatik.teammate.agent.AgentOrchestrator,java.util.List,kotlin.jvm.functions.Function1,java.util.List,kotlin.jvm.functions.Function1,java.lang.String) -> submitMultimodal$filteredToken
+    27:27:void access$chat$filteredChatToken(java.lang.StringBuilder,java.util.concurrent.atomic.AtomicBoolean,kotlin.jvm.functions.Function1,com.llamatik.teammate.agent.AgentOrchestrator,java.lang.String) -> access$chat$filteredChatToken
     27:27:com.llamatik.teammate.llamatik.MultimodalBackendService access$getMultimodalBackend$p(com.llamatik.teammate.agent.AgentOrchestrator) -> access$getMultimodalBackend$p
     27:27:java.lang.String access$buildSecondPassSystemPrompt(com.llamatik.teammate.agent.AgentOrchestrator) -> access$buildSecondPassSystemPrompt
     27:27:com.llamatik.teammate.backend.AssistantBackend access$getBackend$p(com.llamatik.teammate.agent.AgentOrchestrator) -> access$getBackend$p
     27:27:java.util.List access$extractEditProposals(com.llamatik.teammate.agent.AgentOrchestrator,java.lang.String) -> access$extractEditProposals
     27:27:void access$submit$countToken(kotlin.jvm.functions.Function1,kotlin.jvm.internal.Ref$IntRef) -> access$submit$countToken
-    27:27:void access$submit$filteredToken(java.lang.StringBuilder,java.util.concurrent.atomic.AtomicBoolean,kotlin.jvm.functions.Function1,java.lang.String) -> access$submit$filteredToken
+    27:27:void access$submit$filteredToken(java.lang.StringBuilder,java.util.concurrent.atomic.AtomicBoolean,com.llamatik.teammate.agent.AgentOrchestrator,kotlin.jvm.functions.Function1,java.lang.String) -> access$submit$filteredToken
+    27:27:java.util.Set access$getKNOWN_TOOL_NAMES$cp() -> access$getKNOWN_TOOL_NAMES$cp
     27:27:void access$submit$resetStreamState(java.lang.StringBuilder,java.util.concurrent.atomic.AtomicBoolean) -> access$submit$resetStreamState
     27:27:com.llamatik.teammate.tools.ToolRegistry access$getToolRegistry$p(com.llamatik.teammate.agent.AgentOrchestrator) -> access$getToolRegistry$p
     27:27:com.intellij.openapi.project.Project access$getProject$p(com.llamatik.teammate.agent.AgentOrchestrator) -> access$getProject$p
     27:27:java.util.List access$buildProposalsFromToolMessages(com.llamatik.teammate.agent.AgentOrchestrator,java.util.List) -> access$buildProposalsFromToolMessages
-    27:27:com.llamatik.teammate.context.ProjectContextService access$getContextService$p(com.llamatik.teammate.agent.AgentOrchestrator) -> access$getContextService$p
-    27:27:java.lang.String access$detectProjectLanguage(com.llamatik.teammate.agent.AgentOrchestrator) -> access$detectProjectLanguage
-    27:27:void access$submit$runRound(java.util.concurrent.atomic.AtomicBoolean,java.lang.String,com.llamatik.teammate.agent.AgentOrchestrator,com.llamatik.teammate.backend.BackendConfig,java.util.concurrent.atomic.AtomicReference,kotlin.jvm.functions.Function1,kotlin.jvm.internal.Ref$IntRef,java.lang.StringBuilder,java.util.concurrent.atomic.AtomicBoolean,kotlin.jvm.functions.Function1,int,kotlin.jvm.functions.Function2,kotlin.jvm.functions.Function1,java.lang.String,kotlin.jvm.functions.Function1,java.util.List,int,java.util.List,boolean) -> access$submit$runRound
+    27:27:java.util.Set access$getREAD_ONLY_TOOL_NAMES$cp() -> access$getREAD_ONLY_TOOL_NAMES$cp
+    27:27:void access$submit$runRound(java.util.concurrent.atomic.AtomicBoolean,java.lang.String,com.llamatik.teammate.agent.AgentOrchestrator,com.llamatik.teammate.backend.BackendConfig,java.util.concurrent.atomic.AtomicReference,kotlin.jvm.functions.Function1,kotlin.jvm.internal.Ref$IntRef,java.lang.StringBuilder,java.util.concurrent.atomic.AtomicBoolean,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function2,kotlin.jvm.functions.Function1,java.lang.String,kotlin.jvm.functions.Function1,java.util.List,int,java.util.List,boolean) -> access$submit$runRound
+    915:929:void <clinit>() -> <clinit>
+com.llamatik.teammate.agent.AgentOrchestrator$Companion -> com.llamatik.teammate.agent.AgentOrchestrator$f:
+# {"fileName":"AgentOrchestrator.kt","id":"sourceFile"}
+    885:885:void <init>() -> <init>
+    void <init>(kotlin.jvm.internal.DefaultConstructorMarker) -> <init>
 com.llamatik.teammate.agent.AgentOrchestrator$chat$2 -> com.llamatik.teammate.agent.AgentOrchestrator$a:
 # {"fileName":"AgentOrchestrator.kt","id":"sourceFile"}
     java.lang.StringBuilder $tokenBuffer -> a
     java.util.concurrent.atomic.AtomicBoolean $inThink -> b
     kotlin.jvm.functions.Function1 $onToken -> c
+    com.llamatik.teammate.agent.AgentOrchestrator this$0 -> f
     kotlin.jvm.functions.Function1 $onFinished -> d
     kotlin.jvm.functions.Function1 $onError -> e
-    639:639:void <init>(java.lang.StringBuilder,java.util.concurrent.atomic.AtomicBoolean,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function1) -> <init>
-    640:640:void onToken(java.lang.String) -> a
-    642:644:void onCompleted(java.lang.String) -> b
-    645:645:void onError(java.lang.String,java.lang.Throwable) -> a
-    639:639:void onStarted() -> a
+    650:650:void <init>(java.lang.StringBuilder,java.util.concurrent.atomic.AtomicBoolean,kotlin.jvm.functions.Function1,com.llamatik.teammate.agent.AgentOrchestrator,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function1) -> <init>
+    651:651:void onToken(java.lang.String) -> a
+    653:655:void onCompleted(java.lang.String) -> b
+    656:656:void onError(java.lang.String,java.lang.Throwable) -> a
+    650:650:void onStarted() -> a
 com.llamatik.teammate.agent.AgentOrchestrator$submit$compositeHandle$1 -> com.llamatik.teammate.agent.AgentOrchestrator$b:
 # {"fileName":"AgentOrchestrator.kt","id":"sourceFile"}
     java.util.concurrent.atomic.AtomicBoolean $cancelled -> a
     java.util.concurrent.atomic.AtomicReference $activeHandle -> b
-    130:130:void <init>(java.util.concurrent.atomic.AtomicBoolean,java.util.concurrent.atomic.AtomicReference) -> <init>
-    132:134:void cancel() -> a
+    123:123:void <init>(java.util.concurrent.atomic.AtomicBoolean,java.util.concurrent.atomic.AtomicReference) -> <init>
+    125:127:void cancel() -> a
 com.llamatik.teammate.agent.AgentOrchestrator$submit$runRound$handle$1 -> com.llamatik.teammate.agent.AgentOrchestrator$c:
 # {"fileName":"AgentOrchestrator.kt","id":"sourceFile"}
     java.util.concurrent.atomic.AtomicBoolean $cancelled -> a
@@ -117,32 +153,30 @@ com.llamatik.teammate.agent.AgentOrchestrator$submit$runRound$handle$1 -> com.ll
     kotlin.jvm.internal.Ref$IntRef $rawTokenCount -> c
     java.lang.StringBuilder $tokenBuffer -> d
     java.util.concurrent.atomic.AtomicBoolean $inThink -> e
+    com.llamatik.teammate.agent.AgentOrchestrator this$0 -> i
     kotlin.jvm.functions.Function1 $onThinkingToken -> f
     int $round -> g
-    int $MAX_ROUNDS -> h
-    com.llamatik.teammate.agent.AgentOrchestrator this$0 -> i
     java.util.List $accumulatedProposals -> j
     kotlin.jvm.functions.Function2 $onFinished -> k
     kotlin.jvm.functions.Function1 $onToken -> l
     boolean $hasReadContent -> m
-    java.util.List $messages -> n
     java.lang.String $cleanInstruction -> s
     java.lang.String $systemPrompt -> o
     com.llamatik.teammate.backend.BackendConfig $config -> p
     java.util.concurrent.atomic.AtomicReference $activeHandle -> q
     kotlin.jvm.functions.Function1 $onError -> r
-    201:201:void <init>(java.util.concurrent.atomic.AtomicBoolean,kotlin.jvm.functions.Function1,kotlin.jvm.internal.Ref$IntRef,java.lang.StringBuilder,java.util.concurrent.atomic.AtomicBoolean,kotlin.jvm.functions.Function1,int,int,com.llamatik.teammate.agent.AgentOrchestrator,java.util.List,kotlin.jvm.functions.Function2,kotlin.jvm.functions.Function1,boolean,java.util.List,java.lang.String,java.lang.String,com.llamatik.teammate.backend.BackendConfig,java.util.concurrent.atomic.AtomicReference,kotlin.jvm.functions.Function1) -> <init>
-    203:205:void onToken(java.lang.String) -> a
-    208:905:void onCompleted(java.lang.String) -> b
-    293:294:void onError(java.lang.String,java.lang.Throwable) -> a
-    201:201:void onStarted() -> a
-    248:248:java.lang.CharSequence onCompleted$lambda$3(com.llamatik.teammate.model.ChatMessage) -> a
+    192:192:void <init>(java.util.concurrent.atomic.AtomicBoolean,kotlin.jvm.functions.Function1,kotlin.jvm.internal.Ref$IntRef,java.lang.StringBuilder,java.util.concurrent.atomic.AtomicBoolean,com.llamatik.teammate.agent.AgentOrchestrator,kotlin.jvm.functions.Function1,int,java.util.List,kotlin.jvm.functions.Function2,kotlin.jvm.functions.Function1,boolean,java.lang.String,java.lang.String,com.llamatik.teammate.backend.BackendConfig,java.util.concurrent.atomic.AtomicReference,kotlin.jvm.functions.Function1) -> <init>
+    194:196:void onToken(java.lang.String) -> a
+    199:961:void onCompleted(java.lang.String) -> b
+    266:267:void onError(java.lang.String,java.lang.Throwable) -> a
+    192:192:void onStarted() -> a
+    236:236:java.lang.CharSequence onCompleted$lambda$4(com.llamatik.teammate.model.ChatMessage) -> a
 com.llamatik.teammate.agent.AgentOrchestrator$submitMultimodal$compositeHandle$1 -> com.llamatik.teammate.agent.AgentOrchestrator$d:
 # {"fileName":"AgentOrchestrator.kt","id":"sourceFile"}
     java.util.concurrent.atomic.AtomicBoolean $cancelled -> a
     java.util.concurrent.atomic.AtomicReference $activeHandle -> b
-    661:661:void <init>(java.util.concurrent.atomic.AtomicBoolean,java.util.concurrent.atomic.AtomicReference) -> <init>
-    663:665:void cancel() -> a
+    672:672:void <init>(java.util.concurrent.atomic.AtomicBoolean,java.util.concurrent.atomic.AtomicReference) -> <init>
+    674:676:void cancel() -> a
 com.llamatik.teammate.agent.AgentOrchestrator$submitMultimodal$firstHandle$1 -> com.llamatik.teammate.agent.AgentOrchestrator$e:
 # {"fileName":"AgentOrchestrator.kt","id":"sourceFile"}
     java.util.concurrent.atomic.AtomicBoolean $cancelled -> a
@@ -155,11 +189,11 @@ com.llamatik.teammate.agent.AgentOrchestrator$submitMultimodal$firstHandle$1 -> 
     java.lang.String $languageHint -> h
     kotlin.jvm.functions.Function1 $onError -> i
     kotlin.jvm.functions.Function2 $onFinished -> j
-    781:781:void <init>(java.util.concurrent.atomic.AtomicBoolean,kotlin.jvm.functions.Function1,com.llamatik.teammate.agent.AgentOrchestrator,com.llamatik.teammate.backend.BackendConfig,java.util.concurrent.atomic.AtomicReference,java.lang.String,java.lang.String,java.lang.String,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function2) -> <init>
-    784:784:void onToken(java.lang.String) -> a
-    787:867:void onCompleted(java.lang.String) -> b
-    870:871:void onError(java.lang.String,java.lang.Throwable) -> a
-    781:781:void onStarted() -> a
+    787:787:void <init>(java.util.concurrent.atomic.AtomicBoolean,kotlin.jvm.functions.Function1,com.llamatik.teammate.agent.AgentOrchestrator,com.llamatik.teammate.backend.BackendConfig,java.util.concurrent.atomic.AtomicReference,java.lang.String,java.lang.String,java.lang.String,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function2) -> <init>
+    790:790:void onToken(java.lang.String) -> a
+    793:873:void onCompleted(java.lang.String) -> b
+    876:877:void onError(java.lang.String,java.lang.Throwable) -> a
+    787:787:void onStarted() -> a
 com.llamatik.teammate.agent.AgentOrchestrator$submitMultimodal$firstHandle$1$onCompleted$secondHandle$1 -> com.llamatik.teammate.agent.AgentOrchestrator$e$a:
 # {"fileName":"AgentOrchestrator.kt","id":"sourceFile"}
     java.util.concurrent.atomic.AtomicBoolean $cancelled -> a
@@ -167,11 +201,11 @@ com.llamatik.teammate.agent.AgentOrchestrator$submitMultimodal$firstHandle$1$onC
     com.llamatik.teammate.backend.BackendConfig $config -> c
     com.llamatik.teammate.agent.AgentOrchestrator this$0 -> d
     kotlin.jvm.functions.Function2 $onFinished -> e
-    836:836:void <init>(java.util.concurrent.atomic.AtomicBoolean,kotlin.jvm.functions.Function1,com.llamatik.teammate.backend.BackendConfig,com.llamatik.teammate.agent.AgentOrchestrator,kotlin.jvm.functions.Function2) -> <init>
-    838:838:void onToken(java.lang.String) -> a
-    841:858:void onCompleted(java.lang.String) -> b
-    861:862:void onError(java.lang.String,java.lang.Throwable) -> a
-    836:836:void onStarted() -> a
+    842:842:void <init>(java.util.concurrent.atomic.AtomicBoolean,kotlin.jvm.functions.Function1,com.llamatik.teammate.backend.BackendConfig,com.llamatik.teammate.agent.AgentOrchestrator,kotlin.jvm.functions.Function2) -> <init>
+    844:844:void onToken(java.lang.String) -> a
+    847:864:void onCompleted(java.lang.String) -> b
+    867:868:void onError(java.lang.String,java.lang.Throwable) -> a
+    842:842:void onStarted() -> a
 com.llamatik.teammate.agent.BuildVerificationService -> com.llamatik.teammate.agent.BuildVerificationService:
 # {"fileName":"BuildVerificationService.kt","id":"sourceFile"}
     com.llamatik.teammate.agent.BuildVerificationService$Companion Companion -> Companion
@@ -390,31 +424,31 @@ com.llamatik.teammate.llamatik.LlamatikBackendService -> com.llamatik.teammate.l
     int lastNumThreads -> lastNumThreads
     boolean lastFlashAttention -> lastFlashAttention
     java.lang.String nativeLoadError -> nativeLoadError
-    16:336:void <init>() -> <init>
+    16:338:void <init>() -> <init>
     34:34:boolean isModelLoaded() -> isModelLoaded
     37:45:void unload() -> unload
-    47:337:java.lang.String selectedModelLabel() -> selectedModelLabel
-    53:199:com.llamatik.teammate.backend.GenerationHandle generate(com.llamatik.teammate.backend.GenerationRequest,com.llamatik.teammate.backend.GenerationCallbacks) -> generate
-    214:340:boolean shouldStop(java.lang.StringBuilder,java.util.List) -> shouldStop
-    220:225:java.lang.String trimAtStop(java.lang.String,java.util.List) -> trimAtStop
-    229:244:void validateConfig(com.llamatik.teammate.backend.BackendConfig) -> validateConfig
-    247:260:void invalidateIfContextParamsChanged(com.llamatik.teammate.backend.BackendConfig) -> invalidateIfContextParamsChanged
-    263:272:void ensureModel(java.lang.String) -> ensureModel
-    275:337:java.lang.String validateModelPath(java.lang.String) -> validateModelPath
-    297:342:java.lang.String friendlyError(java.lang.Throwable) -> friendlyError
-    307:345:boolean looksLikeRemoteIdentifier(java.lang.String) -> looksLikeRemoteIdentifier
-    314:316:java.lang.String displayModelLabel(java.lang.String) -> displayModelLabel
-    38:337:void unload$lambda$0(com.llamatik.teammate.llamatik.LlamatikBackendService) -> unload$lambda$0
+    47:339:java.lang.String selectedModelLabel() -> selectedModelLabel
+    53:201:com.llamatik.teammate.backend.GenerationHandle generate(com.llamatik.teammate.backend.GenerationRequest,com.llamatik.teammate.backend.GenerationCallbacks) -> generate
+    216:342:boolean shouldStop(java.lang.StringBuilder,java.util.List) -> shouldStop
+    222:227:java.lang.String trimAtStop(java.lang.String,java.util.List) -> trimAtStop
+    231:246:void validateConfig(com.llamatik.teammate.backend.BackendConfig) -> validateConfig
+    249:262:void invalidateIfContextParamsChanged(com.llamatik.teammate.backend.BackendConfig) -> invalidateIfContextParamsChanged
+    265:274:void ensureModel(java.lang.String) -> ensureModel
+    277:339:java.lang.String validateModelPath(java.lang.String) -> validateModelPath
+    299:344:java.lang.String friendlyError(java.lang.Throwable) -> friendlyError
+    309:347:boolean looksLikeRemoteIdentifier(java.lang.String) -> looksLikeRemoteIdentifier
+    316:318:java.lang.String displayModelLabel(java.lang.String) -> displayModelLabel
+    38:339:void unload$lambda$0(com.llamatik.teammate.llamatik.LlamatikBackendService) -> unload$lambda$0
     59:64:void generate$lambda$0(com.llamatik.teammate.backend.GenerationCallbacks,java.lang.String) -> generate$lambda$0
-    77:347:void generate$lambda$1(com.llamatik.teammate.llamatik.LlamatikBackendService,com.llamatik.teammate.backend.GenerationRequest,com.llamatik.teammate.backend.GenerationCallbacks,java.util.concurrent.atomic.AtomicBoolean,java.util.concurrent.atomic.AtomicBoolean,java.util.concurrent.atomic.AtomicBoolean) -> generate$lambda$1
-    297:297:java.lang.Throwable friendlyError$lambda$0(java.lang.Throwable) -> friendlyError$lambda$0
+    77:349:void generate$lambda$1(com.llamatik.teammate.llamatik.LlamatikBackendService,com.llamatik.teammate.backend.GenerationRequest,com.llamatik.teammate.backend.GenerationCallbacks,java.util.concurrent.atomic.AtomicBoolean,java.util.concurrent.atomic.AtomicBoolean,java.util.concurrent.atomic.AtomicBoolean) -> generate$lambda$1
+    299:299:java.lang.Throwable friendlyError$lambda$0(java.lang.Throwable) -> friendlyError$lambda$0
     16:16:boolean access$shouldStop(com.llamatik.teammate.llamatik.LlamatikBackendService,java.lang.StringBuilder,java.util.List) -> access$shouldStop
     16:16:java.lang.String access$trimAtStop(com.llamatik.teammate.llamatik.LlamatikBackendService,java.lang.String,java.util.List) -> access$trimAtStop
 com.llamatik.teammate.llamatik.LlamatikBackendService$NoOpHandle -> com.llamatik.teammate.llamatik.LlamatikBackendService$a:
 # {"fileName":"LlamatikBackendService.kt","id":"sourceFile"}
     java.util.concurrent.atomic.AtomicBoolean cancelled -> a
-    318:318:void <init>(java.util.concurrent.atomic.AtomicBoolean) -> <init>
-    320:321:void cancel() -> a
+    320:320:void <init>(java.util.concurrent.atomic.AtomicBoolean) -> <init>
+    322:323:void cancel() -> a
 com.llamatik.teammate.llamatik.LlamatikBackendService$WhenMappings -> com.llamatik.teammate.llamatik.LlamatikBackendService$d:
 # {"fileName":"LlamatikBackendService.kt","id":"sourceFile"}
     int[] $EnumSwitchMapping$0 -> a
@@ -430,20 +464,20 @@ com.llamatik.teammate.llamatik.LlamatikBackendService$generate$2$guard$1 -> com.
     com.llamatik.teammate.backend.GenerationCallbacks $callbacks -> g
     com.llamatik.teammate.backend.GenerationRequest $request -> h
     java.util.concurrent.atomic.AtomicBoolean $nativeFinished -> i
-    143:143:void <init>(java.util.concurrent.atomic.AtomicBoolean,java.util.concurrent.atomic.AtomicBoolean,java.lang.StringBuilder,kotlin.jvm.internal.Ref$IntRef,com.llamatik.teammate.llamatik.LlamatikBackendService,java.util.List,com.llamatik.teammate.backend.GenerationCallbacks,com.llamatik.teammate.backend.GenerationRequest,java.util.concurrent.atomic.AtomicBoolean) -> <init>
-    145:169:void onDelta(java.lang.String) -> onDelta
-    174:178:void onComplete() -> onComplete
-    181:185:void onError(java.lang.String) -> onError
+    145:145:void <init>(java.util.concurrent.atomic.AtomicBoolean,java.util.concurrent.atomic.AtomicBoolean,java.lang.StringBuilder,kotlin.jvm.internal.Ref$IntRef,com.llamatik.teammate.llamatik.LlamatikBackendService,java.util.List,com.llamatik.teammate.backend.GenerationCallbacks,com.llamatik.teammate.backend.GenerationRequest,java.util.concurrent.atomic.AtomicBoolean) -> <init>
+    147:171:void onDelta(java.lang.String) -> onDelta
+    176:180:void onComplete() -> onComplete
+    183:187:void onError(java.lang.String) -> onError
 com.llamatik.teammate.llamatik.LlamatikBackendService$generate$3 -> com.llamatik.teammate.llamatik.LlamatikBackendService$c:
 # {"fileName":"LlamatikBackendService.kt","id":"sourceFile"}
     java.util.concurrent.atomic.AtomicBoolean $cancelled -> a
     java.util.concurrent.atomic.AtomicBoolean $nativeFinished -> b
-    199:199:void <init>(java.util.concurrent.atomic.AtomicBoolean,java.util.concurrent.atomic.AtomicBoolean) -> <init>
-    201:207:void cancel() -> a
+    201:201:void <init>(java.util.concurrent.atomic.AtomicBoolean,java.util.concurrent.atomic.AtomicBoolean) -> <init>
+    203:209:void cancel() -> a
 com.llamatik.teammate.llamatik.LlamatikBackendServiceKt -> com.llamatik.teammate.llamatik.a:
 # {"fileName":"LlamatikBackendService.kt","id":"sourceFile"}
-    328:337:java.lang.String tryLoadNative() -> b
-    332:332:java.lang.Throwable tryLoadNative$lambda$1$0(java.lang.Throwable) -> a
+    330:339:java.lang.String tryLoadNative() -> b
+    334:334:java.lang.Throwable tryLoadNative$lambda$1$0(java.lang.Throwable) -> a
     1:1:java.lang.String access$tryLoadNative() -> a
 com.llamatik.teammate.llamatik.MultimodalBackendService -> com.llamatik.teammate.llamatik.MultimodalBackendService:
 # {"fileName":"MultimodalBackendService.kt","id":"sourceFile"}
@@ -1295,11 +1329,12 @@ com.llamatik.teammate.tools.ToolCallParser -> com.llamatik.teammate.tools.c:
     kotlin.text.Regex incompleteToolPattern -> f
     3:3:void <init>() -> <init>
     27:30:java.lang.String stripThinking(java.lang.String) -> a
-    56:65:java.util.List parseIncludingIncomplete(java.lang.String) -> d
-    69:150:java.util.List parsePlainText(java.lang.String) -> e
-    108:151:java.lang.String cleanForDisplay(java.lang.String) -> c
-    57:161:com.llamatik.teammate.tools.ToolCall parseIncludingIncomplete$lambda$0(kotlin.text.MatchResult) -> c
-    133:136:java.lang.CharSequence cleanForDisplay$lambda$0(kotlin.text.MatchResult) -> b
+    56:69:java.util.List parseIncludingIncomplete(java.lang.String) -> d
+    73:182:java.util.List parsePlainText(java.lang.String) -> e
+    103:189:java.util.List parsePythonStyle(java.lang.String) -> b
+    138:190:java.lang.String cleanForDisplay(java.lang.String) -> c
+    57:200:com.llamatik.teammate.tools.ToolCall parseIncludingIncomplete$lambda$0(kotlin.text.MatchResult) -> c
+    165:168:java.lang.CharSequence cleanForDisplay$lambda$0(kotlin.text.MatchResult) -> b
     4:43:void <clinit>() -> <clinit>
 com.llamatik.teammate.tools.ToolExecutionContext -> com.llamatik.teammate.tools.d:
 # {"fileName":"ToolInterfaces.kt","id":"sourceFile"}

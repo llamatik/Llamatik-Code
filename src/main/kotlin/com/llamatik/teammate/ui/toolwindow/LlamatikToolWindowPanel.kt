@@ -369,7 +369,7 @@ class LlamatikToolWindowPanel(
                     ApplicationManager.getApplication().invokeLater {
                         if (genId != activeGenId) return@invokeLater
                         proposals.forEach { pendingEdits[it.id] = it }
-                        val clean = ToolCallParser.cleanForDisplay(msg.content)
+                        val clean = ToolCallParser.cleanForDisplay(msg.content, allowThinkFallback = false)
 
                         if (settings.data().agentAutoApprove && proposals.isNotEmpty()) {
                             // Auto-apply: write every proposal immediately, no user confirmation.

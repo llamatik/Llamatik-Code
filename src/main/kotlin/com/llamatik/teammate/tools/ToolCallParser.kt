@@ -131,10 +131,12 @@ object ToolCallParser {
      * Strips all model-internal markup that should never be shown to the user:
      * <think> blocks, <tool_call> blocks, <edit_proposal> XML, and plain-text tool calls.
      *
-     * If removing markup leaves nothing, falls back to showing the think content so the
-     * user sees some response rather than a blank panel.
+     * If removing markup leaves nothing and [allowThinkFallback] is true, falls back to showing
+     * the think content so the user sees some response rather than a blank panel.
+     * Pass [allowThinkFallback] = false when the caller already has edit proposals to display —
+     * in that case a blank answer is correct (the proposal cards are the meaningful response).
      */
-    fun cleanForDisplay(text: String): String {
+    fun cleanForDisplay(text: String, allowThinkFallback: Boolean = true): String {
         val hasEditProposals = editProposalPattern.containsMatchIn(text)
         val withoutTools = text
             .replace(toolPattern, "")
@@ -159,6 +161,7 @@ object ToolCallParser {
         if (withoutThink.isNotEmpty()) return withoutThink
         // Edit proposals surface via the edit UI.
         if (hasEditProposals) return ""
+        if (!allowThinkFallback) return ""
         // Only thinking — show the think content as a fallback.
         val thinkContent = thinkPattern.findAll(withoutTools)
             .joinToString("\n\n") { match ->

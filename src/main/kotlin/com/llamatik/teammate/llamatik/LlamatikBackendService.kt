@@ -117,7 +117,14 @@ class LlamatikBackendService : AssistantBackend {
                     ?.takeIf { it.isNotBlank() }
 
                 val (prompt, stopSequences) = if (nativePrompt != null) {
-                    nativePrompt to emptyList()
+                    // When noThink is requested, pre-fill an empty <think> block on the native
+                    // assistant prefix so Qwen3 skips its reasoning phase entirely.
+                    val finalPrompt = if (request.noThink) {
+                        nativePrompt + "<think>\n\n</think>\n"
+                    } else {
+                        nativePrompt
+                    }
+                    finalPrompt to emptyList()
                 } else {
                     val rendered = PluginPromptRenderer.renderForModel(
                         system = request.systemPrompt,
