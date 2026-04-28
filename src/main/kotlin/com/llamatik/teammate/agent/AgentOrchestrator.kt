@@ -221,6 +221,15 @@ class AgentOrchestrator(private val project: Project) {
                                 ToolCallParser.cleanForDisplay(fullText, allowThinkFallback = true)
                             } else if (proposals.isNotEmpty()) {
                                 ""
+                            } else if (accumulatedRejections.isEmpty() && hasReadContent) {
+                                // Read-only tasks (review, analysis, explanation) — surface the model's
+                                // answer text only. Never fall back to raw <think> content: if the model
+                                // produced no clean answer prose it needs to try again.
+                                val answer = ToolCallParser.cleanForDisplay(fullText, allowThinkFallback = false)
+                                answer.ifBlank {
+                                    "The agent reviewed the files but did not produce a written summary. " +
+                                    "Try asking again or use @filename to attach a specific file."
+                                }
                             } else {
                                 buildString {
                                     append("The agent completed without producing a file change. ")
@@ -274,7 +283,6 @@ class AgentOrchestrator(private val project: Project) {
                             "<result tool=\"${msg.toolName}\">\n${msg.content.take(TOOL_RESULT_CONTENT_MAX_CHARS)}\n</result>"
                         }
                         val allReadOnly = toolCalls.all { it.name in READ_ONLY_TOOL_NAMES }
-                        val readFilePath = toolCalls.firstOrNull { it.name == "read_file" }?.arguments?.get("path")
                         val nowHasReadContent = hasReadContent || toolCalls.any { it.name == "read_file" || it.name == "search_code" }
                         val directive = RoundDirective.get(RoundDirective.RoundState(
                             round = round,
@@ -284,7 +292,7 @@ class AgentOrchestrator(private val project: Project) {
                             validProposalsProduced = roundProposals.isNotEmpty(),
                             allToolsWereReadOnly = allReadOnly,
                             rejectionReasons = proposalResult.rejectionReasons,
-                            readFilePath = readFilePath,
+                            hasFileContext = fileContext.isNotBlank(),
                         ))
                         // Each round sends only the current tool results as the user turn — NOT the full
                         // accumulated history. This keeps every round's prompt small and prevents the
@@ -349,7 +357,7 @@ class AgentOrchestrator(private val project: Project) {
         appendLine("You are Llamatik Code, a local IntelliJ coding agent.")
         val lang = detectProjectLanguage()
         if (lang != null) appendLine("Language: $lang. Write ALL code in $lang only.")
-        appendLine("Respond with tool calls ONLY. No prose. Optional: <think>reasoning</think> then tool XML.")
+        appendLine("Respond with tool calls OR a plain-text answer. Optional: <think>reasoning</think> then tool XML or answer text.")
         appendLine("<tool_call name=\"write_file\"><arg name=\"path\">p</arg><arg name=\"content\">c</arg></tool_call>")
         appendLine("Use ONLY paths from the results. Do NOT read the same file twice. Write immediately after reading.")
         appendLine("Tools: ${toolRegistry.describeTools().take(TOOL_DESCRIPTIONS_SHORT_MAX_CHARS)}")

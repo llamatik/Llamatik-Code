@@ -12,7 +12,7 @@ class RoundDirectiveTest {
         wroteFilesThisRound: Boolean = false,
         validProposalsProduced: Boolean = false,
         allToolsWereReadOnly: Boolean = true,
-        readFilePath: String? = null,
+        hasFileContext: Boolean = false,
     ) = RoundDirective.RoundState(
         round = round,
         maxRounds = maxRounds,
@@ -20,7 +20,7 @@ class RoundDirectiveTest {
         wroteFilesThisRound = wroteFilesThisRound,
         validProposalsProduced = validProposalsProduced,
         allToolsWereReadOnly = allToolsWereReadOnly,
-        readFilePath = readFilePath,
+        hasFileContext = hasFileContext,
     )
 
     @Test
@@ -49,39 +49,79 @@ class RoundDirectiveTest {
     }
 
     @Test
-    fun `has-read-content directive demands write without reading again`() {
-        val directive = RoundDirective.get(state(hasReadContent = true))
-        assertTrue("Should demand write now", directive.contains("write_file", ignoreCase = true) || directive.contains("create_file", ignoreCase = true))
-        assertTrue("Should forbid further reads", directive.contains("Do NOT", ignoreCase = true))
-    }
-
-    @Test
-    fun `has-read-content with readFilePath includes concrete test path`() {
+    fun `has-read-content early in rounds with no file context encourages more reading`() {
         val directive = RoundDirective.get(state(
+            round = 2,
+            maxRounds = 5,
             hasReadContent = true,
-            readFilePath = "shared/src/commonMain/kotlin/com/foo/Bar.kt",
+            hasFileContext = false,
         ))
-        assertTrue("Should include derived test path", directive.contains("BarTest.kt"))
-        assertTrue("Should use commonTest directory", directive.contains("commonTest"))
+        assertTrue("Should encourage reading more files", directive.contains("continue reading", ignoreCase = true))
     }
 
     @Test
-    fun `no reads yet directive tells model to read first`() {
+    fun `has-read-content nearing end of rounds stops reading and demands output`() {
+        val directive = RoundDirective.get(state(
+            round = 3,
+            maxRounds = 5,
+            hasReadContent = true,
+            hasFileContext = false,
+        ))
+        assertTrue("Should stop reading", directive.contains("Do NOT", ignoreCase = true))
+        assertTrue("Should allow write or text answer", directive.contains("write_file", ignoreCase = true) || directive.contains("plain-text answer", ignoreCase = true))
+    }
+
+    @Test
+    fun `has-read-content with specific file attached stops reading immediately`() {
+        val directive = RoundDirective.get(state(
+            round = 2,
+            maxRounds = 5,
+            hasReadContent = true,
+            hasFileContext = true,
+        ))
+        assertTrue("Should stop reading when focused on one file", directive.contains("Do NOT", ignoreCase = true))
+    }
+
+    @Test
+    fun `has-read-content directive also allows text answer for review tasks`() {
+        val directive = RoundDirective.get(state(
+            round = 4,
+            maxRounds = 5,
+            hasReadContent = true,
+        ))
+        assertTrue("Should mention plain-text answer option", directive.contains("plain-text answer", ignoreCase = true))
+    }
+
+    @Test
+    fun `no reads yet with file context tells model to read source file`() {
         val directive = RoundDirective.get(state(
             hasReadContent = false,
             allToolsWereReadOnly = true,
+            hasFileContext = true,
         ))
+        assertTrue("Should mention read_file", directive.contains("read_file", ignoreCase = true))
+        assertTrue("Should mention source file", directive.contains("source file", ignoreCase = true))
+    }
+
+    @Test
+    fun `no reads yet without file context tells model to explore project`() {
+        val directive = RoundDirective.get(state(
+            hasReadContent = false,
+            allToolsWereReadOnly = true,
+            hasFileContext = false,
+        ))
+        assertTrue("Should mention list_files", directive.contains("list_files", ignoreCase = true))
         assertTrue("Should mention read_file", directive.contains("read_file", ignoreCase = true))
     }
 
     @Test
-    fun `default directive demands complete write`() {
+    fun `default directive proceeds with task`() {
         val directive = RoundDirective.get(state(
             hasReadContent = false,
             wroteFilesThisRound = false,
             allToolsWereReadOnly = false,
         ))
-        assertTrue("Should demand write", directive.contains("write_file", ignoreCase = true) || directive.contains("create_file", ignoreCase = true))
+        assertTrue("Should mention write_file or create_file", directive.contains("write_file", ignoreCase = true) || directive.contains("create_file", ignoreCase = true))
     }
 
     @Test
@@ -103,37 +143,5 @@ class RoundDirectiveTest {
             validProposalsProduced = false,
         ))
         assertTrue("Rejected-write should take priority", directive.contains("rejected", ignoreCase = true))
-    }
-
-    // ── deriveTestPath via directive ─────────────────────────────────────────
-
-    @Test
-    fun `commonMain source maps to commonTest`() {
-        val directive = RoundDirective.get(state(
-            hasReadContent = true,
-            readFilePath = "shared/src/commonMain/kotlin/com/app/Repo.kt",
-        ))
-        assertTrue(directive.contains("commonTest"))
-        assertTrue(directive.contains("RepoTest.kt"))
-    }
-
-    @Test
-    fun `main-kotlin source maps to test-kotlin`() {
-        val directive = RoundDirective.get(state(
-            hasReadContent = true,
-            readFilePath = "app/src/main/kotlin/com/app/Foo.kt",
-        ))
-        assertTrue(directive.contains("test/kotlin"))
-        assertTrue(directive.contains("FooTest.kt"))
-    }
-
-    @Test
-    fun `file already named FooTest kt is not double-suffixed`() {
-        val directive = RoundDirective.get(state(
-            hasReadContent = true,
-            readFilePath = "shared/src/commonMain/kotlin/com/app/FooTest.kt",
-        ))
-        assertFalse("Must not double-suffix", directive.contains("FooTestTest.kt"))
-        assertTrue(directive.contains("FooTest.kt"))
     }
 }

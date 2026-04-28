@@ -22,7 +22,7 @@ class LlamatikAppSettings : PersistentStateComponent<LlamatikAppSettings.State> 
         var batchSize: Int = 2048,
         var localOnly: Boolean = true,
         var backendId: String = "llamatik",
-        var ignoredDirectories: String = ".git,node_modules,build,out,target,.idea,.gradle,.gradle-cache,__pycache__,.tox,dist",
+        var ignoredDirectories: String = ".git,node_modules,build,out,target,.idea,.gradle,.gradle-cache,__pycache__,.tox,dist,.kotlin,.cxx,.cache,generated,intermediates",
         var projectRules: String = "",
         var autoApply: Boolean = false,
         var maxFileSizeKb: Int = 256,

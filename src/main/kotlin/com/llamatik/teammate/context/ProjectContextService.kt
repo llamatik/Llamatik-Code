@@ -20,6 +20,14 @@ class ProjectContextService(private val project: Project) {
         "**/*secrets*",
     )
 
+    // Always-ignored directory names regardless of user settings — compiler caches,
+    // generated outputs, and hidden toolchain folders that are never user-authored source.
+    private val alwaysIgnoredDirs = setOf(
+        ".git", ".idea", ".gradle", ".gradle-cache", ".kotlin", ".cxx", ".cache",
+        "build", "out", "target", "node_modules", "__pycache__", ".tox",
+        "generated", "intermediates", "dist", ".dart_tool", ".pub-cache",
+    )
+
     fun projectName(): String = project.name
     fun rootPath(): String = project.basePath ?: ""
 
@@ -141,12 +149,13 @@ class ProjectContextService(private val project: Project) {
     }
 
     private fun isIgnored(file: VirtualFile): Boolean {
-        val ignoredNames = service<LlamatikAppSettings>().data().ignoredDirectories
+        val userIgnored = service<LlamatikAppSettings>().data().ignoredDirectories
             .split(',')
             .map { it.trim() }
             .filter { it.isNotBlank() }
             .toSet()
-        return generateSequence(file) { it.parent }.any { it.name in ignoredNames }
+        val allIgnored = alwaysIgnoredDirs + userIgnored
+        return generateSequence(file) { it.parent }.any { it.name in allIgnored }
     }
 
     private fun isSafe(file: VirtualFile): Boolean {
