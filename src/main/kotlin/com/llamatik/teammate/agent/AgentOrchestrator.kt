@@ -816,8 +816,8 @@ class AgentOrchestrator(private val project: Project) {
         val tokenBuffer = StringBuilder()
         val inThink = AtomicBoolean(false)
         val streamBlocked = AtomicBoolean(false)
-        val uiBlockedPrefixes = listOf("<tool_call", "<edit_proposal", "<Tool_call", "<TOOL_CALL", "<end_of_turn>", "<eos>")
-        val holdTags = listOf(THINK_OPEN, "<edit_proposal", "<tool_call", "<Tool_call", "<TOOL_CALL", "<end_of_turn>", "<eos>")
+        val uiBlockedPrefixes = listOf(TAG_TOOL_CALL_LC, TAG_EDIT_PROPOSAL, TAG_TOOL_CALL_TC, TAG_TOOL_CALL_UC, TAG_END_OF_TURN, TAG_EOS)
+        val holdTags = listOf(THINK_OPEN, TAG_EDIT_PROPOSAL, TAG_TOOL_CALL_LC, TAG_TOOL_CALL_TC, TAG_TOOL_CALL_UC, TAG_END_OF_TURN, TAG_EOS)
         fun flushAnswerBuffer(buf: String) {
             if (buf.isEmpty()) return
             val cutAt = uiBlockedPrefixes.mapNotNull { p -> buf.lowercase().indexOf(p.lowercase()).takeIf { it >= 0 } }.minOrNull()
@@ -956,7 +956,7 @@ class AgentOrchestrator(private val project: Project) {
                                     return
                                 }
                                 val proposals = extractEditProposals(text)
-                                val answer = if (proposals.isNotEmpty() || text.contains("<edit_proposal", ignoreCase = true)) "" else ToolCallParser.cleanForDisplay(text)
+                                val answer = if (proposals.isNotEmpty() || text.contains(TAG_EDIT_PROPOSAL, ignoreCase = true)) "" else ToolCallParser.cleanForDisplay(text)
                                 onFinished(
                                     ChatMessage(role = ChatRole.ASSISTANT, content = answer, editProposalId = proposals.firstOrNull()?.id),
                                     proposals,
@@ -995,9 +995,24 @@ class AgentOrchestrator(private val project: Project) {
         private const val NEW_CONTENT_CLOSE = "</new_content>"
         private const val FILE_SECTION_PREFIX = "### File: "
 
+        // XML streaming tag constants
+        private const val TAG_EDIT_PROPOSAL = "<edit_proposal"
+        private const val TAG_TOOL_CALL_LC = "<tool_call"
+        private const val TAG_TOOL_CALL_TC = "<Tool_call"
+        private const val TAG_TOOL_CALL_UC = "<TOOL_CALL"
+        private const val TAG_END_OF_TURN = "<end_of_turn>"
+        private const val TAG_EOS = "<eos>"
+
         // Tool name constants (referenced in sets and direct comparisons)
+        private const val TOOL_LIST_FILES = "list_files"
         private const val TOOL_READ_FILE = "read_file"
         private const val TOOL_SEARCH_CODE = "search_code"
+        private const val TOOL_SEARCH_FILENAMES = "search_filenames"
+        private const val TOOL_GET_CURRENT_FILE = "get_current_file"
+        private const val TOOL_GET_SELECTED_TEXT = "get_selected_text"
+        private const val TOOL_WRITE_FILE = "write_file"
+        private const val TOOL_CREATE_FILE = "create_file"
+        private const val TOOL_REPLACE_IN_FILE = "replace_in_file"
 
         // Agentic loop limits
         private const val MAX_ROUNDS = 5
@@ -1028,21 +1043,21 @@ class AgentOrchestrator(private val project: Project) {
         const val TOOL_PREFIX = " TOOL:"
 
         // Token streaming: tags that signal end-of-answer or start of a think block
-        private val ANSWER_HOLD_TAGS = listOf(THINK_OPEN, "<end_of_turn>", "<eos>")
+        private val ANSWER_HOLD_TAGS = listOf(THINK_OPEN, TAG_END_OF_TURN, TAG_EOS)
         // Tags that close a <think> block; <wait covers all <wait...> variants
         private val THINK_CLOSERS = listOf(THINK_CLOSE, "<|im_end|>", "<|endoftext|>", "<wait")
 
         // Tool name sets used in the agentic loop
         private val KNOWN_TOOL_NAMES = setOf(
-            "list_files", TOOL_READ_FILE, TOOL_SEARCH_CODE, "search_filenames",
-            "get_current_file", "get_selected_text", "write_file", "create_file",
-            "replace_in_file", "show_diff", "apply_patch",
+            TOOL_LIST_FILES, TOOL_READ_FILE, TOOL_SEARCH_CODE, TOOL_SEARCH_FILENAMES,
+            TOOL_GET_CURRENT_FILE, TOOL_GET_SELECTED_TEXT, TOOL_WRITE_FILE, TOOL_CREATE_FILE,
+            TOOL_REPLACE_IN_FILE, "show_diff", "apply_patch",
         )
         private val READ_ONLY_TOOL_NAMES = setOf(
-            "list_files", TOOL_READ_FILE, TOOL_SEARCH_CODE, "search_filenames",
-            "get_current_file", "get_selected_text",
+            TOOL_LIST_FILES, TOOL_READ_FILE, TOOL_SEARCH_CODE, TOOL_SEARCH_FILENAMES,
+            TOOL_GET_CURRENT_FILE, TOOL_GET_SELECTED_TEXT,
         )
-        private val EDIT_TOOL_NAMES = setOf("write_file", "replace_in_file", "create_file")
+        private val EDIT_TOOL_NAMES = setOf(TOOL_WRITE_FILE, TOOL_REPLACE_IN_FILE, TOOL_CREATE_FILE)
 
         // Vague phrases that refer to the currently open file; replaced with the actual filename.
         internal val CURRENT_FILE_PHRASES = listOf(
