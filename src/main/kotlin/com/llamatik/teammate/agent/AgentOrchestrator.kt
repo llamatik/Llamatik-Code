@@ -75,11 +75,11 @@ class AgentOrchestrator(private val project: Project) {
             while (tokenBuffer.isNotEmpty()) {
                 val buf = tokenBuffer.toString()
                 if (!inThink.get()) {
-                    val openIdx = buf.indexOf("<think>")
+                    val openIdx = buf.indexOf(THINK_OPEN)
                     if (openIdx >= 0) {
                         inThink.set(true)
                         tokenBuffer.clear()
-                        tokenBuffer.append(buf.substring(openIdx + "<think>".length))
+                        tokenBuffer.append(buf.substring(openIdx + THINK_OPEN.length))
                         continue
                     }
                     // Discard answer text — hold only a partial tag prefix tail to avoid split tags.
@@ -102,7 +102,7 @@ class AgentOrchestrator(private val project: Project) {
                         if (thinkContent.isNotEmpty()) onThinkingToken?.invoke(thinkContent)
                         inThink.set(false)
                         tokenBuffer.clear()
-                        if (tag == "</think>") tokenBuffer.append(buf.substring(idx + tag.length))
+                        if (tag == THINK_CLOSE) tokenBuffer.append(buf.substring(idx + tag.length))
                         continue
                     }
                     val holdLen = holdLenForStartsWith(buf, THINK_CLOSERS)
@@ -283,7 +283,7 @@ class AgentOrchestrator(private val project: Project) {
                             "<result tool=\"${msg.toolName}\">\n${msg.content.take(TOOL_RESULT_CONTENT_MAX_CHARS)}\n</result>"
                         }
                         val allReadOnly = toolCalls.all { it.name in READ_ONLY_TOOL_NAMES }
-                        val nowHasReadContent = hasReadContent || toolCalls.any { it.name == "read_file" || it.name == "search_code" }
+                        val nowHasReadContent = hasReadContent || toolCalls.any { it.name == TOOL_READ_FILE || it.name == TOOL_SEARCH_CODE }
                         val directive = RoundDirective.get(RoundDirective.RoundState(
                             round = round,
                             maxRounds = MAX_ROUNDS,
@@ -354,10 +354,10 @@ class AgentOrchestrator(private val project: Project) {
      * Target: ≤ 500 chars so tool results get the most budget.
      */
     private fun buildSecondPassSystemPrompt(): String = buildString {
-        appendLine("You are Llamatik Code, a local IntelliJ coding agent.")
+        appendLine(AGENT_IDENTITY)
         val lang = detectProjectLanguage()
         if (lang != null) appendLine("Language: $lang. Write ALL code in $lang only.")
-        appendLine("Respond with tool calls OR a plain-text answer. Optional: <think>reasoning</think> then tool XML or answer text.")
+        appendLine("Respond with tool calls OR a plain-text answer. Optional: ${THINK_OPEN}reasoning${THINK_CLOSE} then tool XML or answer text.")
         appendLine("<tool_call name=\"write_file\"><arg name=\"path\">p</arg><arg name=\"content\">c</arg></tool_call>")
         appendLine("Use ONLY paths from the results. Do NOT read the same file twice. Write immediately after reading.")
         appendLine("Tools: ${toolRegistry.describeTools().take(TOOL_DESCRIPTIONS_SHORT_MAX_CHARS)}")
@@ -437,7 +437,7 @@ class AgentOrchestrator(private val project: Project) {
     }
 
     private fun buildSystemPrompt(): String = buildString {
-        appendLine("You are Llamatik Code, a local IntelliJ coding agent.")
+        appendLine(AGENT_IDENTITY)
         val lang = detectProjectLanguage()
         if (lang != null) {
             appendLine("LANGUAGE: This is a $lang project. You MUST write ALL code exclusively in $lang.")
@@ -477,7 +477,7 @@ class AgentOrchestrator(private val project: Project) {
             val path = match.groupValues[1].trim()
             val content = runCatching { contextService.readFile(path) }.getOrNull()
             if (!content.isNullOrBlank()) {
-                attachments.appendLine("### File: $path")
+                attachments.appendLine("$FILE_SECTION_PREFIX$path")
                 attachments.appendLine("```")
                 attachments.appendLine(content.take(FILE_ATTACHMENT_MAX_CHARS))
                 attachments.appendLine("```")
@@ -520,7 +520,7 @@ class AgentOrchestrator(private val project: Project) {
         }
 
         val context = buildString {
-            appendLine("### File: $currentFilePath")
+            appendLine("$FILE_SECTION_PREFIX$currentFilePath")
             appendLine("```")
             appendLine(content.take(FILE_ATTACHMENT_MAX_CHARS))
             appendLine("```")
@@ -565,21 +565,19 @@ class AgentOrchestrator(private val project: Project) {
 
     private fun extractNewContent(afterHeader: String): String {
         // Try CDATA first (inside or outside <new_content>)
-        val cdataIdx = afterHeader.indexOf("<![CDATA[")
+        val cdataIdx = afterHeader.indexOf(CDATA_OPEN)
         if (cdataIdx >= 0) {
-            val raw = afterHeader.substring(cdataIdx + "<![CDATA[".length)
-            val closing = raw.indexOf("]]>")
+            val raw = afterHeader.substring(cdataIdx + CDATA_OPEN.length)
+            val closing = raw.indexOf(CDATA_CLOSE)
             return if (closing >= 0) raw.substring(0, closing).trim() else raw.trim()
         }
         // Plain <new_content>…</new_content> — strip any stray CDATA markers
-        val openTag = "<new_content>"
-        val closeTag = "</new_content>"
-        val openIdx = afterHeader.indexOf(openTag)
+        val openIdx = afterHeader.indexOf(NEW_CONTENT_OPEN)
         if (openIdx >= 0) {
-            val raw = afterHeader.substring(openIdx + openTag.length)
-            val closeIdx = raw.indexOf(closeTag)
+            val raw = afterHeader.substring(openIdx + NEW_CONTENT_OPEN.length)
+            val closeIdx = raw.indexOf(NEW_CONTENT_CLOSE)
             val content = if (closeIdx >= 0) raw.substring(0, closeIdx) else raw
-            return content.trim().removePrefix("<![CDATA[").removeSuffix("]]>").trim()
+            return content.trim().removePrefix(CDATA_OPEN).removeSuffix(CDATA_CLOSE).trim()
         }
         return ""
     }
@@ -589,7 +587,7 @@ class AgentOrchestrator(private val project: Project) {
         if (!trimmedPath.contains('.')) return null
         val oldContent = runCatching { contextService.readFile(trimmedPath) }.getOrDefault("")
         val cleanContent = newContent.trim()
-            .removePrefix("<![CDATA[").removeSuffix("]]>").trim()
+            .removePrefix(CDATA_OPEN).removeSuffix(CDATA_CLOSE).trim()
         return EditProposal(filePath = trimmedPath, oldContent = oldContent, newContent = cleanContent, summary = summary)
     }
 
@@ -717,12 +715,12 @@ class AgentOrchestrator(private val project: Project) {
             while (tokenBuffer.isNotEmpty()) {
                 val buf = tokenBuffer.toString()
                 if (!inThink.get()) {
-                    val openIdx = buf.indexOf("<think>")
+                    val openIdx = buf.indexOf(THINK_OPEN)
                     if (openIdx >= 0) {
                         if (openIdx > 0) onToken(buf.substring(0, openIdx))
                         inThink.set(true)
                         tokenBuffer.clear()
-                        tokenBuffer.append(buf.substring(openIdx + "<think>".length))
+                        tokenBuffer.append(buf.substring(openIdx + THINK_OPEN.length))
                         continue
                     }
                     val holdLen = holdLenForTags(buf, ANSWER_HOLD_TAGS)
@@ -734,11 +732,11 @@ class AgentOrchestrator(private val project: Project) {
                     }
                     break
                 } else {
-                    val closeIdx = buf.indexOf("</think>")
+                    val closeIdx = buf.indexOf(THINK_CLOSE)
                     if (closeIdx >= 0) {
                         inThink.set(false)
                         tokenBuffer.clear()
-                        tokenBuffer.append(buf.substring(closeIdx + "</think>".length))
+                        tokenBuffer.append(buf.substring(closeIdx + THINK_CLOSE.length))
                         continue
                     }
                     tokenBuffer.clear()
@@ -819,7 +817,7 @@ class AgentOrchestrator(private val project: Project) {
         val inThink = AtomicBoolean(false)
         val streamBlocked = AtomicBoolean(false)
         val uiBlockedPrefixes = listOf("<tool_call", "<edit_proposal", "<Tool_call", "<TOOL_CALL", "<end_of_turn>", "<eos>")
-        val holdTags = listOf("<think>", "<edit_proposal", "<tool_call", "<Tool_call", "<TOOL_CALL", "<end_of_turn>", "<eos>")
+        val holdTags = listOf(THINK_OPEN, "<edit_proposal", "<tool_call", "<Tool_call", "<TOOL_CALL", "<end_of_turn>", "<eos>")
         fun flushAnswerBuffer(buf: String) {
             if (buf.isEmpty()) return
             val cutAt = uiBlockedPrefixes.mapNotNull { p -> buf.lowercase().indexOf(p.lowercase()).takeIf { it >= 0 } }.minOrNull()
@@ -837,13 +835,13 @@ class AgentOrchestrator(private val project: Project) {
             while (tokenBuffer.isNotEmpty()) {
                 val buf = tokenBuffer.toString()
                 if (!inThink.get()) {
-                    val openIdx = buf.indexOf("<think>")
+                    val openIdx = buf.indexOf(THINK_OPEN)
                     if (openIdx >= 0) {
                         if (openIdx > 0) flushAnswerBuffer(buf.substring(0, openIdx))
                         if (streamBlocked.get()) { tokenBuffer.clear(); break }
                         inThink.set(true)
                         tokenBuffer.clear()
-                        tokenBuffer.append(buf.substring(openIdx + "<think>".length))
+                        tokenBuffer.append(buf.substring(openIdx + THINK_OPEN.length))
                         continue
                     }
                     val holdLen = holdLenForTags(buf, holdTags)
@@ -866,7 +864,7 @@ class AgentOrchestrator(private val project: Project) {
                         if (thinkContent.isNotEmpty()) onThinkingToken?.invoke(thinkContent)
                         inThink.set(false)
                         tokenBuffer.clear()
-                        if (tag == "</think>") tokenBuffer.append(buf.substring(idx + tag.length))
+                        if (tag == THINK_CLOSE) tokenBuffer.append(buf.substring(idx + tag.length))
                         continue
                     }
                     val holdLen = holdLenForStartsWith(buf, THINK_CLOSERS)
@@ -985,6 +983,22 @@ class AgentOrchestrator(private val project: Project) {
     }
 
     companion object {
+        // Agent identity
+        private const val AGENT_IDENTITY = "You are Llamatik Code, a local IntelliJ coding agent."
+
+        // XML tag constants
+        private const val THINK_OPEN = "<think>"
+        private const val THINK_CLOSE = "</think>"
+        private const val CDATA_OPEN = "<![CDATA["
+        private const val CDATA_CLOSE = "]]>"
+        private const val NEW_CONTENT_OPEN = "<new_content>"
+        private const val NEW_CONTENT_CLOSE = "</new_content>"
+        private const val FILE_SECTION_PREFIX = "### File: "
+
+        // Tool name constants (referenced in sets and direct comparisons)
+        private const val TOOL_READ_FILE = "read_file"
+        private const val TOOL_SEARCH_CODE = "search_code"
+
         // Agentic loop limits
         private const val MAX_ROUNDS = 5
         private const val MAX_TOOL_CALLS_PER_ROUND = 4
@@ -1014,18 +1028,18 @@ class AgentOrchestrator(private val project: Project) {
         const val TOOL_PREFIX = " TOOL:"
 
         // Token streaming: tags that signal end-of-answer or start of a think block
-        private val ANSWER_HOLD_TAGS = listOf("<think>", "<end_of_turn>", "<eos>")
+        private val ANSWER_HOLD_TAGS = listOf(THINK_OPEN, "<end_of_turn>", "<eos>")
         // Tags that close a <think> block; <wait covers all <wait...> variants
-        private val THINK_CLOSERS = listOf("</think>", "<|im_end|>", "<|endoftext|>", "<wait")
+        private val THINK_CLOSERS = listOf(THINK_CLOSE, "<|im_end|>", "<|endoftext|>", "<wait")
 
         // Tool name sets used in the agentic loop
         private val KNOWN_TOOL_NAMES = setOf(
-            "list_files", "read_file", "search_code", "search_filenames",
+            "list_files", TOOL_READ_FILE, TOOL_SEARCH_CODE, "search_filenames",
             "get_current_file", "get_selected_text", "write_file", "create_file",
             "replace_in_file", "show_diff", "apply_patch",
         )
         private val READ_ONLY_TOOL_NAMES = setOf(
-            "list_files", "read_file", "search_code", "search_filenames",
+            "list_files", TOOL_READ_FILE, TOOL_SEARCH_CODE, "search_filenames",
             "get_current_file", "get_selected_text",
         )
         private val EDIT_TOOL_NAMES = setOf("write_file", "replace_in_file", "create_file")
