@@ -391,7 +391,7 @@ class ChatTabPanel(
         }
     }
 
-    private fun buildWelcomeCard(): JPanel {
+    private fun buildWelcomeCard(): javax.swing.JComponent {
         val greetingName = System.getProperty("user.name", "there").replaceFirstChar { it.uppercase() }
         val modeTitle = if (entryMode == EntryMode.ASK) Strings.Chat.ASK_HERO_TITLE else "Hi, $greetingName"
         val modeSubtitle = if (entryMode == EntryMode.ASK) {
@@ -473,9 +473,16 @@ class ChatTabPanel(
             add(promptsGrid)
         }
 
-        return JPanel(BorderLayout()).apply {
+        val inner = JPanel(BorderLayout()).apply {
             background = rootBackground
             add(content, BorderLayout.NORTH)
+        }
+        return JBScrollPane(inner).apply {
+            border = JBUI.Borders.empty()
+            viewport.background = rootBackground
+            background = rootBackground
+            horizontalScrollBarPolicy = javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER
+            verticalScrollBarPolicy = javax.swing.ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED
         }
     }
 

@@ -1041,7 +1041,7 @@ class AgentTabPanel(
 
     // ── Card builders ─────────────────────────────────────────────────────────
 
-    private fun buildWelcomeCard(): JPanel {
+    private fun buildWelcomeCard(): javax.swing.JComponent {
         heroTitleLabel = JBLabel("<html><span style='font-size:22pt; font-weight:700; color:${LlamatikTheme.htmlPrimary};'>${Strings.Agent.HERO_TITLE}</span></html>")
         heroSubtitleLabel = JBLabel(
             "<html><span style='color:${LlamatikTheme.htmlOnSurface};'>${Strings.Agent.HERO_SUBTITLE}</span></html>",
@@ -1077,9 +1077,16 @@ class AgentTabPanel(
             border = JBUI.Borders.empty(26, 20, 20, 20)
             add(heroTitleLabel); add(heroSubtitleLabel); add(activityCard); add(promptsTitleLabel); add(promptGrid)
         }
-        return JPanel(BorderLayout()).apply {
+        val inner = JPanel(BorderLayout()).apply {
             background = rootBackground
             add(content, BorderLayout.NORTH)
+        }
+        return JBScrollPane(inner).apply {
+            border = JBUI.Borders.empty()
+            viewport.background = rootBackground
+            background = rootBackground
+            horizontalScrollBarPolicy = ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER
+            verticalScrollBarPolicy = ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED
         }
     }
 
