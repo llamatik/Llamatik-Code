@@ -80,16 +80,20 @@ object LlamatikTheme {
     val statusOrange = JBColor(Color(0xFF9500), Color(0xFFAA00))
 
     // ── HTML color strings (for use inside <span style='color:...'>) ──────────
+    // Derived from the JBColor instances so they always match the resolved theme color,
+    // regardless of which light/dark theme the user has active.
 
     /** Primary accent hex string for HTML. */
-    val htmlPrimary get() = if (JBColor.isBright()) "#F59E0B" else "#FFB74D"
+    val htmlPrimary get() = toHex(primary)
 
     /** Body text hex string for HTML. */
-    val htmlOnSurface get() = if (JBColor.isBright()) "#261C0C" else "#EDEDED"
+    val htmlOnSurface get() = toHex(onSurface)
 
     /** Muted text hex string for HTML. */
-    val htmlOnSurfaceVariant get() = if (JBColor.isBright()) "#5E4636" else "#D6D6D6"
+    val htmlOnSurfaceVariant get() = toHex(onSurfaceVariant)
 
     /** On-primary (dark text on orange) hex string for HTML. */
-    val htmlOnPrimary get() = if (JBColor.isBright()) "#3B1D07" else "#1A1A1A"
+    val htmlOnPrimary get() = toHex(onPrimary)
+
+    private fun toHex(c: java.awt.Color) = "#%02X%02X%02X".format(c.red, c.green, c.blue)
 }
