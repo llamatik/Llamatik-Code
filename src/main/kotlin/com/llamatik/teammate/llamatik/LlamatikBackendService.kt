@@ -119,12 +119,18 @@ class LlamatikBackendService : AssistantBackend {
                 val (prompt, stopSequences) = if (nativePrompt != null) {
                     // When noThink is requested, pre-fill an empty <think> block on the native
                     // assistant prefix so Qwen3 skips its reasoning phase entirely.
-                    val finalPrompt = if (request.noThink) {
-                        nativePrompt + "<think>\n\n</think>\n"
-                    } else {
-                        nativePrompt
+                    val finalPrompt = if (request.noThink) nativePrompt + "<think>\n\n</think>\n" else nativePrompt
+                    // Infer stop sequences from the format of the native prompt so we only enforce
+                    // turn-boundary markers that this model actually uses. Applying ChatML stops to
+                    // a model that uses a different template (e.g. Mellum's <user>/<assistant> format)
+                    // would halt generation at the first response turn before any tool calls are made.
+                    val stops = when {
+                        nativePrompt.contains("<|im_end|>") -> listOf("<|im_end|>", "<|endoftext|>")
+                        nativePrompt.contains("<end_of_turn>") -> listOf("<end_of_turn>", "<eos>")
+                        nativePrompt.contains("<|end|>") -> listOf("<|end|>", "<|endoftext|>")
+                        else -> emptyList() // Unknown/base model format — rely on native EOS only
                     }
-                    finalPrompt to emptyList()
+                    finalPrompt to stops
                 } else {
                     val rendered = PluginPromptRenderer.renderForModel(
                         system = request.systemPrompt,

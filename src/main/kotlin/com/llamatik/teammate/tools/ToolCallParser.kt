@@ -128,6 +128,54 @@ object ToolCallParser {
     fun removeToolMarkup(text: String): String = text.replace(toolPattern, "").trim()
 
     /**
+     * Strips a verbatim echo of the user's prompt from the start of the response.
+     * Base models (e.g. Mellum-4b-base) often repeat the user message before generating.
+     * Safe for instruction models — they never start their response with the user's message.
+     */
+    fun stripLeadingEcho(text: String, userPrompt: String): String {
+        val prefix = userPrompt.trim().take(60)
+        if (prefix.length < 15) return text
+        val trimmed = text.trimStart()
+        return if (trimmed.startsWith(prefix, ignoreCase = true)) {
+            trimmed.substring(prefix.length).trimStart()
+        } else text
+    }
+
+    /**
+     * Strips verbatim file-context content echoed by base models near the start of a response.
+     * Scans each line of [contextChunk] for ≥20-char probes; if found within the first 300 chars
+     * of [text], truncates from that position. Safe for instruction models — they do not echo
+     * injected context verbatim at the very beginning of their reply.
+     */
+    fun stripContextEcho(text: String, contextChunk: String): String {
+        if (contextChunk.length < 50) return text
+        for (line in contextChunk.lines()) {
+            val probe = line.trim().take(50)
+            if (probe.length < 20) continue
+            val idx = text.indexOf(probe)
+            if (idx in 0..300) return text.substring(0, idx).trim()
+        }
+        return text
+    }
+
+    /**
+     * Strips content that base models echo back verbatim from the injected round-N user prompt.
+     * Only call this for rounds > 1 where the prompt contains the sentinel "Tool results:" header.
+     * Safe to call on any model — if the text doesn't start with or contain the preamble nothing changes.
+     */
+    fun stripPromptEcho(text: String, taskPrefix: String): String {
+        // The echoed block always starts with "Task: <taskPrefix>" and ends after "Tool results:\n".
+        // We strip everything up to and including that sentinel so only the model's new output remains.
+        val sentinel = "Tool results:"
+        val sentinelIdx = text.indexOf(sentinel)
+        if (sentinelIdx < 0) return text
+        // Only strip if the text before the sentinel looks like our injected preamble (contains taskPrefix)
+        val before = text.substring(0, sentinelIdx)
+        if (!before.contains(taskPrefix.take(40), ignoreCase = true)) return text
+        return text.substring(sentinelIdx + sentinel.length).trimStart('\n', '\r')
+    }
+
+    /**
      * Strips all model-internal markup that should never be shown to the user:
      * <think> blocks, <tool_call> blocks, <edit_proposal> XML, and plain-text tool calls.
      *

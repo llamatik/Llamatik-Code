@@ -205,7 +205,19 @@ class AgentOrchestrator(private val project: Project) {
 
                     override fun onCompleted(fullText: String) {
                         if (cancelled.get()) return
-                        val answerText = ToolCallParser.stripThinking(fullText)
+                        // Base models echo injected context/prompts verbatim before generating.
+                        // Round 1: strip leading echo of the user instruction and any echoed file context.
+                        // Round > 1: strip echo of the injected tool-results user turn.
+                        val echoStripped = when {
+                            round > 1 -> ToolCallParser.stripPromptEcho(fullText, cleanInstruction.take(40))
+                            else -> {
+                                val afterInstructionEcho = ToolCallParser.stripLeadingEcho(fullText, cleanInstruction)
+                                if (fileContext.isNotBlank())
+                                    ToolCallParser.stripContextEcho(afterInstructionEcho, fileContext)
+                                else afterInstructionEcho
+                            }
+                        }
+                        val answerText = ToolCallParser.stripThinking(echoStripped)
                         // Filter to known tool names — hallucinated names (e.g. "diff_tool") would loop forever
                         val toolCalls = ToolCallParser.parseIncludingIncomplete(answerText)
                             .filter { it.name in KNOWN_TOOL_NAMES }
@@ -218,14 +230,14 @@ class AgentOrchestrator(private val project: Project) {
                             // tool syntax, echoed system prompt markers, etc.). Only surface it on round 1
                             // with no proposals — every other terminal case uses the structured fallback.
                             val clean = if (round == 1 && proposals.isEmpty()) {
-                                ToolCallParser.cleanForDisplay(fullText, allowThinkFallback = true)
+                                ToolCallParser.cleanForDisplay(echoStripped, allowThinkFallback = true)
                             } else if (proposals.isNotEmpty()) {
                                 ""
                             } else if (accumulatedRejections.isEmpty() && hasReadContent) {
                                 // Read-only tasks (review, analysis, explanation) — surface the model's
-                                // answer text only. Never fall back to raw <think> content: if the model
-                                // produced no clean answer prose it needs to try again.
-                                val answer = ToolCallParser.cleanForDisplay(fullText, allowThinkFallback = false)
+                                // answer text. Allow think fallback so base models (which put their entire
+                                // answer inside <think> blocks) still show output.
+                                val answer = ToolCallParser.cleanForDisplay(echoStripped, allowThinkFallback = true)
                                 answer.ifBlank {
                                     "The agent reviewed the files but did not produce a written summary. " +
                                     "Try asking again or use @filename to attach a specific file."
@@ -750,7 +762,8 @@ class AgentOrchestrator(private val project: Project) {
             object : GenerationCallbacks {
                 override fun onToken(token: String) = filteredChatToken(token)
                 override fun onCompleted(fullText: String) {
-                    val answer = ToolCallParser.stripThinking(fullText).trim()
+                    val echoStripped = ToolCallParser.stripLeadingEcho(fullText, cleanInstruction)
+                    val answer = ToolCallParser.stripThinking(echoStripped).trim()
                     onFinished(answer)
                 }
                 override fun onError(message: String, throwable: Throwable?) = onError(message)

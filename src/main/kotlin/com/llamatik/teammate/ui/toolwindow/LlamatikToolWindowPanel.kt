@@ -347,7 +347,7 @@ class LlamatikToolWindowPanel(
 
         val submittedPrompt = prompt
         if (isAgent) agentTabPanel.clearComposer() else chatTabPanel.clearComposer()
-        setGenerating(true)
+        setGenerating(true, isAgent = isAgent)
 
         if (isAgent) {
             val genId = agentTabPanel.startResponse(submittedPrompt)
@@ -463,13 +463,13 @@ class LlamatikToolWindowPanel(
                 ApplicationManager.getApplication().invokeLater {
                     sessionController.appendMessage(session.id, ChatMessage(role = ChatRole.ASSISTANT, content = answer))
                     streamPanel.setContent(answer)
-                    setGenerating(false)
+                    setGenerating(false, isAgent = false)
                 }
             },
             onError = { message ->
                 ApplicationManager.getApplication().invokeLater {
                     errorBanner.showError(message) {}
-                    setGenerating(false)
+                    setGenerating(false, isAgent = false)
                 }
             },
         )
@@ -480,11 +480,15 @@ class LlamatikToolWindowPanel(
 
     private var isAgentGenerating = false
 
-    private fun setGenerating(generating: Boolean) {
-        isAgentGenerating = generating
-        // Agent tab: lock while generating. Ask tab: always free (can send in parallel).
-        agentTabPanel.setGenerating(generating)
-        if (generating) chatTabPanel.setGenerating(false) // ensure Ask stays unlocked
+    private fun setGenerating(generating: Boolean, isAgent: Boolean = true) {
+        if (isAgent) {
+            isAgentGenerating = generating
+            agentTabPanel.setGenerating(generating)
+            // When agent starts generating, keep Ask tab unlocked (independent streams).
+            if (generating) chatTabPanel.setGenerating(false)
+        } else {
+            chatTabPanel.setGenerating(generating)
+        }
     }
 
     private fun syncState() {
