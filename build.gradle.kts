@@ -23,7 +23,7 @@ plugins {
 }
 
 group = "com.llamatik.teammate"
-version = "1.0.3"
+version = "1.0.4"
 
 repositories {
     mavenCentral()
@@ -49,7 +49,7 @@ intellijPlatform {
             sinceBuild = "252"
         }
         changeNotes = """
-            Initial local-first MVP for Llamatik Code.
+            Corrected Theme issues.
         """.trimIndent()
     }
     buildSearchableOptions = false
