@@ -92,6 +92,14 @@ class AgentTabPanel(
 
     private val suggestions = Strings.Agent.SUGGESTIONS
 
+    // Welcome card labels that need HTML text refresh when the IDE theme changes
+    private lateinit var heroTitleLabel: JBLabel
+    private lateinit var heroSubtitleLabel: JBLabel
+    private lateinit var activityTitleLabel: JBLabel
+    private lateinit var activityBodyLabel: JBLabel
+    private lateinit var promptsTitleLabel: JBLabel
+    private val promptCardButtons = mutableListOf<JButton>()
+
     // ── Task card ──────────────────────────────────────────────────────────────
     private val phaseList = JPanel().apply {
         layout = BoxLayout(this, BoxLayout.Y_AXIS)
@@ -1034,44 +1042,57 @@ class AgentTabPanel(
     // ── Card builders ─────────────────────────────────────────────────────────
 
     private fun buildWelcomeCard(): JPanel {
-        val title = JBLabel("<html><span style='font-size:22pt; font-weight:700; color:${LlamatikTheme.htmlPrimary};'>${Strings.Agent.HERO_TITLE}</span></html>")
-        val subtitle = JBLabel(
+        heroTitleLabel = JBLabel("<html><span style='font-size:22pt; font-weight:700; color:${LlamatikTheme.htmlPrimary};'>${Strings.Agent.HERO_TITLE}</span></html>")
+        heroSubtitleLabel = JBLabel(
             "<html><span style='color:${LlamatikTheme.htmlOnSurface};'>${Strings.Agent.HERO_SUBTITLE}</span></html>",
         ).apply {
             font = font.deriveFont(Font.BOLD, font.size2D + 4f)
             border = JBUI.Borders.emptyBottom(24)
         }
         val activityCard = roundedCard(cardBackground, accent)
-        val activityTitle = JBLabel(
+        activityTitleLabel = JBLabel(
             "<html><span style='color:${LlamatikTheme.htmlOnSurface};'>${Strings.Agent.WORKFLOW_TITLE}</span></html>",
         ).apply { font = font.deriveFont(Font.BOLD, font.size2D + 1f) }
-        val activityBody = JBLabel(
+        activityBodyLabel = JBLabel(
             "<html><span style='color:${LlamatikTheme.htmlOnSurfaceVariant};'>${Strings.Agent.WORKFLOW_BODY}</span></html>",
         )
-        activityCard.add(activityTitle, BorderLayout.NORTH)
-        activityCard.add(activityBody, BorderLayout.CENTER)
+        activityCard.add(activityTitleLabel, BorderLayout.NORTH)
+        activityCard.add(activityBodyLabel, BorderLayout.CENTER)
 
-        val promptTitle = JBLabel(
+        promptsTitleLabel = JBLabel(
             "<html><span style='color:${LlamatikTheme.htmlOnSurface};'>${Strings.Agent.PROMPTS_TITLE}</span></html>",
         ).apply {
             font = font.deriveFont(Font.BOLD, font.size2D + 1f)
             border = JBUI.Borders.empty(24, 0, 10, 0)
         }
+        promptCardButtons.clear()
         val promptGrid = JPanel(GridLayout(0, 1, 0, 8)).apply { isOpaque = false }
         suggestions.forEach { promptGrid.add(buildPromptCard(it)) }
 
-        listOf(title, subtitle, activityCard, promptTitle, promptGrid).forEach { it.alignmentX = LEFT_ALIGNMENT }
+        listOf(heroTitleLabel, heroSubtitleLabel, activityCard, promptsTitleLabel, promptGrid).forEach { it.alignmentX = LEFT_ALIGNMENT }
 
         val content = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
             background = rootBackground
             border = JBUI.Borders.empty(26, 20, 20, 20)
-            add(title); add(subtitle); add(activityCard); add(promptTitle); add(promptGrid)
+            add(heroTitleLabel); add(heroSubtitleLabel); add(activityCard); add(promptsTitleLabel); add(promptGrid)
         }
         return JPanel(BorderLayout()).apply {
             background = rootBackground
             add(content, BorderLayout.NORTH)
         }
+    }
+
+    fun refreshThemeColors() {
+        heroTitleLabel.text = "<html><span style='font-size:22pt; font-weight:700; color:${LlamatikTheme.htmlPrimary};'>${Strings.Agent.HERO_TITLE}</span></html>"
+        heroSubtitleLabel.text = "<html><span style='color:${LlamatikTheme.htmlOnSurface};'>${Strings.Agent.HERO_SUBTITLE}</span></html>"
+        activityTitleLabel.text = "<html><span style='color:${LlamatikTheme.htmlOnSurface};'>${Strings.Agent.WORKFLOW_TITLE}</span></html>"
+        activityBodyLabel.text = "<html><span style='color:${LlamatikTheme.htmlOnSurfaceVariant};'>${Strings.Agent.WORKFLOW_BODY}</span></html>"
+        promptsTitleLabel.text = "<html><span style='color:${LlamatikTheme.htmlOnSurface};'>${Strings.Agent.PROMPTS_TITLE}</span></html>"
+        promptCardButtons.forEachIndexed { i, btn ->
+            btn.text = "<html><span style='color:${LlamatikTheme.htmlOnSurface};'>${suggestions[i]}</span></html>"
+        }
+        updateRunOptionsButton()
     }
 
     private fun buildTaskCard(): JPanel {
@@ -1368,6 +1389,7 @@ class AgentTabPanel(
             isOpaque = false
             border = JBUI.Borders.empty(10, 14)
             addActionListener { onSuggestionSelected(text) }
+            promptCardButtons.add(this)
         }
 
     private fun buildToolCallRow(name: String, arg: String): JPanel =

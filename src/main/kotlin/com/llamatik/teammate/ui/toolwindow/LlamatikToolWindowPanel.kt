@@ -1,5 +1,6 @@
 package com.llamatik.teammate.ui.toolwindow
 
+import com.intellij.ide.ui.LafManagerListener
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.options.ShowSettingsUtil
 import com.intellij.openapi.components.service
@@ -174,6 +175,20 @@ class LlamatikToolWindowPanel(
         bindActions()
         applyMode(SurfaceMode.AGENT)
         syncState()
+
+        ApplicationManager.getApplication().messageBus.connect()
+            .subscribe(LafManagerListener.TOPIC, LafManagerListener { refreshTheme() })
+    }
+
+    private fun refreshTheme() {
+        SwingUtilities.invokeLater {
+            val agentSelected = agentToggle.isSelected
+            agentToggle.text = "<html><span style='color:${if (agentSelected) LlamatikTheme.htmlOnPrimary else LlamatikTheme.htmlOnSurface};'>${Strings.Mode.AGENT}</span></html>"
+            askToggle.text = "<html><span style='color:${if (askToggle.isSelected) LlamatikTheme.htmlOnPrimary else LlamatikTheme.htmlOnSurface};'>${Strings.Mode.ASK}</span></html>"
+            disclaimerLabel.foreground = LlamatikTheme.onSurfaceVariant
+            agentTabPanel.refreshThemeColors()
+            chatTabPanel.rebuildTabs()
+        }
     }
 
     fun focusInputWithPrefill(text: String) = prefillComposer(text)
