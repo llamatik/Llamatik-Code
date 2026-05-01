@@ -11,14 +11,14 @@
         code          – unique product code (must start with P, 4-15 caps).
         release-date  – subscription anchor date (YYYYMMDD integer).
         release-version – major version integer (min 2 digits); must match
-                          the leading digits of <version>. 1.0.0 → 10.
+                          the leading digits of <version>. 1.1.x → 11.
                           WARNING: changing release-date or release-version
                           resets all active trial licences.
         optional      – true = FREEMIUM: free tier works without a licence.
     -->
     <product-descriptor code="PLLAMATIKCODE"
                         release-date="20260420"
-                        release-version="10"
+                        release-version="11"
                         optional="true"/>
 
     <description><![CDATA[
