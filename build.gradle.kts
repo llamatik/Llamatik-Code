@@ -49,7 +49,7 @@ intellijPlatform {
             sinceBuild = "252"
         }
         changeNotes = """
-            Corrected Theme issues.
+            Improved generation and added multi-sessions to allow to use chat and agent at the same time.
         """.trimIndent()
     }
     buildSearchableOptions = false
