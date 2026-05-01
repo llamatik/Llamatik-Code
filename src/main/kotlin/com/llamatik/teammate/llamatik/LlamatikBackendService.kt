@@ -20,6 +20,7 @@ class LlamatikBackendService : AssistantBackend {
     private val modelLock = Any()
 
     @Volatile private var initializedModel: String? = null
+    @Volatile private var loadedFinetuneType: String? = null
     @Volatile private var lastContextLength: Int = -1
     @Volatile private var lastBatchSize: Int = -1
     @Volatile private var lastNumThreads: Int = -1
@@ -33,12 +34,18 @@ class LlamatikBackendService : AssistantBackend {
 
     override fun isModelLoaded(): Boolean = nativeLoadError == null && initializedModel != null
 
+    override fun isBaseModel(): Boolean {
+        val finetune = loadedFinetuneType
+        return finetune == null || finetune.isBlank() || finetune.lowercase() == "base"
+    }
+
     fun unload() {
         executor.submit {
             synchronized(modelLock) {
                 if (initializedModel != null) {
                     runCatching { com.llamatik.library.platform.LlamaBridge.shutdown() }
                     initializedModel = null
+                    loadedFinetuneType = null
                 }
             }
         }
@@ -266,6 +273,7 @@ class LlamatikBackendService : AssistantBackend {
         ) {
             synchronized(modelLock) {
                 initializedModel = null
+                loadedFinetuneType = null
                 lastContextLength = config.contextLength
                 lastBatchSize = config.batchSize
                 lastNumThreads = config.numThreads
@@ -283,6 +291,10 @@ class LlamatikBackendService : AssistantBackend {
             val ok = com.llamatik.library.platform.LlamaBridge.initGenerateModel(normalizedModelPath)
             if (!ok) error("Failed to initialize Llamatik model: $normalizedModelPath")
             initializedModel = normalizedModelPath
+            loadedFinetuneType = runCatching {
+                com.llamatik.library.platform.LlamaBridge.getModelFinetuneType()
+            }.getOrNull()
+            logger.info("Model finetune type: $loadedFinetuneType")
         }
     }
 

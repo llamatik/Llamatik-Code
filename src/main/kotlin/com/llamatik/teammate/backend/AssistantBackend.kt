@@ -36,5 +36,6 @@ interface GenerationCallbacks {
 interface AssistantBackend {
     fun isModelLoaded(): Boolean
     fun selectedModelLabel(): String
+    fun isBaseModel(): Boolean = false
     fun generate(request: GenerationRequest, callbacks: GenerationCallbacks): GenerationHandle
 }

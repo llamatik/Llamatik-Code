@@ -21,6 +21,8 @@ object Strings {
             "No model is configured. Go to Settings → Llamatik Code and set a model path."
         const val NO_MODEL_CONFIGURED_TITLE = "No model loaded"
         const val TRIAL_EXPIRED_MSG = "Trial expired — Agent requires a subscription."
+        const val BASE_MODEL_WARNING =
+            "Base model detected. For best results, use an instruction-tuned model (e.g. Qwen3, Gemma-it, Phi3-instruct)."
         fun trialDaysLeft(days: Int) = "$days days left in trial. Agent features will be disabled after expiry."
     }
 

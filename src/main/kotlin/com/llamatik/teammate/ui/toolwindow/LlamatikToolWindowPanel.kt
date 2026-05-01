@@ -13,6 +13,7 @@ import com.intellij.ui.components.JBLabel
 import com.intellij.util.ui.JBUI
 import com.llamatik.teammate.agent.AgentOrchestrator
 import com.llamatik.teammate.agent.BuildVerificationService
+import com.llamatik.teammate.llamatik.LlamatikBackendService
 import com.llamatik.teammate.backend.GenerationHandle
 import com.llamatik.teammate.diff.DiffPreviewService
 import com.llamatik.teammate.infrastructure.ModelDownloadManager
@@ -99,6 +100,16 @@ class LlamatikToolWindowPanel(
     }
     private val trialBannerLabel = JBLabel()
     private val trialDismissBtn = JButton(Strings.App.DISMISS)
+
+    private val baseModelBannerPanel = JPanel(BorderLayout(8, 0)).apply {
+        background = LlamatikTheme.warningBackground
+        border = JBUI.Borders.compound(
+            BorderFactory.createLineBorder(LlamatikTheme.warningBorder, 1, true),
+            JBUI.Borders.empty(8, 12),
+        )
+        isVisible = false
+    }
+    private val baseModelBannerLabel = JBLabel(Strings.App.BASE_MODEL_WARNING)
 
     private val errorBanner = ErrorBannerPanel()
 
@@ -207,6 +218,9 @@ class LlamatikToolWindowPanel(
         trialBannerPanel.add(trialBannerLabel, BorderLayout.CENTER)
         trialBannerPanel.add(trialDismissBtn, BorderLayout.EAST)
 
+        baseModelBannerLabel.foreground = LlamatikTheme.onSurface
+        baseModelBannerPanel.add(baseModelBannerLabel, BorderLayout.CENTER)
+
         val modeGroup = ButtonGroup().apply {
             add(agentToggle)
             add(askToggle)
@@ -269,10 +283,17 @@ class LlamatikToolWindowPanel(
             add(modeRow, BorderLayout.CENTER)
         }
 
+        val bannersPanel = JPanel().apply {
+            isOpaque = false
+            layout = javax.swing.BoxLayout(this, javax.swing.BoxLayout.Y_AXIS)
+            add(trialBannerPanel)
+            add(baseModelBannerPanel)
+        }
+
         return JPanel(BorderLayout()).apply {
             isOpaque = true
             background = rootBackground
-            add(trialBannerPanel, BorderLayout.NORTH)
+            add(bannersPanel, BorderLayout.NORTH)
             add(header, BorderLayout.CENTER)
             add(errorBanner, BorderLayout.SOUTH)
         }
@@ -489,6 +510,9 @@ class LlamatikToolWindowPanel(
         } else {
             chatTabPanel.setGenerating(generating)
         }
+        // Refresh banners after generation ends so the base-model warning appears
+        // once the model has been lazily initialized by the first inference call.
+        if (!generating) syncState()
     }
 
     private fun syncState() {
@@ -519,6 +543,9 @@ class LlamatikToolWindowPanel(
         } else {
             trialBannerPanel.isVisible = false
         }
+
+        val backend = service<LlamatikBackendService>()
+        baseModelBannerPanel.isVisible = backend.isModelLoaded() && backend.isBaseModel()
 
         if (!trialService.isTrialActive()) {
             agentTabPanel.showReadinessOverlay(state, trialExpired = true)
