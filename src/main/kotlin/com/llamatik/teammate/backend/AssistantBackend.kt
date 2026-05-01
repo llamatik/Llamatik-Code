@@ -14,11 +14,14 @@ data class BackendConfig(
     val localOnly: Boolean,
 )
 
+enum class SessionTag { AGENT, CHAT }
+
 data class GenerationRequest(
     val systemPrompt: String,
     val messages: List<ChatMessage>,
     val config: BackendConfig,
     val noThink: Boolean = false,
+    val sessionTag: SessionTag = SessionTag.AGENT,
 )
 
 interface GenerationHandle {

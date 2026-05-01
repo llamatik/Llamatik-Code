@@ -8,6 +8,7 @@ import com.llamatik.teammate.backend.BackendConfig
 import com.llamatik.teammate.backend.GenerationCallbacks
 import com.llamatik.teammate.backend.GenerationHandle
 import com.llamatik.teammate.backend.GenerationRequest
+import com.llamatik.teammate.backend.SessionTag
 import com.llamatik.teammate.context.ProjectContextService
 import com.llamatik.teammate.llamatik.LlamatikBackendService
 import com.llamatik.teammate.llamatik.MultimodalBackendService
@@ -196,6 +197,7 @@ class AgentOrchestrator(private val project: Project) {
                     messages = messages,
                     config = config,
                     noThink = false,
+                    sessionTag = SessionTag.AGENT,
                 ),
                 object : GenerationCallbacks {
                     override fun onToken(token: String) {
@@ -758,7 +760,12 @@ class AgentOrchestrator(private val project: Project) {
         }
 
         return backend.generate(
-            GenerationRequest(systemPrompt = systemPrompt, messages = recentMessages, config = config),
+            GenerationRequest(
+                systemPrompt = systemPrompt,
+                messages = recentMessages,
+                config = config,
+                sessionTag = SessionTag.CHAT,
+            ),
             object : GenerationCallbacks {
                 override fun onToken(token: String) = filteredChatToken(token)
                 override fun onCompleted(fullText: String) {
@@ -951,6 +958,7 @@ class AgentOrchestrator(private val project: Project) {
                             messages = secondPassMessages,
                             config = config,
                             noThink = true,
+                            sessionTag = SessionTag.AGENT,
                         ),
                         object : GenerationCallbacks {
                             // Don't stream tokens — edit proposals surface via onCompleted/onFinished.

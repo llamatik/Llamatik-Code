@@ -253,6 +253,7 @@ class ChatTabPanel(
     }
 
     fun setEntryMode(mode: EntryMode) {
+        if (entryMode == mode) return
         entryMode = mode
         rebuildTabs()
     }

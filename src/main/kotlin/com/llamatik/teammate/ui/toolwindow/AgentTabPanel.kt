@@ -433,6 +433,15 @@ class AgentTabPanel(
         )
     }
 
+    // Tracks which CardLayout card is currently visible so hideReadinessOverlay()
+    // doesn't clobber CARD_RESPONSE when called after generation finishes.
+    private var currentCard = CARD_WELCOME
+
+    private fun showCard(name: String) {
+        currentCard = name
+        cardLayout.show(cardPanel, name)
+    }
+
     // ── Streaming state ───────────────────────────────────────────────────────
     private val streamBuffer = StringBuilder()
     private var streamingBlocked = false
@@ -542,13 +551,13 @@ class AgentTabPanel(
 
         add(cardPanel, BorderLayout.CENTER)
         add(buildComposer(), BorderLayout.SOUTH)
-        cardLayout.show(cardPanel, CARD_WELCOME)
+        showCard(CARD_WELCOME)
 
-        backButton.addActionListener { cardLayout.show(cardPanel, CARD_WELCOME) }
+        backButton.addActionListener { showCard(CARD_WELCOME) }
         clearButton.addActionListener {
             elapsedTimer.stop()
             onClear()
-            cardLayout.show(cardPanel, CARD_WELCOME)
+            showCard(CARD_WELCOME)
         }
 
         composerSendButton.addActionListener {
@@ -690,7 +699,7 @@ class AgentTabPanel(
 
         conversationScroll.viewport.viewPosition = java.awt.Point(0, 0)
 
-        cardLayout.show(cardPanel, CARD_RESPONSE)
+        showCard(CARD_RESPONSE)
         cardPanel.revalidate()
         cardPanel.repaint()
         return currentGenerationId
@@ -819,16 +828,20 @@ class AgentTabPanel(
             else -> return
         }
         cardPanel.add(buildOverlayCard(message), CARD_OVERLAY)
-        cardLayout.show(cardPanel, CARD_OVERLAY)
+        showCard(CARD_OVERLAY)
         cardPanel.revalidate()
         cardPanel.repaint()
     }
 
     fun hideReadinessOverlay() {
         removeDownloadOverlayListener()
-        cardLayout.show(cardPanel, CARD_WELCOME)
-        cardPanel.revalidate()
-        cardPanel.repaint()
+        // Only return to welcome if we're actually on the overlay — don't
+        // clobber CARD_RESPONSE when syncState() fires after generation ends.
+        if (currentCard == CARD_OVERLAY) {
+            showCard(CARD_WELCOME)
+            cardPanel.revalidate()
+            cardPanel.repaint()
+        }
     }
 
     private var downloadOverlayListener: ((DownloadProgressState) -> Unit)? = null
@@ -934,7 +947,7 @@ class AgentTabPanel(
         }
 
         cardPanel.add(overlay, CARD_OVERLAY)
-        cardLayout.show(cardPanel, CARD_OVERLAY)
+        showCard(CARD_OVERLAY)
         cardPanel.revalidate()
         cardPanel.repaint()
     }
@@ -1004,10 +1017,10 @@ class AgentTabPanel(
 
     fun updateState(taskState: AgentTaskState?) {
         if (taskState == null) {
-            cardLayout.show(cardPanel, CARD_WELCOME)
+            showCard(CARD_WELCOME)
             return
         }
-        cardLayout.show(cardPanel, CARD_TASK)
+        showCard(CARD_TASK)
         phaseList.removeAll()
 
         val taskCard = JPanel().apply {

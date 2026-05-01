@@ -3,10 +3,12 @@ package com.llamatik.teammate.llamatik
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.thisLogger
 import com.llamatik.library.platform.GenStream
+import com.llamatik.library.platform.LlamaSession
 import com.llamatik.teammate.backend.AssistantBackend
 import com.llamatik.teammate.backend.GenerationCallbacks
 import com.llamatik.teammate.backend.GenerationHandle
 import com.llamatik.teammate.backend.GenerationRequest
+import com.llamatik.teammate.backend.SessionTag
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.Executors
@@ -16,7 +18,14 @@ import java.util.concurrent.atomic.AtomicBoolean
 @Service(Service.Level.APP)
 class LlamatikBackendService : AssistantBackend {
     private val logger = thisLogger()
-    private val executor = Executors.newSingleThreadExecutor()
+
+    // Two independent executors — one per session tag.
+    // - updateGenerateParams / initGenerateModel: serialised by modelLock, safe to call from either thread.
+    // - applyChatTemplate: pure string formatting, no global state, concurrent-safe.
+    // - session.stream(): uses ss->ctx exclusively, concurrent-safe.
+    private val agentExecutor = Executors.newSingleThreadExecutor()
+    private val chatExecutor  = Executors.newSingleThreadExecutor()
+
     private val modelLock = Any()
 
     @Volatile private var initializedModel: String? = null
@@ -25,6 +34,10 @@ class LlamatikBackendService : AssistantBackend {
     @Volatile private var lastBatchSize: Int = -1
     @Volatile private var lastNumThreads: Int = -1
     @Volatile private var lastFlashAttention: Boolean = false
+
+    // One session per surface — each owns an isolated KV cache.
+    @Volatile private var agentSession: LlamaSession? = null
+    @Volatile private var chatSession: LlamaSession? = null
 
     /**
      * Captured once on first use. If the native library fails to load (e.g. missing @rpath dylib),
@@ -35,13 +48,14 @@ class LlamatikBackendService : AssistantBackend {
     override fun isModelLoaded(): Boolean = nativeLoadError == null && initializedModel != null
 
     override fun isBaseModel(): Boolean {
-        val finetune = loadedFinetuneType
-        return finetune == null || finetune.isBlank() || finetune.lowercase() == "base"
+        val finetune = loadedFinetuneType ?: return false
+        return finetune.lowercase() == "base"
     }
 
     fun unload() {
-        executor.submit {
+        agentExecutor.submit {
             synchronized(modelLock) {
+                closeSessionsLocked()
                 if (initializedModel != null) {
                     runCatching { com.llamatik.library.platform.LlamaBridge.shutdown() }
                     initializedModel = null
@@ -62,7 +76,7 @@ class LlamatikBackendService : AssistantBackend {
 
         val loadErr = nativeLoadError
         if (loadErr != null) {
-            executor.submit {
+            executorFor(request.sessionTag).submit {
                 callbacks.onError(
                     "Llamatik native library could not be loaded: $loadErr\n\n" +
                         "Ensure the bundled native libraries are present and that macOS can load their dependencies.",
@@ -75,12 +89,14 @@ class LlamatikBackendService : AssistantBackend {
         // True once we have a complete response at the Kotlin level (stop sequence, token
         // budget, or natural completion).  Used to prevent double-firing onCompleted.
         val generationDone = AtomicBoolean(false)
-        // True once the *native* generateStream has actually returned (naturally or via cancel).
-        // The cancel handle checks this: calling nativeCancelGenerate() after the native side
-        // is already finished would leave a stale cancel flag that kills the next generation.
+        // True once session.stream() has returned (naturally or via cancel).
+        // Prevents calling session.cancel() on a session that is no longer running.
         val nativeFinished = AtomicBoolean(false)
+        // Set on the executor thread as soon as the session is resolved, so cancel()
+        // can reach it even if the user stops before stream() has started.
+        val activeSession = java.util.concurrent.atomic.AtomicReference<LlamaSession?>(null)
 
-        executor.submit {
+        executorFor(request.sessionTag).submit {
             try {
                 validateConfig(request.config)
                 invalidateIfContextParamsChanged(request.config)
@@ -97,6 +113,12 @@ class LlamatikBackendService : AssistantBackend {
                     batchSize = request.config.batchSize,
                 )
                 ensureModel(request.config.modelIdOrPath)
+
+                val session = getOrCreateSession(request.sessionTag)
+                    ?: error("Could not create inference session for ${request.sessionTag}")
+                activeSession.set(session)
+                // If cancel() was called before we reached this point, stop now.
+                if (cancelled.get()) return@submit
 
                 // Build message list for the native chat template.
                 // System prompt is prepended as a "system" turn if non-blank.
@@ -172,18 +194,12 @@ class LlamatikBackendService : AssistantBackend {
                             generationDone.set(true)
                             val final = trimAtStop(acc.toString(), stopSequences)
                             callbacks.onCompleted(final)
-                            // Do NOT call nativeCancelGenerate() here. Qwen3 natively fires
-                            // <|im_end|> as EOS so the native side stops within 1-2 tokens.
-                            // Calling nativeCancelGenerate() leaves a stale cancel flag that
-                            // causes generateStream to recreate its context with a smaller
-                            // n_ctx (4096) on the next call, starving multi-pass generations.
                             return
                         }
 
                         if (tokenCount >= request.config.maxTokens) {
                             generationDone.set(true)
                             callbacks.onCompleted(acc.toString())
-                            // Same reasoning: avoid cancel to preserve native context size.
                             return
                         }
 
@@ -191,8 +207,6 @@ class LlamatikBackendService : AssistantBackend {
                     }
 
                     override fun onComplete() {
-                        // Native finished on its own — mark it so cancel() won't leave a
-                        // stale flag, then fire onCompleted if we haven't already.
                         nativeFinished.set(true)
                         if (generationDone.compareAndSet(false, true) && !cancelled.get()) {
                             callbacks.onCompleted(acc.toString())
@@ -207,7 +221,7 @@ class LlamatikBackendService : AssistantBackend {
                     }
                 }
 
-                com.llamatik.library.platform.LlamaBridge.generateStream(prompt, guard)
+                session.stream(prompt, guard)
                 nativeFinished.set(true)
             } catch (t: Throwable) {
                 nativeFinished.set(true)
@@ -221,16 +235,57 @@ class LlamatikBackendService : AssistantBackend {
         return object : GenerationHandle {
             override fun cancel() {
                 cancelled.set(true)
-                // Only signal native cancel while the native side is still running.
-                // If it already finished, the flag would persist and kill the next generation.
                 if (!nativeFinished.get()) {
-                    com.llamatik.library.platform.LlamaBridge.nativeCancelGenerate()
+                    activeSession.get()?.cancel()
                 }
             }
 
             override val isCancelled: Boolean get() = cancelled.get()
         }
     }
+
+    // ── Session management ────────────────────────────────────────────────────
+
+    private fun executorFor(tag: SessionTag) = when (tag) {
+        SessionTag.AGENT -> agentExecutor
+        SessionTag.CHAT  -> chatExecutor
+    }
+
+    private fun sessionFor(tag: SessionTag): LlamaSession? = when (tag) {
+        SessionTag.AGENT -> agentSession
+        SessionTag.CHAT  -> chatSession
+    }
+
+    /**
+     * Returns (or lazily creates) the session for [tag].
+     * Must be called from within the tag's own executor thread, after ensureModel().
+     */
+    private fun getOrCreateSession(tag: SessionTag): LlamaSession? {
+        val existing = sessionFor(tag)
+        if (existing != null) return existing
+
+        val session = com.llamatik.library.platform.LlamaBridge.createSession()
+        if (session != null) {
+            when (tag) {
+                SessionTag.AGENT -> agentSession = session
+                SessionTag.CHAT  -> chatSession  = session
+            }
+            logger.info("Created LlamaSession for $tag")
+        } else {
+            logger.warn("createSession() returned null for $tag — model may not be loaded")
+        }
+        return session
+    }
+
+    /** Closes both sessions. Must be called while holding modelLock. */
+    private fun closeSessionsLocked() {
+        agentSession?.runCatching { close() }
+        chatSession?.runCatching  { close() }
+        agentSession = null
+        chatSession  = null
+    }
+
+    // ── Internal helpers ──────────────────────────────────────────────────────
 
     private fun shouldStop(sb: StringBuilder, stops: List<String>): Boolean {
         if (stops.isEmpty()) return false
@@ -272,6 +327,8 @@ class LlamatikBackendService : AssistantBackend {
             config.flashAttention != lastFlashAttention
         ) {
             synchronized(modelLock) {
+                // Close sessions so they are recreated with the new context params.
+                closeSessionsLocked()
                 initializedModel = null
                 loadedFinetuneType = null
                 lastContextLength = config.contextLength
@@ -288,13 +345,15 @@ class LlamatikBackendService : AssistantBackend {
 
         synchronized(modelLock) {
             if (initializedModel == normalizedModelPath) return
+            // Model changed — close existing sessions so new ones pick up the new model weights.
+            closeSessionsLocked()
             val ok = com.llamatik.library.platform.LlamaBridge.initGenerateModel(normalizedModelPath)
             if (!ok) error("Failed to initialize Llamatik model: $normalizedModelPath")
             initializedModel = normalizedModelPath
             loadedFinetuneType = runCatching {
                 com.llamatik.library.platform.LlamaBridge.getModelFinetuneType()
             }.getOrNull()
-            logger.info("Model finetune type: $loadedFinetuneType")
+            logger.info("Model loaded: $normalizedModelPath (finetune=$loadedFinetuneType)")
         }
     }
 
@@ -318,7 +377,6 @@ class LlamatikBackendService : AssistantBackend {
 
         return path.toAbsolutePath().normalize().toString()
     }
-
 
     private fun friendlyError(t: Throwable): String {
         val cause = generateSequence(t) { it.cause }.firstOrNull { it is UnsatisfiedLinkError }

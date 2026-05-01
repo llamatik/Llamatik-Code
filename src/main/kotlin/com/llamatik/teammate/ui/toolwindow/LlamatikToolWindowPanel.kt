@@ -132,7 +132,7 @@ class LlamatikToolWindowPanel(
         onApplyEdit = { applyEdit(it) },
         onSuggestionSelected = { text -> sendPromptFromTab(text, isAgent = false) },
         onSend = { text, images -> sendPromptFromTab(text, isAgent = false, images = images) },
-        onStop = { currentHandle?.cancel(); setGenerating(false) },
+        onStop = { currentHandle?.cancel(); setGenerating(false, isAgent = false) },
         onSettingsClicked = {
             ShowSettingsUtil.getInstance().showSettingsDialog(project, LlamatikSettingsConfigurable::class.java)
         },
