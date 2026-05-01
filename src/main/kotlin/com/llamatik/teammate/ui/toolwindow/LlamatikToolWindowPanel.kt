@@ -72,7 +72,8 @@ class LlamatikToolWindowPanel(
     private val pendingEdits = linkedMapOf<String, EditProposal>()
 
     private var isActivelyLoading = false
-    private var currentHandle: GenerationHandle? = null
+    private var agentHandle: GenerationHandle? = null
+    private var chatHandle: GenerationHandle? = null
     private var currentMode = SurfaceMode.AGENT
     private var activeGenId = 0
     private var autoFixCount = 0
@@ -132,7 +133,7 @@ class LlamatikToolWindowPanel(
         onApplyEdit = { applyEdit(it) },
         onSuggestionSelected = { text -> sendPromptFromTab(text, isAgent = false) },
         onSend = { text, images -> sendPromptFromTab(text, isAgent = false, images = images) },
-        onStop = { currentHandle?.cancel(); setGenerating(false, isAgent = false) },
+        onStop = { chatHandle?.cancel(); setGenerating(false, isAgent = false) },
         onSettingsClicked = {
             ShowSettingsUtil.getInstance().showSettingsDialog(project, LlamatikSettingsConfigurable::class.java)
         },
@@ -144,12 +145,12 @@ class LlamatikToolWindowPanel(
         onApprove = {},
         onReject = {},
         onSend = { text, images -> sendPromptFromTab(text, isAgent = true, images = images) },
-        onStop = { currentHandle?.cancel(); setGenerating(false) },
+        onStop = { agentHandle?.cancel(); setGenerating(false) },
         onSettingsClicked = {
             ShowSettingsUtil.getInstance().showSettingsDialog(project, LlamatikSettingsConfigurable::class.java)
         },
         onModelChanged = { syncState() },
-        onClear = { currentHandle?.cancel(); setGenerating(false) },
+        onClear = { agentHandle?.cancel(); setGenerating(false) },
         isAutoApprove = { settings.data().agentAutoApprove },
         onAutoApproveChanged = { checked -> settings.data().agentAutoApprove = checked },
         isAutoBuild = { settings.data().agentAutoBuild },
@@ -331,8 +332,6 @@ class LlamatikToolWindowPanel(
                 chatTabPanel.setEntryMode(ChatTabPanel.EntryMode.ASK)
             }
         }
-        // Re-evaluate input lock: switching away from Agent while it generates should free input.
-        setGenerating(isAgentGenerating)
     }
 
     private fun prefillComposer(text: String) {
@@ -373,7 +372,7 @@ class LlamatikToolWindowPanel(
         if (isAgent) {
             val genId = agentTabPanel.startResponse(submittedPrompt)
             activeGenId = genId
-            currentHandle = agent.submit(
+            agentHandle = agent.submit(
                 session = chatTabPanel.currentSession(),
                 userPrompt = submittedPrompt,
                 images = images,
@@ -471,7 +470,7 @@ class LlamatikToolWindowPanel(
         )
         chatTabPanel.appendStreamingPanel(streamPanel)
 
-        currentHandle = agent.chat(
+        chatHandle = agent.chat(
             session = session,
             userPrompt = submittedPrompt,
             images = images,
@@ -499,19 +498,12 @@ class LlamatikToolWindowPanel(
     private fun computeState(): PluginReadinessState =
         stateController.currentState(isActivelyLoading = isActivelyLoading, isIndexing = false)
 
-    private var isAgentGenerating = false
-
     private fun setGenerating(generating: Boolean, isAgent: Boolean = true) {
         if (isAgent) {
-            isAgentGenerating = generating
             agentTabPanel.setGenerating(generating)
-            // When agent starts generating, keep Ask tab unlocked (independent streams).
-            if (generating) chatTabPanel.setGenerating(false)
         } else {
             chatTabPanel.setGenerating(generating)
         }
-        // Refresh banners after generation ends so the base-model warning appears
-        // once the model has been lazily initialized by the first inference call.
         if (!generating) syncState()
     }
 
