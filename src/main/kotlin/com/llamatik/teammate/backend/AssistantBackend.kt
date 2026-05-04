@@ -14,7 +14,7 @@ data class BackendConfig(
     val localOnly: Boolean,
 )
 
-enum class SessionTag { AGENT, CHAT }
+enum class SessionTag { AGENT, CHAT, BENCHMARK }
 
 data class GenerationRequest(
     val systemPrompt: String,

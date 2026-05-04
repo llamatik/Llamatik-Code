@@ -67,9 +67,9 @@ class ModelBenchmarkService : PersistentStateComponent<ModelBenchmarkService.Sta
         val backend = service<LlamatikBackendService>()
         val config = BackendConfig(
             modelIdOrPath = modelPath,
-            temperature = 0.0,
+            temperature = settings.temperature,
             maxTokens = 128,
-            contextLength = 2048,
+            contextLength = settings.contextSize,
             numThreads = settings.numThreads,
             useMmap = settings.useMmap,
             flashAttention = settings.flashAttention,
@@ -134,7 +134,7 @@ class ModelBenchmarkService : PersistentStateComponent<ModelBenchmarkService.Sta
                 messages = listOf(ChatMessage(role = ChatRole.USER, content = prompt)),
                 config = config,
                 noThink = true,
-                sessionTag = SessionTag.AGENT,
+                sessionTag = SessionTag.BENCHMARK,
             ),
             object : GenerationCallbacks {
                 override fun onToken(token: String) {

@@ -48,7 +48,7 @@ class ModelBenchmarkRunTool(project: Project) : BaseProjectTool(project) {
         val timeout = promptNames.size * 70L
         latch.await(timeout, TimeUnit.SECONDS)
         if (results.isEmpty()) return ToolResult(name, false, "Benchmark timed out or failed")
-        return ToolResult(name, true, svc.formatResults(results))
+        return ToolResult(name, true, svc.formatResults(results) + "\n\nBenchmark complete. Report these results to the user — do NOT run again.")
     }
 }
 
