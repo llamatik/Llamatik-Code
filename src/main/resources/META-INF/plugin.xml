@@ -108,6 +108,8 @@
         <!-- Skills -->
         <applicationService
                 serviceImplementation="com.llamatik.teammate.skills.SkillService"/>
+        <applicationService
+                serviceImplementation="com.llamatik.teammate.benchmark.ModelBenchmarkService"/>
 
         <!-- Project-level services -->
         <projectService
@@ -134,6 +136,24 @@
                 serviceImplementation="com.llamatik.teammate.run.RunConfigService"/>
         <projectService
                 serviceImplementation="com.llamatik.teammate.rules.CodebaseRulesService"/>
+        <projectService
+                serviceImplementation="com.llamatik.teammate.terminal.TerminalService"/>
+        <projectService
+                serviceImplementation="com.llamatik.teammate.analysis.StaticAnalysisService"/>
+        <projectService
+                serviceImplementation="com.llamatik.teammate.deps.DependencyService"/>
+        <projectService
+                serviceImplementation="com.llamatik.teammate.build.BuildFailureService"/>
+        <projectService
+                serviceImplementation="com.llamatik.teammate.changelog.ChangelogService"/>
+        <projectService
+                serviceImplementation="com.llamatik.teammate.plan.MultiFilePlanService"/>
+        <projectService
+                serviceImplementation="com.llamatik.teammate.memory.ProjectMemoryService"/>
+        <projectService
+                serviceImplementation="com.llamatik.teammate.ui_repair.UiRepairService"/>
+        <projectService
+                serviceImplementation="com.llamatik.teammate.diagnostics.DiagnosticsService"/>
 
         <!-- Settings page -->
         <applicationConfigurable
@@ -193,6 +213,19 @@
                 description="Open Llamatik Code with an edit prompt">
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>
             <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+        </action>
+        <action id="LlamatikCode.ExplainFailingBuild"
+                class="com.llamatik.teammate.actions.ExplainFailingBuildAction"
+                text="Explain Failing Build"
+                description="Explain the last build failure with Llamatik Code">
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+        </action>
+        <action id="LlamatikCode.RunDiagnostics"
+                class="com.llamatik.teammate.actions.RunDiagnosticsAction"
+                text="Run Llamatik Diagnostics"
+                description="Run plugin self-diagnostics and show results">
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
         </action>
         <action id="LlamatikCode.ExplainCurrentChanges"
                 class="com.llamatik.teammate.actions.ExplainCurrentChangesAction"

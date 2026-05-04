@@ -2,35 +2,7 @@ package com.llamatik.teammate.tools
 
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.project.Project
-import com.llamatik.teammate.tools.impl.ApplyPatchTool
-import com.llamatik.teammate.tools.impl.CodebaseRulesExplainTool
-import com.llamatik.teammate.tools.impl.CodebaseRulesGetTool
-import com.llamatik.teammate.tools.impl.CodebaseRulesRefreshTool
-import com.llamatik.teammate.tools.impl.CreateFileTool
-import com.llamatik.teammate.tools.impl.GetCurrentFileTool
-import com.llamatik.teammate.tools.impl.GetSelectedTextTool
-import com.llamatik.teammate.tools.impl.GitBranchTool
-import com.llamatik.teammate.tools.impl.GitChangedFilesTool
-import com.llamatik.teammate.tools.impl.GitCommitMessageSuggestionTool
-import com.llamatik.teammate.tools.impl.GitDiffTool
-import com.llamatik.teammate.tools.impl.GitStatusTool
-import com.llamatik.teammate.tools.impl.IndexRefreshTool
-import com.llamatik.teammate.tools.impl.IndexRelevantFilesTool
-import com.llamatik.teammate.tools.impl.IndexSearchTool
-import com.llamatik.teammate.tools.impl.IndexStatusTool
-import com.llamatik.teammate.tools.impl.ListFilesTool
-import com.llamatik.teammate.tools.impl.PsiFileStructureTool
-import com.llamatik.teammate.tools.impl.PsiFindSymbolTool
-import com.llamatik.teammate.tools.impl.PsiFindUsagesTool
-import com.llamatik.teammate.tools.impl.ReadFileTool
-import com.llamatik.teammate.tools.impl.ReplaceInFileTool
-import com.llamatik.teammate.tools.impl.RunConfigAnalyzeFailureTool
-import com.llamatik.teammate.tools.impl.RunConfigLastOutputTool
-import com.llamatik.teammate.tools.impl.RunConfigListTool
-import com.llamatik.teammate.tools.impl.SearchCodeTool
-import com.llamatik.teammate.tools.impl.SearchFilenamesTool
-import com.llamatik.teammate.tools.impl.ShowDiffTool
-import com.llamatik.teammate.tools.impl.WriteFileTool
+import com.llamatik.teammate.tools.impl.*
 
 @Service(Service.Level.PROJECT)
 class ToolRegistry(project: Project) {
@@ -70,6 +42,48 @@ class ToolRegistry(project: Project) {
         CodebaseRulesGetTool(project),
         CodebaseRulesRefreshTool(project),
         CodebaseRulesExplainTool(project),
+        // Terminal tools
+        TerminalAllowedCommandsTool(project),
+        TerminalRunTool(project),
+        TerminalLastOutputTool(project),
+        // Static analysis tools
+        StaticAnalysisDetectToolsTool(project),
+        StaticAnalysisRunTool(project),
+        StaticAnalysisParseResultsTool(project),
+        // Dependency tools
+        DepsListTool(project),
+        DepsCheckUpdatesTool(project),
+        DepsPlanUpgradeTool(project),
+        // Build failure tools
+        BuildFailureParseTool(project),
+        BuildFailureExplainTool(project),
+        BuildFailureFixPlanTool(project),
+        // Changelog / PR tools
+        PrSummaryGenerateTool(project),
+        ChangelogGenerateTool(project),
+        CommitSummaryGenerateTool(project),
+        // Multi-file plan tools
+        PlanPreviewTool(project),
+        PlanCurrentTool(project),
+        PlanApproveTool(project),
+        PlanRejectTool(project),
+        // Agent memory tools
+        ProjectMemoryGetTool(project),
+        ProjectMemoryAddTool(project),
+        ProjectMemoryUpdateTool(project),
+        ProjectMemoryDeleteTool(project),
+        ProjectMemorySearchTool(project),
+        // UI repair tools
+        UiImageAnalyzeTool(project),
+        UiFindCandidateFilesTool(project),
+        UiGeneratePatchPlanTool(project),
+        // Benchmark tools
+        ModelBenchmarkListTool(project),
+        ModelBenchmarkRunTool(project),
+        ModelBenchmarkResultsTool(project),
+        // Diagnostics tools
+        DiagnosticsRunTool(project),
+        DiagnosticsFixSuggestionsTool(project),
     ).associateBy { it.name }
 
     fun describeTools(): String = tools.values.joinToString("\n") { "- ${it.name}: ${it.description}" }

@@ -18,6 +18,7 @@ import com.llamatik.teammate.model.ChatRole
 import com.llamatik.teammate.model.ChatSession
 import com.llamatik.teammate.model.EditProposal
 import com.llamatik.teammate.settings.LlamatikAppSettings
+import com.llamatik.teammate.memory.ProjectMemoryService
 import com.llamatik.teammate.rules.CodebaseRulesService
 import com.llamatik.teammate.skills.SkillService
 import com.llamatik.teammate.tools.ToolCallParser
@@ -34,6 +35,7 @@ class AgentOrchestrator(private val project: Project) {
     private val contextService = ProjectContextService(project)
     private val skillService = service<SkillService>()
     private val rulesService = project.service<CodebaseRulesService>()
+    private val memoryService = project.service<ProjectMemoryService>()
 
     fun selectedModelLabel(): String = backend.selectedModelLabel()
     fun isModelLoaded(): Boolean = backend.isModelLoaded()
@@ -474,6 +476,8 @@ class AgentOrchestrator(private val project: Project) {
         if (skillsAddition.isNotBlank()) append(skillsAddition.take(SKILLS_PROMPT_MAX_CHARS))
         val rulesBlock = rulesService.buildPromptBlock()
         if (rulesBlock.isNotBlank()) { appendLine(); append(rulesBlock) }
+        val memoryBlock = memoryService.buildPromptBlock()
+        if (memoryBlock.isNotBlank()) { appendLine(); append(memoryBlock) }
     }
 
     /**
@@ -1087,6 +1091,27 @@ class AgentOrchestrator(private val project: Project) {
             "run_config_list", "run_config_last_output", "run_config_analyze_failure",
             // Codebase rules tools
             "codebase_rules_get", "codebase_rules_refresh", "codebase_rules_explain",
+            // Terminal
+            "terminal_allowed_commands", "terminal_run", "terminal_last_output",
+            // Static analysis
+            "static_analysis_detect_tools", "static_analysis_run", "static_analysis_parse_results",
+            // Dependencies
+            "deps_list", "deps_check_updates", "deps_plan_upgrade",
+            // Build failure
+            "build_failure_parse", "build_failure_explain", "build_failure_fix_plan",
+            // Changelog / PR
+            "pr_summary_generate", "changelog_generate", "commit_summary_generate",
+            // Multi-file plan
+            "plan_preview", "plan_current", "plan_approve", "plan_reject",
+            // Agent memory
+            "project_memory_get", "project_memory_add", "project_memory_update",
+            "project_memory_delete", "project_memory_search",
+            // UI repair
+            "ui_image_analyze", "ui_find_candidate_files", "ui_generate_patch_plan",
+            // Benchmark
+            "model_benchmark_list", "model_benchmark_run", "model_benchmark_results",
+            // Diagnostics
+            "diagnostics_run", "diagnostics_fix_suggestions",
         )
         private val READ_ONLY_TOOL_NAMES = setOf(
             TOOL_LIST_FILES, TOOL_READ_FILE, TOOL_SEARCH_CODE, TOOL_SEARCH_FILENAMES,
@@ -1096,6 +1121,16 @@ class AgentOrchestrator(private val project: Project) {
             "index_search", "index_relevant_files", "index_status",
             "run_config_list", "run_config_last_output", "run_config_analyze_failure",
             "codebase_rules_get", "codebase_rules_explain",
+            "terminal_allowed_commands", "terminal_last_output",
+            "static_analysis_detect_tools", "static_analysis_parse_results",
+            "deps_list", "deps_check_updates",
+            "build_failure_parse", "build_failure_explain",
+            "pr_summary_generate", "changelog_generate", "commit_summary_generate",
+            "plan_current",
+            "project_memory_get", "project_memory_search",
+            "ui_image_analyze", "ui_find_candidate_files",
+            "model_benchmark_list", "model_benchmark_results",
+            "diagnostics_run", "diagnostics_fix_suggestions",
         )
         private val EDIT_TOOL_NAMES = setOf(TOOL_WRITE_FILE, TOOL_REPLACE_IN_FILE, TOOL_CREATE_FILE)
 
