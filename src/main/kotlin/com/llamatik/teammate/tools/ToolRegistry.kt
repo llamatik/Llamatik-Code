@@ -88,6 +88,9 @@ class ToolRegistry(project: Project) {
 
     fun describeTools(): String = tools.values.joinToString("\n") { "- ${it.name}: ${it.description}" }
 
+    /** Compact list of just tool names, one per line — used when the char budget is tight. */
+    fun listToolNames(): String = tools.keys.joinToString(" | ")
+
     fun execute(call: ToolCall, context: ToolExecutionContext): ToolResult {
         val tool = tools[call.name] ?: return ToolResult(call.name, false, "Unknown tool: ${call.name}")
         return runCatching { tool.execute(call, context) }

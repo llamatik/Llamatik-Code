@@ -301,7 +301,7 @@ class AgentOrchestrator(private val project: Project) {
                             "<result tool=\"${msg.toolName}\">\n${msg.content.take(TOOL_RESULT_CONTENT_MAX_CHARS)}\n</result>"
                         }
                         val allReadOnly = toolCalls.all { it.name in READ_ONLY_TOOL_NAMES }
-                        val nowHasReadContent = hasReadContent || toolCalls.any { it.name == TOOL_READ_FILE || it.name == TOOL_SEARCH_CODE }
+                        val nowHasReadContent = hasReadContent || toolCalls.any { it.name in READ_ONLY_TOOL_NAMES }
                         val directive = RoundDirective.get(RoundDirective.RoundState(
                             round = round,
                             maxRounds = MAX_ROUNDS,
@@ -378,7 +378,7 @@ class AgentOrchestrator(private val project: Project) {
         appendLine("Respond with tool calls OR a plain-text answer. Optional: ${THINK_OPEN}reasoning${THINK_CLOSE} then tool XML or answer text.")
         appendLine("<tool_call name=\"write_file\"><arg name=\"path\">p</arg><arg name=\"content\">c</arg></tool_call>")
         appendLine("Use ONLY paths from the results. Do NOT read the same file twice. Write immediately after reading.")
-        appendLine("Tools: ${toolRegistry.describeTools().take(TOOL_DESCRIPTIONS_SHORT_MAX_CHARS)}")
+        appendLine("Tools: ${toolRegistry.listToolNames()}")
     }
 
     private fun detectProjectLanguage(): String? {
@@ -420,16 +420,9 @@ class AgentOrchestrator(private val project: Project) {
         appendLine("- project: ${contextService.projectName()}")
         val lang = detectProjectLanguage()
         if (lang != null) appendLine("- language: $lang — ALL generated code MUST be written in $lang")
-        val currentFilePath = contextService.getCurrentFile()
-        appendLine("- open file: ${currentFilePath ?: "none"}")
-        // Include the content of the open file so the model can write code that matches it
-        if (currentFilePath != null) {
-            val content = runCatching { contextService.readFile(currentFilePath) }.getOrNull()
-            if (!content.isNullOrBlank()) {
-                appendLine("- open file content:")
-                appendLine(content.take(OPEN_FILE_CONTENT_MAX_CHARS))
-            }
-        }
+        // Open file is intentionally omitted — the model infers it from @{file} attachments or
+        // the get_current_file tool. Injecting it here causes the model to treat every unrelated
+        // query (e.g. "benchmark the model") as a request about the open file.
         val selected = contextService.getSelectedText()?.take(SELECTED_TEXT_MAX_CHARS)
         if (!selected.isNullOrBlank()) appendLine("- selected text: ${selected}")
         val pinned = contextService.pinnedInstructions()
@@ -469,9 +462,14 @@ class AgentOrchestrator(private val project: Project) {
         appendLine("    C) A plain-text answer (only when no file changes are needed)")
         appendLine("NEVER write prose like 'I will now...' or 'I'll start by...' — go straight to the tool call or answer.")
         appendLine("Use ONLY file paths that exist in the project. Never invent paths.")
-        appendLine("Tool call format:")
-        appendLine("<tool_call name=\"read_file\"><arg name=\"path\">ACTUAL/PATH/FROM/PROJECT</arg></tool_call>")
-        appendLine("Tools: ${toolRegistry.describeTools().take(TOOL_DESCRIPTIONS_FULL_MAX_CHARS)}")
+        // Compact tool list keeps the system prompt within n_batch budget (models often use n_batch=2048).
+        // The model infers each tool's purpose from its name; the format example shows the XML syntax.
+        appendLine("Tools: ${toolRegistry.listToolNames()}")
+        appendLine("Tool call format: <tool_call name=\"TOOL\"><arg name=\"ARG\">VALUE</arg></tool_call>")
+        appendLine("Examples:")
+        appendLine("  <tool_call name=\"read_file\"><arg name=\"path\">src/Main.kt</arg></tool_call>")
+        appendLine("  <tool_call name=\"git_status\"></tool_call>")
+        appendLine("  <tool_call name=\"write_file\"><arg name=\"path\">src/Main.kt</arg><arg name=\"content\">…</arg></tool_call>")
         val skillsAddition = skillService.buildSkillsPromptAddition()
         if (skillsAddition.isNotBlank()) append(skillsAddition.take(SKILLS_PROMPT_MAX_CHARS))
         val rulesBlock = rulesService.buildPromptBlock()
@@ -1060,8 +1058,6 @@ class AgentOrchestrator(private val project: Project) {
         private const val FILE_ATTACHMENT_MAX_CHARS = 2000
         private const val VISION_DESCRIPTION_MAX_CHARS = 1200
         private const val SECOND_PASS_TASK_MAX_CHARS = 300
-        private const val TOOL_DESCRIPTIONS_FULL_MAX_CHARS = 400
-        private const val TOOL_DESCRIPTIONS_SHORT_MAX_CHARS = 300
         private const val SKILLS_PROMPT_MAX_CHARS = 400
         private const val TOOL_RESULTS_MAX_CHARS = 4000
         private const val TOOL_RESULT_CONTENT_MAX_CHARS = 2000
