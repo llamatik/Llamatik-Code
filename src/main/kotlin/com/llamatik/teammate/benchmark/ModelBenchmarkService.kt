@@ -145,8 +145,12 @@ class ModelBenchmarkService : PersistentStateComponent<ModelBenchmarkService.Sta
                     val durationMs = System.currentTimeMillis() - startMs
                     run.durationMs = durationMs
                     run.timeToFirstTokenMs = firstTokenMs
-                    run.totalTokens = tokenCount
-                    run.tokensPerSecond = if (durationMs > 0) tokenCount * 1000.0 / durationMs else 0.0
+                    // If the backend didn't stream individual tokens (batch delivery), estimate
+                    // from output length: ~4 chars per token is a reasonable approximation.
+                    val effectiveTokens = if (tokenCount > 0) tokenCount
+                        else (fullText.trim().length / 4).coerceAtLeast(1)
+                    run.totalTokens = effectiveTokens
+                    run.tokensPerSecond = if (durationMs > 0) effectiveTokens * 1000.0 / durationMs else 0.0
                     run.succeeded = fullText.isNotBlank()
                     done.set(true)
                 }
