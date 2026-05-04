@@ -18,7 +18,7 @@
     -->
     <product-descriptor code="PLLAMATIKCODE"
                         release-date="20260501"
-                        release-version="11"
+                        release-version="12"
                         optional="true"/>
 
     <description><![CDATA[
@@ -124,6 +124,16 @@
                 serviceImplementation="com.llamatik.teammate.agent.BuildVerificationService"/>
         <projectService
                 serviceImplementation="com.llamatik.teammate.context.ProjectIndexingState"/>
+        <projectService
+                serviceImplementation="com.llamatik.teammate.git.GitContextService"/>
+        <projectService
+                serviceImplementation="com.llamatik.teammate.psi.PsiCodeInsightService"/>
+        <projectService
+                serviceImplementation="com.llamatik.teammate.index.ProjectIndexService"/>
+        <projectService
+                serviceImplementation="com.llamatik.teammate.run.RunConfigService"/>
+        <projectService
+                serviceImplementation="com.llamatik.teammate.rules.CodebaseRulesService"/>
 
         <!-- Settings page -->
         <applicationConfigurable
@@ -181,6 +191,13 @@
                 class="com.llamatik.teammate.actions.EditWithPromptAction"
                 text="Edit with Prompt"
                 description="Open Llamatik Code with an edit prompt">
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+        </action>
+        <action id="LlamatikCode.ExplainCurrentChanges"
+                class="com.llamatik.teammate.actions.ExplainCurrentChangesAction"
+                text="Explain Current Git Changes"
+                description="Ask Llamatik Code to explain current git changes and suggest a commit message">
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>
             <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
         </action>

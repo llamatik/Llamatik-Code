@@ -18,6 +18,7 @@ import com.llamatik.teammate.model.ChatRole
 import com.llamatik.teammate.model.ChatSession
 import com.llamatik.teammate.model.EditProposal
 import com.llamatik.teammate.settings.LlamatikAppSettings
+import com.llamatik.teammate.rules.CodebaseRulesService
 import com.llamatik.teammate.skills.SkillService
 import com.llamatik.teammate.tools.ToolCallParser
 import com.llamatik.teammate.tools.ToolExecutionContext
@@ -32,6 +33,7 @@ class AgentOrchestrator(private val project: Project) {
     private val toolRegistry = project.service<ToolRegistry>()
     private val contextService = ProjectContextService(project)
     private val skillService = service<SkillService>()
+    private val rulesService = project.service<CodebaseRulesService>()
 
     fun selectedModelLabel(): String = backend.selectedModelLabel()
     fun isModelLoaded(): Boolean = backend.isModelLoaded()
@@ -470,6 +472,8 @@ class AgentOrchestrator(private val project: Project) {
         appendLine("Tools: ${toolRegistry.describeTools().take(TOOL_DESCRIPTIONS_FULL_MAX_CHARS)}")
         val skillsAddition = skillService.buildSkillsPromptAddition()
         if (skillsAddition.isNotBlank()) append(skillsAddition.take(SKILLS_PROMPT_MAX_CHARS))
+        val rulesBlock = rulesService.buildPromptBlock()
+        if (rulesBlock.isNotBlank()) { appendLine(); append(rulesBlock) }
     }
 
     /**
@@ -1073,10 +1077,25 @@ class AgentOrchestrator(private val project: Project) {
             TOOL_LIST_FILES, TOOL_READ_FILE, TOOL_SEARCH_CODE, TOOL_SEARCH_FILENAMES,
             TOOL_GET_CURRENT_FILE, TOOL_GET_SELECTED_TEXT, TOOL_WRITE_FILE, TOOL_CREATE_FILE,
             TOOL_REPLACE_IN_FILE, "show_diff", "apply_patch",
+            // Git tools
+            "git_status", "git_diff", "git_changed_files", "git_branch", "git_commit_message_suggestion",
+            // PSI tools
+            "psi_file_structure", "psi_find_symbol", "psi_find_usages",
+            // Index tools
+            "index_search", "index_relevant_files", "index_refresh", "index_status",
+            // Run config tools
+            "run_config_list", "run_config_last_output", "run_config_analyze_failure",
+            // Codebase rules tools
+            "codebase_rules_get", "codebase_rules_refresh", "codebase_rules_explain",
         )
         private val READ_ONLY_TOOL_NAMES = setOf(
             TOOL_LIST_FILES, TOOL_READ_FILE, TOOL_SEARCH_CODE, TOOL_SEARCH_FILENAMES,
             TOOL_GET_CURRENT_FILE, TOOL_GET_SELECTED_TEXT,
+            "git_status", "git_diff", "git_changed_files", "git_branch", "git_commit_message_suggestion",
+            "psi_file_structure", "psi_find_symbol", "psi_find_usages",
+            "index_search", "index_relevant_files", "index_status",
+            "run_config_list", "run_config_last_output", "run_config_analyze_failure",
+            "codebase_rules_get", "codebase_rules_explain",
         )
         private val EDIT_TOOL_NAMES = setOf(TOOL_WRITE_FILE, TOOL_REPLACE_IN_FILE, TOOL_CREATE_FILE)
 
