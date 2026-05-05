@@ -49,6 +49,21 @@
 -keep class com.llamatik.teammate.ui.models.LoadModelFromFileAction { *; }
 -keep class com.llamatik.teammate.ui.toolwindow.ToolWindowAccess { *; }
 
+-keep class com.llamatik.teammate.git.GitContextService { *; }
+-keep class com.llamatik.teammate.psi.PsiCodeInsightService { *; }
+-keep class com.llamatik.teammate.index.ProjectIndexService { *; }
+-keep class com.llamatik.teammate.run.RunConfigService { *; }
+-keep class com.llamatik.teammate.rules.CodebaseRulesService { *; }
+-keep class com.llamatik.teammate.terminal.TerminalService { *; }
+-keep class com.llamatik.teammate.analysis.StaticAnalysisService { *; }
+-keep class com.llamatik.teammate.deps.DependencyService { *; }
+-keep class com.llamatik.teammate.build.BuildFailureService { *; }
+-keep class com.llamatik.teammate.changelog.ChangelogService { *; }
+-keep class com.llamatik.teammate.plan.MultiFilePlanService { *; }
+-keep class com.llamatik.teammate.memory.ProjectMemoryService { *; }
+-keep class com.llamatik.teammate.ui_repair.UiRepairService { *; }
+-keep class com.llamatik.teammate.diagnostics.DiagnosticsService { *; }
+
 -keep class com.llamatik.teammate.actions.BasePromptAction { *; }
 -keep class com.llamatik.teammate.actions.AskAboutSelectionAction { *; }
 -keep class com.llamatik.teammate.actions.ExplainFileAction { *; }
@@ -57,6 +72,9 @@
 -keep class com.llamatik.teammate.actions.GenerateTestsAction { *; }
 -keep class com.llamatik.teammate.actions.AddDocumentationAction { *; }
 -keep class com.llamatik.teammate.actions.EditWithPromptAction { *; }
+-keep class com.llamatik.teammate.actions.ExplainFailingBuildAction { *; }
+-keep class com.llamatik.teammate.actions.RunDiagnosticsAction { *; }
+-keep class com.llamatik.teammate.actions.ExplainCurrentChangesAction { *; }
 
 # ── Kotlin enums ─────────────────────────────────────────────────────────────
 # ordinal(), name(), hashCode(), values() are called by compiler-generated
@@ -106,6 +124,15 @@
 -keep class com.llamatik.teammate.persistence.LlamatikProjectState$State { *; }
 -keep class com.llamatik.teammate.persistence.LlamatikProjectState$StoredSession { *; }
 -keep class com.llamatik.teammate.persistence.LlamatikProjectState$StoredMessage { *; }
+-keep class com.llamatik.teammate.benchmark.ModelBenchmarkService$State { *; }
+-keep class com.llamatik.teammate.benchmark.ModelBenchmarkService$BenchmarkRun { *; }
+-keep class com.llamatik.teammate.plan.MultiFilePlanService$State { *; }
+-keep class com.llamatik.teammate.plan.MultiFilePlanService$AgentPlan { *; }
+-keep class com.llamatik.teammate.plan.MultiFilePlanService$PlannedFile { *; }
+-keep class com.llamatik.teammate.memory.ProjectMemoryService$State { *; }
+-keep class com.llamatik.teammate.memory.ProjectMemoryService$MemoryEntry { *; }
+-keep class com.llamatik.teammate.rules.CodebaseRulesService$State { *; }
+-keep class com.llamatik.teammate.rules.CodebaseRulesService$Rule { *; }
 
 # ── Swing / UI components ────────────────────────────────────────────────────
 # Single * intentionally does not cross package separators — this avoids

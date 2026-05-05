@@ -87,8 +87,14 @@ class AgentLoopTest {
             "list_files", "read_file", "search_code", "search_filenames",
             "get_current_file", "get_selected_text", "write_file", "create_file",
             "replace_in_file", "show_diff", "apply_patch",
+            "git_status", "git_diff", "git_changed_files", "git_branch",
         )
         private val editToolNames = setOf("write_file", "replace_in_file", "create_file")
+        private val readOnlyToolNames = setOf(
+            "list_files", "read_file", "search_code", "search_filenames",
+            "get_current_file", "get_selected_text",
+            "git_status", "git_diff", "git_changed_files", "git_branch",
+        )
 
         data class LoopResult(
             val finalMessage: String,
@@ -175,7 +181,7 @@ class AgentLoopTest {
                             }
 
                             val allReadOnly = toolCalls.all { it.name !in editToolNames }
-                            val nowHasRead = toolCalls.any { it.name == "read_file" || it.name == "search_code" }
+                            val nowHasRead = toolCalls.any { it.name in readOnlyToolNames }
                             val directive = RoundDirective.get(RoundDirective.RoundState(
                                 round = round,
                                 maxRounds = maxRounds,
@@ -498,6 +504,24 @@ class AgentLoopTest {
     }
 
     // ── Tests: prompt-too-long guard ─────────────────────────────────────────
+
+    // ── Tests: git/read-only tools count as hasReadContent ───────────────────
+
+    @Test
+    fun `git_status tool call sets hasReadContent so loop does not demand a file write`() {
+        // Before the fix, only read_file/search_code set hasReadContent. git_status was ignored,
+        // so the agent would say "completed without producing a file change" for git queries.
+        val backend = FakeBackend(
+            """<tool_call name="git_status"></tool_call>""",
+            "Your working tree is clean.",
+        )
+        val fakeTools = FakeToolRegistry(mapOf("git_status" to "nothing to commit"))
+        val loop = AgentLoop(backend, fakeTools)
+        val result = loop.run("Show me git status")
+        assertEquals(2, result.rounds)
+        assertEquals(listOf("git_status"), result.toolsExecuted)
+        assertEquals("Your working tree is clean.", result.finalMessage)
+    }
 
     @Test
     fun `TOOL_RESULTS_MAX_CHARS cap prevents oversized next-round prompt`() {
