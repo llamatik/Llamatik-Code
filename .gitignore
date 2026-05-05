@@ -45,3 +45,4 @@ bin/
 /.intellijPlatform/
 .idea
 proguard-mapping.txt
+project.zip
