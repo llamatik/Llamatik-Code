@@ -63,6 +63,7 @@
 -keep class com.llamatik.teammate.memory.ProjectMemoryService { *; }
 -keep class com.llamatik.teammate.ui_repair.UiRepairService { *; }
 -keep class com.llamatik.teammate.diagnostics.DiagnosticsService { *; }
+-keep class com.llamatik.teammate.benchmark.ModelBenchmarkService { *; }
 
 -keep class com.llamatik.teammate.actions.BasePromptAction { *; }
 -keep class com.llamatik.teammate.actions.AskAboutSelectionAction { *; }
@@ -153,6 +154,20 @@
 # reachability analysis does not see the call and would shrink them away.
 # Using keepclassmembers with exact signatures is safe regardless of libraryjars
 # because it does NOT trigger a class-hierarchy traversal.
+#
+# Comparator.compare() — anonymous lambdas from sortedByDescending/sortedWith are
+# obfuscated to inner classes (e.g. UiRepairService.b) and ProGuard strips compare()
+# because the call goes through the stdlib, which is not in libraryjars.
+-keepclassmembers class ** {
+    int compare(java.lang.Object, java.lang.Object);
+}
+# PersistentStateComponent.getState()/loadState() — IntelliJ platform classes are
+# absent from libraryjars, so the implements-based rule above cannot resolve the
+# hierarchy.  Keeping by exact signature avoids the class-hierarchy traversal.
+-keepclassmembers class ** {
+    java.lang.Object getState();
+    void loadState(java.lang.Object);
+}
 #
 # DialogWrapper.createCenterPanel()
 -keepclassmembers class ** {
