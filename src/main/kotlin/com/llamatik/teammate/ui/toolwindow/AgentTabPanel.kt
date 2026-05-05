@@ -260,6 +260,42 @@ class AgentTabPanel(
         maximumSize = Dimension(Int.MAX_VALUE, Int.MAX_VALUE)
     }
 
+    // ── Agent trace ("What I tried") ──────────────────────────────────────────
+    private val traceTextArea = JBTextArea("").apply {
+        isEditable = false
+        isOpaque = false
+        lineWrap = true
+        wrapStyleWord = true
+        background = cardBackground
+        foreground = mutedText
+        border = JBUI.Borders.empty(0, 0, 8, 0)
+        font = font.deriveFont(Font.PLAIN, font.size2D - 1f)
+    }
+    private val traceContent = JPanel(BorderLayout()).apply {
+        isOpaque = false
+        alignmentX = LEFT_ALIGNMENT
+        maximumSize = Dimension(Int.MAX_VALUE, Int.MAX_VALUE)
+        add(traceTextArea, BorderLayout.CENTER)
+        isVisible = false
+    }
+    private val traceToggleBtn = JButton(Strings.Agent.TRACE_COLLAPSED).apply {
+        isFocusPainted = false
+        isContentAreaFilled = false
+        border = JBUI.Borders.empty(4, 0)
+        foreground = mutedText
+        font = font.deriveFont(Font.PLAIN, font.size2D - 1f)
+        horizontalAlignment = JButton.LEFT
+        cursor = java.awt.Cursor(java.awt.Cursor.HAND_CURSOR)
+        alignmentX = LEFT_ALIGNMENT
+    }
+    private val traceSection = JPanel().apply {
+        layout = BoxLayout(this, BoxLayout.Y_AXIS)
+        isOpaque = false
+        isVisible = false
+        alignmentX = LEFT_ALIGNMENT
+        maximumSize = Dimension(Int.MAX_VALUE, Int.MAX_VALUE)
+    }
+
     // ── Response text ─────────────────────────────────────────────────────────
     // Plain JBTextArea — no wrapping JScrollPane. Expands vertically in-place.
     private val responseTextArea = JBTextArea("").apply {
@@ -277,6 +313,14 @@ class AgentTabPanel(
         alignmentX = LEFT_ALIGNMENT
         maximumSize = Dimension(Int.MAX_VALUE, Int.MAX_VALUE)
         add(responseTextArea, BorderLayout.CENTER)
+    }
+
+    // ── Response action buttons ("Fix it automatically", etc.) ──────────────
+    private val responseActionsPanel = JPanel(FlowLayout(FlowLayout.LEFT, 6, 4)).apply {
+        isOpaque = false
+        alignmentX = LEFT_ALIGNMENT
+        maximumSize = Dimension(Int.MAX_VALUE, 44)
+        isVisible = false
     }
 
     // ── Proposals list ────────────────────────────────────────────────────────
@@ -544,6 +588,23 @@ class AgentTabPanel(
             conversationPanel.repaint()
         }
 
+        // Wire up trace section
+        val traceHeaderRow = JPanel(FlowLayout(FlowLayout.LEFT, 0, 0)).apply {
+            isOpaque = false
+            alignmentX = LEFT_ALIGNMENT
+            maximumSize = Dimension(Int.MAX_VALUE, 32)
+            add(traceToggleBtn)
+        }
+        traceSection.add(traceHeaderRow)
+        traceSection.add(traceContent)
+        traceToggleBtn.addActionListener {
+            val expand = !traceContent.isVisible
+            traceContent.isVisible = expand
+            traceToggleBtn.text = if (expand) Strings.Agent.TRACE_EXPANDED else Strings.Agent.TRACE_COLLAPSED
+            conversationPanel.revalidate()
+            conversationPanel.repaint()
+        }
+
         cardPanel.add(buildWelcomeCard(), CARD_WELCOME)
         cardPanel.add(buildTaskCard(), CARD_TASK)
         cardPanel.add(buildOverlayCard(""), CARD_OVERLAY)
@@ -671,6 +732,14 @@ class AgentTabPanel(
         toolCallsPanel.isVisible = false
 
         responseTextArea.text = ""
+
+        traceTextArea.text = ""
+        traceContent.isVisible = false
+        traceToggleBtn.text = Strings.Agent.TRACE_COLLAPSED
+        traceSection.isVisible = false
+
+        responseActionsPanel.removeAll()
+        responseActionsPanel.isVisible = false
 
         proposalsPanel.removeAll()
         proposalsPanel.isVisible = false
@@ -818,6 +887,41 @@ class AgentTabPanel(
         conversationPanel.revalidate()
         conversationPanel.repaint()
         scrollToBottom()
+    }
+
+    fun showAgentTrace(traceText: String) {
+        if (traceText.isBlank()) return
+        traceTextArea.text = traceText
+        traceToggleBtn.text = Strings.Agent.TRACE_COLLAPSED
+        traceContent.isVisible = false
+        traceSection.isVisible = true
+        conversationPanel.revalidate()
+        conversationPanel.repaint()
+    }
+
+    fun showResponseActions(
+        showFixIt: Boolean,
+        isLicensed: Boolean,
+        onFixIt: () -> Unit,
+        onCreatePlan: () -> Unit,
+        onExplainMore: () -> Unit,
+    ) {
+        responseActionsPanel.removeAll()
+        if (showFixIt) {
+            val fixBtn = actionButton(Strings.Agent.RESPONSE_ACTION_FIX_IT) {
+                if (isLicensed) onFixIt() else onCreatePlan()
+            }
+            val planBtn = actionButton(Strings.Agent.RESPONSE_ACTION_CREATE_PLAN) { onCreatePlan() }
+            val explainBtn = actionButton(Strings.Agent.RESPONSE_ACTION_EXPLAIN_MORE) { onExplainMore() }
+            responseActionsPanel.add(fixBtn)
+            responseActionsPanel.add(planBtn)
+            responseActionsPanel.add(explainBtn)
+            responseActionsPanel.isVisible = true
+        } else {
+            responseActionsPanel.isVisible = false
+        }
+        responseActionsPanel.revalidate()
+        responseActionsPanel.repaint()
     }
 
     fun showReadinessOverlay(state: PluginReadinessState, trialExpired: Boolean) {
@@ -1218,6 +1322,8 @@ class AgentTabPanel(
         addItem(thinkingSection)
         addItem(toolCallsPanel, 4)
         addItem(responseContent)
+        addItem(responseActionsPanel, 2)
+        addItem(traceSection, 4)
         addItem(proposalsPanel)
         conversationPanel.add(verificationPanel.also { it.alignmentX = LEFT_ALIGNMENT })
 
@@ -1601,6 +1707,18 @@ class AgentTabPanel(
         val label = if (active.isEmpty()) "Run options ▾" else "${active.joinToString(", ")} ▾"
         runOptionsButton.text = "<html><span style='color:${LlamatikTheme.htmlOnSurfaceVariant};'>$label</span></html>"
     }
+
+    private fun actionButton(label: String, onClick: () -> Unit): JButton =
+        JButton(label).apply {
+            isFocusPainted = false
+            isContentAreaFilled = false
+            border = JBUI.Borders.compound(
+                BorderFactory.createLineBorder(LlamatikTheme.outline, 1, true),
+                JBUI.Borders.empty(4, 10),
+            )
+            font = font.deriveFont(Font.PLAIN, font.size2D - 1f)
+            addActionListener { onClick() }
+        }
 
     private fun formatElapsed(ms: Long): String {
         val secs = ms / 1000

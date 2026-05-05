@@ -79,6 +79,14 @@ object Strings {
         const val SCROLL_TO_BOTTOM = "↓  Scroll to bottom"
         fun brewedFor(elapsed: String) = "brewed for $elapsed"
 
+        const val TRACE_COLLAPSED = "▶ What I tried"
+        const val TRACE_EXPANDED  = "▼ What I tried"
+        const val RESPONSE_ACTION_FIX_IT      = "Fix it automatically"
+        const val RESPONSE_ACTION_CREATE_PLAN = "Create plan"
+        const val RESPONSE_ACTION_EXPLAIN_MORE = "Explain more"
+        const val AGGRESSIVE_MODE_LABEL = "Aggressive mode"
+        const val AGGRESSIVE_MODE_TOOLTIP = "Agent tries multiple fallback strategies before giving up"
+
         val SUGGESTIONS = listOf(
             "Find and resolve build errors in my project",
             "Suggest cleaner structure and apply changes with approval",
@@ -254,6 +262,8 @@ object Strings {
         fun validationNotExists(path: String) = "File does not exist: $path"
         fun validationNotFile(path: String) = "Path is not a file: $path"
         const val VALIDATION_NOT_GGUF = "File must end with .gguf"
+        const val SECTION_AGENT_MODE = "<html><b>Agent Mode</b></html>"
+        const val AGGRESSIVE_MODE_SETTING = "Aggressive agent mode (try fallbacks before giving up)"
     }
 
     // ── Inference settings ────────────────────────────────────────────────────

@@ -62,6 +62,7 @@ class LlamatikSettingsConfigurable : Configurable {
     private lateinit var agentAutoApproveCheck: JBCheckBox
     private lateinit var agentAutoBuildCheck: JBCheckBox
     private lateinit var agentAutoFixCheck: JBCheckBox
+    private lateinit var agentAggressiveModeCheck: JBCheckBox
 
     // Context / indexing
     private lateinit var ignoredDirectoriesArea: JBTextArea
@@ -89,6 +90,9 @@ class LlamatikSettingsConfigurable : Configurable {
         agentAutoApproveCheck = JBCheckBox(Strings.Settings.AUTO_APPROVE)
         agentAutoBuildCheck = JBCheckBox(Strings.Settings.AUTO_BUILD)
         agentAutoFixCheck = JBCheckBox(Strings.Settings.AUTO_FIX)
+        agentAggressiveModeCheck = JBCheckBox(Strings.Settings.AGGRESSIVE_MODE_SETTING).apply {
+            toolTipText = com.llamatik.teammate.ui.Strings.Agent.AGGRESSIVE_MODE_TOOLTIP
+        }
         ignoredDirectoriesArea = JBTextArea(3, 40)
         projectRulesArea = JBTextArea(4, 40)
         modelsListModel = DefaultListModel()
@@ -328,6 +332,9 @@ class LlamatikSettingsConfigurable : Configurable {
             .addComponent(agentAutoBuildCheck)
             .addComponent(agentAutoFixCheck)
             .addSeparator()
+            .addLabeledComponent(JBLabel(Strings.Settings.SECTION_AGENT_MODE), JBLabel(""))
+            .addComponent(agentAggressiveModeCheck)
+            .addSeparator()
             .addLabeledComponent(JBLabel(Strings.Settings.SECTION_CONTEXT),
                 JBLabel(Strings.Settings.FIELD_IGNORED_DIRS))
             .addComponent(JBScrollPane(ignoredDirectoriesArea))
@@ -353,6 +360,7 @@ class LlamatikSettingsConfigurable : Configurable {
             agentAutoApproveCheck.isSelected != s.agentAutoApprove ||
             agentAutoBuildCheck.isSelected != s.agentAutoBuild ||
             agentAutoFixCheck.isSelected != s.agentAutoFix ||
+            agentAggressiveModeCheck.isSelected != (s.agentExecutionMode == "AGGRESSIVE") ||
             ignoredDirectoriesArea.text != s.ignoredDirectories ||
             projectRulesArea.text != s.projectRules
     }
@@ -369,6 +377,7 @@ class LlamatikSettingsConfigurable : Configurable {
         s.agentAutoApprove = agentAutoApproveCheck.isSelected
         s.agentAutoBuild = agentAutoBuildCheck.isSelected
         s.agentAutoFix = agentAutoFixCheck.isSelected
+        s.agentExecutionMode = if (agentAggressiveModeCheck.isSelected) "AGGRESSIVE" else "NORMAL"
         s.ignoredDirectories = ignoredDirectoriesArea.text
         s.projectRules = projectRulesArea.text
         if (path.isNotBlank()) downloadedModelService.registerLocalModel(path)
@@ -387,6 +396,7 @@ class LlamatikSettingsConfigurable : Configurable {
         agentAutoApproveCheck.isSelected = s.agentAutoApprove
         agentAutoBuildCheck.isSelected = s.agentAutoBuild
         agentAutoFixCheck.isSelected = s.agentAutoFix
+        agentAggressiveModeCheck.isSelected = (s.agentExecutionMode == "AGGRESSIVE")
         ignoredDirectoriesArea.text = s.ignoredDirectories
         projectRulesArea.text = s.projectRules
         reloadModelsList()

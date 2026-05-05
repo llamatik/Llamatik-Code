@@ -12,6 +12,7 @@ import com.intellij.openapi.wm.ToolWindow
 import com.intellij.ui.components.JBLabel
 import com.intellij.util.ui.JBUI
 import com.llamatik.teammate.agent.AgentOrchestrator
+import com.llamatik.teammate.agent.AgentTrace
 import com.llamatik.teammate.agent.BuildVerificationService
 import com.llamatik.teammate.llamatik.LlamatikBackendService
 import com.llamatik.teammate.backend.GenerationHandle
@@ -445,6 +446,12 @@ class LlamatikToolWindowPanel(
                             onRejectProposal = { checkAllResolved() },
                         )
                         setGenerating(false)
+                    }
+                },
+                onTrace = { trace: AgentTrace ->
+                    ApplicationManager.getApplication().invokeLater {
+                        if (genId != activeGenId) return@invokeLater
+                        agentTabPanel.showAgentTrace(trace.formatted())
                     }
                 },
                 onError = { message ->

@@ -109,6 +109,8 @@
         <applicationService
                 serviceImplementation="com.llamatik.teammate.skills.SkillService"/>
         <applicationService
+                serviceImplementation="com.llamatik.teammate.model.ModelCapabilityService"/>
+        <applicationService
                 serviceImplementation="com.llamatik.teammate.benchmark.ModelBenchmarkService"/>
 
         <!-- Project-level services -->
@@ -154,6 +156,16 @@
                 serviceImplementation="com.llamatik.teammate.ui_repair.UiRepairService"/>
         <projectService
                 serviceImplementation="com.llamatik.teammate.diagnostics.DiagnosticsService"/>
+        <projectService
+                serviceImplementation="com.llamatik.teammate.context.ContextRecoveryService"/>
+        <projectService
+                serviceImplementation="com.llamatik.teammate.search.SmartSearchService"/>
+        <projectService
+                serviceImplementation="com.llamatik.teammate.testing.TestCoverageHeuristicService"/>
+        <projectService
+                serviceImplementation="com.llamatik.teammate.snapshot.ProjectSnapshotService"/>
+        <projectService
+                serviceImplementation="com.llamatik.teammate.kmp.KmpNativeDiagnosticService"/>
 
         <!-- Settings page -->
         <applicationConfigurable
