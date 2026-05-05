@@ -82,9 +82,10 @@ object Strings {
         val SUGGESTIONS = listOf(
             "Find and resolve build errors in my project",
             "Suggest cleaner structure and apply changes with approval",
-            "Analyze the current file and propose a safer refactor",
             "Generate tests, show the diff, and let me approve",
-            "Make a code review, suggest improvements and apply them"
+            "Make a code review, suggest improvements and apply them",
+            "Benchmark the model",
+            "What's changed in the repo?"
         )
     }
 
