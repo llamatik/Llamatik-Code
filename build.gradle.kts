@@ -23,7 +23,7 @@ plugins {
 }
 
 group = "com.llamatik.teammate"
-version = "1.1.0"
+version = "1.2.0"
 
 repositories {
     mavenCentral()
@@ -49,7 +49,35 @@ intellijPlatform {
             sinceBuild = "252"
         }
         changeNotes = """
-            Improved generation and added multi-sessions to allow to use chat and agent at the same time.
+            <h2>1.2.0 — Expanded Agent Toolset & Bug Fixes</h2>
+
+            <h3>New agent tools</h3>
+            <ul>
+                <li><b>Model benchmark</b> — measure inference speed (tok/s, time-to-first-token) across four coding prompts and compare models side by side.</li>
+                <li><b>Diagnostics</b> — self-check the plugin setup: model file, native library, RAM, disk, Java version, Git availability, project index, write permissions, and inference settings.</li>
+                <li><b>Multi-file plan</b> — the agent proposes a structured plan (files, actions, risk levels, verification steps, rollback info) before touching multiple files, and waits for your approval.</li>
+                <li><b>Project memory</b> — the agent can store and recall project-specific facts across sessions (conventions, key decisions, known pitfalls).</li>
+                <li><b>Codebase rules</b> — automatically detect project conventions (language, DI framework, test library, UI toolkit) and surface them as instructions the agent follows.</li>
+                <li><b>UI repair</b> — analyse a screenshot of a broken UI, find the relevant layout files, and generate a targeted patch plan.</li>
+                <li><b>Static analysis</b> — detect available linters (ktlint, detekt, ESLint…), run them, and parse results so the agent can explain and fix violations.</li>
+                <li><b>Dependency tools</b> — list project dependencies, check for outdated versions, and plan safe upgrade paths.</li>
+                <li><b>Build failure tools</b> — parse Kotlin/Java/Gradle build errors and generate actionable fix plans.</li>
+                <li><b>Changelog &amp; PR tools</b> — generate PR summaries, Keep-a-Changelog entries, and conventional-commit messages from your current diff.</li>
+                <li><b>Git awareness</b> — git status, diff, changed files, and branch are now visible to the agent so it can reason about your current changes without needing a file open.</li>
+                <li><b>PSI tools</b> — navigate code structure, find symbols, and trace usages across the project using IntelliJ's program structure index.</li>
+                <li><b>Run configuration tools</b> — list run configs, retrieve last output, and let the agent explain build/run failures.</li>
+                <li><b>Terminal tools</b> — run allowed shell commands and feed their output back to the agent.</li>
+                <li><b>Project index tools</b> — semantic search and relevant-file retrieval across the entire codebase.</li>
+            </ul>
+
+            <h3>Fixes</h3>
+            <ul>
+                <li>Agent no longer shows "completed without producing a file change" for read-only queries (git status, diagnostics, benchmarks, etc.).</li>
+                <li>Benchmark no longer picks up context from previous agent conversations — it now runs in its own isolated session.</li>
+                <li>Benchmark no longer hangs: uses the loaded model's context size to avoid a full context rebuild, and caps generated tokens at 128 for consistent timing.</li>
+                <li>System prompt size reduced (compact tool list) to stay within batch-size limits on all models.</li>
+                <li>Open file no longer leaks into unrelated agent requests such as "benchmark the model".</li>
+            </ul>
         """.trimIndent()
     }
     buildSearchableOptions = false

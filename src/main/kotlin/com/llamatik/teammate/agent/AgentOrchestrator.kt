@@ -18,6 +18,8 @@ import com.llamatik.teammate.model.ChatRole
 import com.llamatik.teammate.model.ChatSession
 import com.llamatik.teammate.model.EditProposal
 import com.llamatik.teammate.settings.LlamatikAppSettings
+import com.llamatik.teammate.memory.ProjectMemoryService
+import com.llamatik.teammate.rules.CodebaseRulesService
 import com.llamatik.teammate.skills.SkillService
 import com.llamatik.teammate.tools.ToolCallParser
 import com.llamatik.teammate.tools.ToolExecutionContext
@@ -32,6 +34,8 @@ class AgentOrchestrator(private val project: Project) {
     private val toolRegistry = project.service<ToolRegistry>()
     private val contextService = ProjectContextService(project)
     private val skillService = service<SkillService>()
+    private val rulesService = project.service<CodebaseRulesService>()
+    private val memoryService = project.service<ProjectMemoryService>()
 
     fun selectedModelLabel(): String = backend.selectedModelLabel()
     fun isModelLoaded(): Boolean = backend.isModelLoaded()
@@ -297,7 +301,7 @@ class AgentOrchestrator(private val project: Project) {
                             "<result tool=\"${msg.toolName}\">\n${msg.content.take(TOOL_RESULT_CONTENT_MAX_CHARS)}\n</result>"
                         }
                         val allReadOnly = toolCalls.all { it.name in READ_ONLY_TOOL_NAMES }
-                        val nowHasReadContent = hasReadContent || toolCalls.any { it.name == TOOL_READ_FILE || it.name == TOOL_SEARCH_CODE }
+                        val nowHasReadContent = hasReadContent || toolCalls.any { it.name in READ_ONLY_TOOL_NAMES }
                         val directive = RoundDirective.get(RoundDirective.RoundState(
                             round = round,
                             maxRounds = MAX_ROUNDS,
@@ -374,7 +378,7 @@ class AgentOrchestrator(private val project: Project) {
         appendLine("Respond with tool calls OR a plain-text answer. Optional: ${THINK_OPEN}reasoning${THINK_CLOSE} then tool XML or answer text.")
         appendLine("<tool_call name=\"write_file\"><arg name=\"path\">p</arg><arg name=\"content\">c</arg></tool_call>")
         appendLine("Use ONLY paths from the results. Do NOT read the same file twice. Write immediately after reading.")
-        appendLine("Tools: ${toolRegistry.describeTools().take(TOOL_DESCRIPTIONS_SHORT_MAX_CHARS)}")
+        appendLine("Tools: ${toolRegistry.listToolNames()}")
     }
 
     private fun detectProjectLanguage(): String? {
@@ -416,16 +420,9 @@ class AgentOrchestrator(private val project: Project) {
         appendLine("- project: ${contextService.projectName()}")
         val lang = detectProjectLanguage()
         if (lang != null) appendLine("- language: $lang — ALL generated code MUST be written in $lang")
-        val currentFilePath = contextService.getCurrentFile()
-        appendLine("- open file: ${currentFilePath ?: "none"}")
-        // Include the content of the open file so the model can write code that matches it
-        if (currentFilePath != null) {
-            val content = runCatching { contextService.readFile(currentFilePath) }.getOrNull()
-            if (!content.isNullOrBlank()) {
-                appendLine("- open file content:")
-                appendLine(content.take(OPEN_FILE_CONTENT_MAX_CHARS))
-            }
-        }
+        // Open file is intentionally omitted — the model infers it from @{file} attachments or
+        // the get_current_file tool. Injecting it here causes the model to treat every unrelated
+        // query (e.g. "benchmark the model") as a request about the open file.
         val selected = contextService.getSelectedText()?.take(SELECTED_TEXT_MAX_CHARS)
         if (!selected.isNullOrBlank()) appendLine("- selected text: ${selected}")
         val pinned = contextService.pinnedInstructions()
@@ -465,11 +462,20 @@ class AgentOrchestrator(private val project: Project) {
         appendLine("    C) A plain-text answer (only when no file changes are needed)")
         appendLine("NEVER write prose like 'I will now...' or 'I'll start by...' — go straight to the tool call or answer.")
         appendLine("Use ONLY file paths that exist in the project. Never invent paths.")
-        appendLine("Tool call format:")
-        appendLine("<tool_call name=\"read_file\"><arg name=\"path\">ACTUAL/PATH/FROM/PROJECT</arg></tool_call>")
-        appendLine("Tools: ${toolRegistry.describeTools().take(TOOL_DESCRIPTIONS_FULL_MAX_CHARS)}")
+        // Compact tool list keeps the system prompt within n_batch budget (models often use n_batch=2048).
+        // The model infers each tool's purpose from its name; the format example shows the XML syntax.
+        appendLine("Tools: ${toolRegistry.listToolNames()}")
+        appendLine("Tool call format: <tool_call name=\"TOOL\"><arg name=\"ARG\">VALUE</arg></tool_call>")
+        appendLine("Examples:")
+        appendLine("  <tool_call name=\"read_file\"><arg name=\"path\">src/Main.kt</arg></tool_call>")
+        appendLine("  <tool_call name=\"git_status\"></tool_call>")
+        appendLine("  <tool_call name=\"write_file\"><arg name=\"path\">src/Main.kt</arg><arg name=\"content\">…</arg></tool_call>")
         val skillsAddition = skillService.buildSkillsPromptAddition()
         if (skillsAddition.isNotBlank()) append(skillsAddition.take(SKILLS_PROMPT_MAX_CHARS))
+        val rulesBlock = rulesService.buildPromptBlock()
+        if (rulesBlock.isNotBlank()) { appendLine(); append(rulesBlock) }
+        val memoryBlock = memoryService.buildPromptBlock()
+        if (memoryBlock.isNotBlank()) { appendLine(); append(memoryBlock) }
     }
 
     /**
@@ -1052,8 +1058,6 @@ class AgentOrchestrator(private val project: Project) {
         private const val FILE_ATTACHMENT_MAX_CHARS = 2000
         private const val VISION_DESCRIPTION_MAX_CHARS = 1200
         private const val SECOND_PASS_TASK_MAX_CHARS = 300
-        private const val TOOL_DESCRIPTIONS_FULL_MAX_CHARS = 400
-        private const val TOOL_DESCRIPTIONS_SHORT_MAX_CHARS = 300
         private const val SKILLS_PROMPT_MAX_CHARS = 400
         private const val TOOL_RESULTS_MAX_CHARS = 4000
         private const val TOOL_RESULT_CONTENT_MAX_CHARS = 2000
@@ -1073,10 +1077,56 @@ class AgentOrchestrator(private val project: Project) {
             TOOL_LIST_FILES, TOOL_READ_FILE, TOOL_SEARCH_CODE, TOOL_SEARCH_FILENAMES,
             TOOL_GET_CURRENT_FILE, TOOL_GET_SELECTED_TEXT, TOOL_WRITE_FILE, TOOL_CREATE_FILE,
             TOOL_REPLACE_IN_FILE, "show_diff", "apply_patch",
+            // Git tools
+            "git_status", "git_diff", "git_changed_files", "git_branch", "git_commit_message_suggestion",
+            // PSI tools
+            "psi_file_structure", "psi_find_symbol", "psi_find_usages",
+            // Index tools
+            "index_search", "index_relevant_files", "index_refresh", "index_status",
+            // Run config tools
+            "run_config_list", "run_config_last_output", "run_config_analyze_failure",
+            // Codebase rules tools
+            "codebase_rules_get", "codebase_rules_refresh", "codebase_rules_explain",
+            // Terminal
+            "terminal_allowed_commands", "terminal_run", "terminal_last_output",
+            // Static analysis
+            "static_analysis_detect_tools", "static_analysis_run", "static_analysis_parse_results",
+            // Dependencies
+            "deps_list", "deps_check_updates", "deps_plan_upgrade",
+            // Build failure
+            "build_failure_parse", "build_failure_explain", "build_failure_fix_plan",
+            // Changelog / PR
+            "pr_summary_generate", "changelog_generate", "commit_summary_generate",
+            // Multi-file plan
+            "plan_preview", "plan_current", "plan_approve", "plan_reject",
+            // Agent memory
+            "project_memory_get", "project_memory_add", "project_memory_update",
+            "project_memory_delete", "project_memory_search",
+            // UI repair
+            "ui_image_analyze", "ui_find_candidate_files", "ui_generate_patch_plan",
+            // Benchmark
+            "model_benchmark_list", "model_benchmark_run", "model_benchmark_results",
+            // Diagnostics
+            "diagnostics_run", "diagnostics_fix_suggestions",
         )
         private val READ_ONLY_TOOL_NAMES = setOf(
             TOOL_LIST_FILES, TOOL_READ_FILE, TOOL_SEARCH_CODE, TOOL_SEARCH_FILENAMES,
             TOOL_GET_CURRENT_FILE, TOOL_GET_SELECTED_TEXT,
+            "git_status", "git_diff", "git_changed_files", "git_branch", "git_commit_message_suggestion",
+            "psi_file_structure", "psi_find_symbol", "psi_find_usages",
+            "index_search", "index_relevant_files", "index_status",
+            "run_config_list", "run_config_last_output", "run_config_analyze_failure",
+            "codebase_rules_get", "codebase_rules_explain",
+            "terminal_allowed_commands", "terminal_last_output",
+            "static_analysis_detect_tools", "static_analysis_parse_results",
+            "deps_list", "deps_check_updates",
+            "build_failure_parse", "build_failure_explain",
+            "pr_summary_generate", "changelog_generate", "commit_summary_generate",
+            "plan_current",
+            "project_memory_get", "project_memory_search",
+            "ui_image_analyze", "ui_find_candidate_files",
+            "model_benchmark_list", "model_benchmark_results",
+            "diagnostics_run", "diagnostics_fix_suggestions",
         )
         private val EDIT_TOOL_NAMES = setOf(TOOL_WRITE_FILE, TOOL_REPLACE_IN_FILE, TOOL_CREATE_FILE)
 

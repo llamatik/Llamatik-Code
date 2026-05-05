@@ -19,12 +19,13 @@ import java.util.concurrent.atomic.AtomicBoolean
 class LlamatikBackendService : AssistantBackend {
     private val logger = thisLogger()
 
-    // Two independent executors — one per session tag.
+    // Three independent executors — one per session tag.
     // - updateGenerateParams / initGenerateModel: serialised by modelLock, safe to call from either thread.
     // - applyChatTemplate: pure string formatting, no global state, concurrent-safe.
     // - session.stream(): uses ss->ctx exclusively, concurrent-safe.
-    private val agentExecutor = Executors.newSingleThreadExecutor()
-    private val chatExecutor  = Executors.newSingleThreadExecutor()
+    private val agentExecutor     = Executors.newSingleThreadExecutor()
+    private val chatExecutor      = Executors.newSingleThreadExecutor()
+    private val benchmarkExecutor = Executors.newSingleThreadExecutor()
 
     private val modelLock = Any()
 
@@ -36,8 +37,9 @@ class LlamatikBackendService : AssistantBackend {
     @Volatile private var lastFlashAttention: Boolean = false
 
     // One session per surface — each owns an isolated KV cache.
-    @Volatile private var agentSession: LlamaSession? = null
-    @Volatile private var chatSession: LlamaSession? = null
+    @Volatile private var agentSession:     LlamaSession? = null
+    @Volatile private var chatSession:      LlamaSession? = null
+    @Volatile private var benchmarkSession: LlamaSession? = null
 
     /**
      * Captured once on first use. If the native library fails to load (e.g. missing @rpath dylib),
@@ -247,13 +249,15 @@ class LlamatikBackendService : AssistantBackend {
     // ── Session management ────────────────────────────────────────────────────
 
     private fun executorFor(tag: SessionTag) = when (tag) {
-        SessionTag.AGENT -> agentExecutor
-        SessionTag.CHAT  -> chatExecutor
+        SessionTag.AGENT     -> agentExecutor
+        SessionTag.CHAT      -> chatExecutor
+        SessionTag.BENCHMARK -> benchmarkExecutor
     }
 
     private fun sessionFor(tag: SessionTag): LlamaSession? = when (tag) {
-        SessionTag.AGENT -> agentSession
-        SessionTag.CHAT  -> chatSession
+        SessionTag.AGENT     -> agentSession
+        SessionTag.CHAT      -> chatSession
+        SessionTag.BENCHMARK -> benchmarkSession
     }
 
     /**
@@ -267,8 +271,9 @@ class LlamatikBackendService : AssistantBackend {
         val session = com.llamatik.library.platform.LlamaBridge.createSession()
         if (session != null) {
             when (tag) {
-                SessionTag.AGENT -> agentSession = session
-                SessionTag.CHAT  -> chatSession  = session
+                SessionTag.AGENT     -> agentSession     = session
+                SessionTag.CHAT      -> chatSession      = session
+                SessionTag.BENCHMARK -> benchmarkSession = session
             }
             logger.info("Created LlamaSession for $tag")
         } else {
@@ -277,12 +282,14 @@ class LlamatikBackendService : AssistantBackend {
         return session
     }
 
-    /** Closes both sessions. Must be called while holding modelLock. */
+    /** Closes all sessions. Must be called while holding modelLock. */
     private fun closeSessionsLocked() {
-        agentSession?.runCatching { close() }
-        chatSession?.runCatching  { close() }
-        agentSession = null
-        chatSession  = null
+        agentSession?.runCatching     { close() }
+        chatSession?.runCatching      { close() }
+        benchmarkSession?.runCatching { close() }
+        agentSession     = null
+        chatSession      = null
+        benchmarkSession = null
     }
 
     // ── Internal helpers ──────────────────────────────────────────────────────
