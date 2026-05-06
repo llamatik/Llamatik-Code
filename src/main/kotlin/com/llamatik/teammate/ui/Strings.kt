@@ -392,6 +392,30 @@ object Strings {
         const val UNLOCK_PRO_TOOLTIP = "Upgrade to Llamatik Code Pro"
     }
 
+    // ── Task queue panel ──────────────────────────────────────────────────────
+    object TaskQueue {
+        const val PANEL_TITLE = "Tasks"
+        const val SECTION_RUNNING = "Running"
+        const val SECTION_DONE = "Done"
+        const val EMPTY_HINT = "No tasks yet"
+        const val STATUS_RUNNING = "Running…"
+        const val STATUS_DONE = "Done"
+        const val STATUS_HALTED = "Halted"
+        const val STATUS_ERROR = "Failed"
+        fun statusDoneChanges(n: Int) = "Done · $n change${if (n == 1) "" else "s"}"
+        const val NEW_TASK_BUTTON = "+ New"
+        const val NEW_TASK_TOOLTIP = "Start a new task"
+        const val RERUN_TOOLTIP = "Re-run task"
+        const val DELETE_TOOLTIP = "Remove task"
+        const val TOGGLE_TOOLTIP = "Task queue"
+        const val PRO_REQUIRED_TITLE = "Pro feature"
+        const val PRO_REQUIRED_MSG =
+            "Running multiple tasks in parallel requires a Llamatik Code Pro subscription."
+        const val BUSY_TITLE = "Task in progress"
+        const val BUSY_MSG =
+            "A task is already running. Upgrade to Pro to run multiple tasks in parallel."
+    }
+
     // ── About ─────────────────────────────────────────────────────────────────
     object About {
         const val BUTTON = "About Llamatik Code"

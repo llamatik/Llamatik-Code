@@ -13,12 +13,14 @@ import com.llamatik.teammate.infrastructure.ModelDownloadManager
 import com.llamatik.teammate.licensing.LicenseChecker
 import com.llamatik.teammate.llamatik.MultimodalBackendService
 import com.llamatik.teammate.model.AgentPhase
+import com.llamatik.teammate.model.AgentTaskSnapshot
 import com.llamatik.teammate.model.AgentTaskState
 import com.llamatik.teammate.model.AttachedImage
 import com.llamatik.teammate.model.DownloadProgressState
 import com.llamatik.teammate.model.EditProposal
 import com.llamatik.teammate.model.ModelStatus
 import com.llamatik.teammate.model.PluginReadinessState
+import com.llamatik.teammate.model.TaskStatus
 import com.llamatik.teammate.models.BuiltInModelCatalog
 import com.llamatik.teammate.skills.SkillService
 import com.llamatik.teammate.ui.LlamatikTheme
@@ -69,6 +71,7 @@ class AgentTabPanel(
     private val onSend: (String, List<AttachedImage>) -> Unit = { _, _ -> },
     private val onStop: () -> Unit = {},
     private val onSettingsClicked: () -> Unit = {},
+    private val onToggleTasksPanel: () -> Unit = {},
     private val onModelChanged: () -> Unit = {},
     private val onClear: () -> Unit = {},
     private val isAutoApprove: () -> Boolean = { false },
@@ -457,6 +460,20 @@ class AgentTabPanel(
         isVisible = false
     }
 
+    // ── Task queue toggle button (injected into response card top bar) ────────
+    val taskQueueToggleButton = JButton(AllIcons.General.LayoutEditorPreview).apply {
+        toolTipText = Strings.TaskQueue.TOGGLE_TOOLTIP
+        isFocusPainted = false
+        isContentAreaFilled = true
+        isOpaque = true
+        background = LlamatikTheme.surface
+        preferredSize = Dimension(32, 32)
+        border = JBUI.Borders.compound(
+            BorderFactory.createLineBorder(LlamatikTheme.outline, 1, true),
+            JBUI.Borders.empty(3, 5),
+        )
+    }
+
     // ── Navigation buttons ────────────────────────────────────────────────────
     private val backButton = JButton(Strings.Agent.BACK).apply {
         isFocusPainted = false
@@ -557,7 +574,7 @@ class AgentTabPanel(
         preferredSize = Dimension(38, 32)
     }
     private val composerStopButton = JButton(AllIcons.Actions.Suspend).apply {
-        isEnabled = false
+        isVisible = false
         toolTipText = Strings.Composer.STOP_TOOLTIP
         preferredSize = Dimension(38, 32)
     }
@@ -689,11 +706,44 @@ class AgentTabPanel(
         imageBar?.clear()
     }
 
+    fun getSnapshot(): AgentTaskSnapshot = AgentTaskSnapshot(
+        prompt = promptLabel.text,
+        responseText = responseTextArea.text,
+        status = TaskStatus.RUNNING,
+    )
+
+    fun restoreSnapshot(snapshot: AgentTaskSnapshot) {
+        promptLabel.text = snapshot.prompt
+        promptBubble.isVisible = snapshot.prompt.isNotEmpty()
+        responseTextArea.text = snapshot.responseText
+        responseTextArea.caretPosition = 0
+        thinkingSection.isVisible = false
+        toolCallsPanel.isVisible = false
+        statusPill.isVisible = false
+        proposalsPanel.isVisible = false
+        traceSection.isVisible = false
+        responseActionsPanel.isVisible = false
+        verificationPanel.isVisible = false
+        stopSpinnerAndTimer()
+        showCard(CARD_RESPONSE)
+        conversationPanel.revalidate()
+        conversationPanel.repaint()
+    }
+
+    fun showWelcomeForNewTask() {
+        elapsedTimer.stop()
+        showCard(CARD_WELCOME)
+    }
+
     fun setGenerating(generating: Boolean) {
-        composerStopButton.isEnabled = generating
-        composerSendButton.isEnabled = !generating
+        composerSendButton.isVisible = !generating
+        composerStopButton.isVisible = generating
         composerInput.isEnabled = !generating
         if (!generating) stopSpinnerAndTimer()
+    }
+
+    fun setActiveGenId(genId: Int) {
+        currentGenerationId = genId
     }
 
     private fun stopSpinnerAndTimer() {
@@ -706,7 +756,13 @@ class AgentTabPanel(
 
     fun setComposerEnabled(enabled: Boolean) {
         composerInput.isEnabled = enabled
-        composerSendButton.isEnabled = enabled
+        if (enabled) {
+            composerSendButton.isVisible = true
+            composerStopButton.isVisible = false
+        } else {
+            composerSendButton.isVisible = false
+            composerStopButton.isVisible = false
+        }
     }
 
     fun setComposerTooltip(text: String) {
@@ -1186,13 +1242,34 @@ class AgentTabPanel(
         val promptGrid = JPanel(GridLayout(0, 1, 0, 8)).apply { isOpaque = false }
         suggestions.forEach { promptGrid.add(buildPromptCard(it)) }
 
-        listOf(heroTitleLabel, heroSubtitleLabel, activityCard, promptsTitleLabel, promptGrid).forEach { it.alignmentX = LEFT_ALIGNMENT }
+        val tasksButton = JButton(AllIcons.General.LayoutEditorPreview).apply {
+            toolTipText = Strings.TaskQueue.TOGGLE_TOOLTIP
+            isFocusPainted = false
+            isContentAreaFilled = true
+            isOpaque = true
+            background = LlamatikTheme.surface
+            preferredSize = Dimension(32, 32)
+            border = JBUI.Borders.compound(
+                BorderFactory.createLineBorder(LlamatikTheme.outline, 1, true),
+                JBUI.Borders.empty(3, 5),
+            )
+            cursor = java.awt.Cursor(java.awt.Cursor.HAND_CURSOR)
+            addActionListener { onToggleTasksPanel() }
+        }
+        val welcomeTopBar = JPanel(FlowLayout(FlowLayout.RIGHT, 0, 0)).apply {
+            isOpaque = false
+            alignmentX = LEFT_ALIGNMENT
+            maximumSize = Dimension(Int.MAX_VALUE, 32)
+            add(tasksButton)
+        }
+
+        listOf(welcomeTopBar, heroTitleLabel, heroSubtitleLabel, activityCard, promptsTitleLabel, promptGrid).forEach { it.alignmentX = LEFT_ALIGNMENT }
 
         val content = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
             background = rootBackground
-            border = JBUI.Borders.empty(26, 20, 20, 20)
-            add(heroTitleLabel); add(heroSubtitleLabel); add(activityCard); add(promptsTitleLabel); add(promptGrid)
+            border = JBUI.Borders.empty(16, 20, 20, 20)
+            add(welcomeTopBar); add(heroTitleLabel); add(heroSubtitleLabel); add(activityCard); add(promptsTitleLabel); add(promptGrid)
         }
         val inner = JPanel(BorderLayout()).apply {
             background = rootBackground
@@ -1289,7 +1366,7 @@ class AgentTabPanel(
 
         val rightButtons = JPanel(FlowLayout(FlowLayout.RIGHT, 4, 8)).apply {
             isOpaque = false
-            add(clearButton); add(copyButton)
+            add(taskQueueToggleButton); add(clearButton); add(copyButton)
         }
 
         // Spinner sits inline next to the elapsed timer and token counter in the top bar

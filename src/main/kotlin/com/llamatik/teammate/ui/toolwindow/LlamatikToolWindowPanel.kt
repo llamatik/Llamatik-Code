@@ -25,6 +25,8 @@ import com.llamatik.teammate.model.ChatRole
 import com.llamatik.teammate.model.EditProposal
 import com.llamatik.teammate.model.ModelStatus
 import com.llamatik.teammate.model.PluginReadinessState
+import com.llamatik.teammate.model.TaskRecord
+import com.llamatik.teammate.model.TaskStatus
 import com.llamatik.teammate.models.BuiltInModelCatalog
 import com.llamatik.teammate.settings.LlamatikAppSettings
 import com.llamatik.teammate.settings.LlamatikSettingsConfigurable
@@ -51,6 +53,7 @@ import javax.swing.JPanel
 import javax.swing.JToggleButton
 import javax.swing.SwingConstants
 import javax.swing.SwingUtilities
+import java.util.UUID
 
 class LlamatikToolWindowPanel(
     private val project: Project,
@@ -79,6 +82,14 @@ class LlamatikToolWindowPanel(
     private var activeGenId = 0
     private var autoFixCount = 0
     private var isAutoFix = false
+
+    private val taskHistory = mutableListOf<TaskRecord>()
+    private var selectedTaskId: String? = null
+    private var taskQueueVisible = false
+    // Per-task handles so each task can be individually stopped
+    private val taskHandles = mutableMapOf<String, GenerationHandle>()
+    // Per-task genId so the panel can accept tokens for the correct task when re-selected
+    private val taskGenIds = mutableMapOf<String, Int>()
 
     companion object {
         private const val MAX_AUTO_FIX_ITERATIONS = 3
@@ -146,12 +157,13 @@ class LlamatikToolWindowPanel(
         onApprove = {},
         onReject = {},
         onSend = { text, images -> sendPromptFromTab(text, isAgent = true, images = images) },
-        onStop = { agentHandle?.cancel(); setGenerating(false) },
+        onStop = { cancelSelectedTask() },
         onSettingsClicked = {
             ShowSettingsUtil.getInstance().showSettingsDialog(project, LlamatikSettingsConfigurable::class.java)
         },
+        onToggleTasksPanel = { toggleTaskQueuePanel() },
         onModelChanged = { syncState() },
-        onClear = { agentHandle?.cancel(); setGenerating(false) },
+        onClear = { cancelSelectedTask(); setGenerating(false) },
         isAutoApprove = { settings.data().agentAutoApprove },
         onAutoApproveChanged = { checked -> settings.data().agentAutoApprove = checked },
         isAutoBuild = { settings.data().agentAutoBuild },
@@ -159,6 +171,13 @@ class LlamatikToolWindowPanel(
         isAutoFix = { settings.data().agentAutoFix },
         onAutoFixChanged = { checked -> settings.data().agentAutoFix = checked },
         project = project,
+    )
+
+    private val taskQueuePanel = TaskQueuePanel(
+        onTaskSelected = { record -> selectTask(record) },
+        onTaskDeleted = { record -> deleteTask(record) },
+        onTaskRerun = { record -> sendPromptFromTab(record.prompt, isAgent = true) },
+        onNewTask = { startNewTask() },
     )
 /*
     private val titleLabel = JBLabel("Llamatik Code").apply {
@@ -173,11 +192,17 @@ class LlamatikToolWindowPanel(
     private val agentToggle = buildModeToggle(Strings.Mode.AGENT)
     private val askToggle = buildModeToggle(Strings.Mode.ASK)
 
+    private val agentSurface = JPanel(BorderLayout()).apply {
+        isOpaque = false
+        add(agentTabPanel, BorderLayout.CENTER)
+        taskQueuePanel.isVisible = false
+    }
+
     init {
         background = rootBackground
         border = JBUI.Borders.empty()
 
-        contentPanel.add(agentTabPanel, SurfaceMode.AGENT.name)
+        contentPanel.add(agentSurface, SurfaceMode.AGENT.name)
         contentPanel.add(chatTabPanel, SurfaceMode.ASK.name)
 
         add(buildTopSection(), BorderLayout.NORTH)
@@ -188,6 +213,11 @@ class LlamatikToolWindowPanel(
         bindActions()
         applyMode(SurfaceMode.AGENT)
         syncState()
+
+        agentTabPanel.taskQueueToggleButton.addActionListener { toggleTaskQueuePanel() }
+
+        // Task panel is open by default
+        toggleTaskQueuePanel()
 
         ApplicationManager.getApplication().messageBus.connect()
             .subscribe(LafManagerListener.TOPIC, LafManagerListener { refreshTheme() })
@@ -314,6 +344,126 @@ class LlamatikToolWindowPanel(
             }
         }
 
+    private fun toggleTaskQueuePanel() {
+        taskQueueVisible = !taskQueueVisible
+        if (taskQueueVisible) {
+            agentSurface.add(taskQueuePanel, BorderLayout.EAST)
+        } else {
+            agentSurface.remove(taskQueuePanel)
+        }
+        taskQueuePanel.isVisible = taskQueueVisible
+        agentSurface.revalidate()
+        agentSurface.repaint()
+    }
+
+    private fun selectTask(record: TaskRecord) {
+        // Save snapshot of whatever is currently displayed before switching
+        if (selectedTaskId != null) {
+            val snap = agentTabPanel.getSnapshot()
+            val idx = taskHistory.indexOfFirst { it.id == selectedTaskId }
+            if (idx >= 0) taskHistory[idx] = taskHistory[idx].copy(snapshot = snap)
+        }
+        selectedTaskId = record.id
+        taskQueuePanel.setSelectedTask(record.id)
+        taskQueuePanel.setTasks(taskHistory.toList())
+
+        val snap = record.snapshot
+        when {
+            snap != null -> {
+                agentTabPanel.restoreSnapshot(snap)
+                // If still running, re-sync the genId so incoming tokens land correctly
+                if (record.status == TaskStatus.RUNNING) {
+                    taskGenIds[record.id]?.let { agentTabPanel.setActiveGenId(it) }
+                    agentTabPanel.setGenerating(true)
+                }
+            }
+            record.status == TaskStatus.RUNNING -> {
+                // No snapshot yet — show a fresh response view and sync the genId
+                val existingGenId = taskGenIds[record.id]
+                if (existingGenId != null) {
+                    agentTabPanel.startResponse(record.prompt)
+                    agentTabPanel.setActiveGenId(existingGenId)
+                    agentTabPanel.setGenerating(true)
+                }
+            }
+            else -> agentTabPanel.showWelcomeForNewTask()
+        }
+    }
+
+    private fun deleteTask(record: TaskRecord) {
+        if (record.status == TaskStatus.RUNNING) {
+            taskHandles[record.id]?.cancel()
+            taskHandles.remove(record.id)
+        }
+        taskGenIds.remove(record.id)
+        taskHistory.removeAll { it.id == record.id }
+        if (selectedTaskId == record.id) {
+            selectedTaskId = null
+            agentTabPanel.showWelcomeForNewTask()
+            agentTabPanel.setGenerating(false)
+        }
+        taskQueuePanel.setTasks(taskHistory.toList())
+        taskQueuePanel.setSelectedTask(selectedTaskId)
+    }
+
+    private fun startNewTask() {
+        val licensed = runCatching { com.llamatik.teammate.licensing.LicenseChecker.isLicensed() == true }.getOrElse { false }
+        if (!licensed && taskHistory.any { it.status == TaskStatus.RUNNING }) {
+            Messages.showInfoMessage(
+                project,
+                Strings.TaskQueue.PRO_REQUIRED_MSG,
+                Strings.TaskQueue.PRO_REQUIRED_TITLE,
+            )
+            return
+        }
+        // Save snapshot of current task before opening blank canvas
+        if (selectedTaskId != null) {
+            val snap = agentTabPanel.getSnapshot()
+            val idx = taskHistory.indexOfFirst { it.id == selectedTaskId }
+            if (idx >= 0) taskHistory[idx] = taskHistory[idx].copy(snapshot = snap)
+        }
+        selectedTaskId = null
+        taskQueuePanel.setSelectedTask(null)
+        agentTabPanel.showWelcomeForNewTask()
+        agentTabPanel.setGenerating(false)
+    }
+
+    private fun cancelSelectedTask() {
+        val id = selectedTaskId
+        if (id != null) {
+            taskHandles[id]?.cancel()
+            taskHandles.remove(id)
+            markTaskFinished(id, TaskStatus.HALTED)
+        } else {
+            agentHandle?.cancel()
+        }
+        setGenerating(false)
+    }
+
+    private fun registerTaskStart(taskId: String, prompt: String) {
+        taskHistory.removeAll { it.id == taskId }
+        taskHistory.add(TaskRecord(id = taskId, prompt = prompt, status = TaskStatus.RUNNING, startedAtMs = System.currentTimeMillis()))
+        taskQueuePanel.setTasks(taskHistory.toList())
+        taskQueuePanel.setSelectedTask(taskId)
+    }
+
+    private fun markTaskFinished(taskId: String, finalStatus: TaskStatus, changeCount: Int = 0) {
+        taskGenIds.remove(taskId)
+        val idx = taskHistory.indexOfFirst { it.id == taskId }
+        if (idx >= 0) {
+            val snap = if (selectedTaskId == taskId) agentTabPanel.getSnapshot().copy(
+                status = finalStatus,
+            ) else taskHistory[idx].snapshot
+            taskHistory[idx] = taskHistory[idx].copy(
+                status = finalStatus,
+                finishedAtMs = System.currentTimeMillis(),
+                changeCount = changeCount,
+                snapshot = snap,
+            )
+            taskQueuePanel.setTasks(taskHistory.toList())
+        }
+    }
+
     private fun bindActions() {
         agentToggle.addActionListener { applyMode(SurfaceMode.AGENT) }
         askToggle.addActionListener { applyMode(SurfaceMode.ASK) }
@@ -366,19 +516,38 @@ class LlamatikToolWindowPanel(
             return
         }
 
+        val licensed = runCatching { com.llamatik.teammate.licensing.LicenseChecker.isLicensed() == true }.getOrElse { false }
+        if (isAgent && !licensed && taskHistory.any { it.status == TaskStatus.RUNNING }) {
+            Messages.showInfoMessage(
+                project,
+                Strings.TaskQueue.PRO_REQUIRED_MSG,
+                Strings.TaskQueue.PRO_REQUIRED_TITLE,
+            )
+            return
+        }
+
         val submittedPrompt = prompt
         if (isAgent) agentTabPanel.clearComposer() else chatTabPanel.clearComposer()
         setGenerating(true, isAgent = isAgent)
 
         if (isAgent) {
+            val taskId = UUID.randomUUID().toString()
+            // Register and select the new task
+            registerTaskStart(taskId, submittedPrompt)
+            selectedTaskId = taskId
+            taskQueuePanel.setSelectedTask(taskId)
+
             val genId = agentTabPanel.startResponse(submittedPrompt)
             activeGenId = genId
-            agentHandle = agent.submit(
+            taskGenIds[taskId] = genId
+            val handle = agent.submit(
                 session = chatTabPanel.currentSession(),
                 userPrompt = submittedPrompt,
                 images = images,
                 onToken = { token ->
                     SwingUtilities.invokeLater {
+                        // Only update the panel if this task is currently selected
+                        if (selectedTaskId != taskId) return@invokeLater
                         when {
                             token.startsWith(AgentOrchestrator.STATUS_PREFIX) ->
                                 agentTabPanel.setStatus(token.removePrefix(AgentOrchestrator.STATUS_PREFIX))
@@ -395,15 +564,21 @@ class LlamatikToolWindowPanel(
                 },
                 onThinkingToken = { token ->
                     SwingUtilities.invokeLater {
+                        if (selectedTaskId != taskId) return@invokeLater
                         agentTabPanel.appendThinkingToken(token, genId)
                     }
                 },
                 onTokenCount = { count ->
-                    SwingUtilities.invokeLater { agentTabPanel.updateTokenCount(count) }
+                    SwingUtilities.invokeLater {
+                        if (selectedTaskId == taskId) agentTabPanel.updateTokenCount(count)
+                        val idx = taskHistory.indexOfFirst { it.id == taskId }
+                        if (idx >= 0) taskHistory[idx] = taskHistory[idx].copy(tokenCount = count)
+                        taskQueuePanel.setTasks(taskHistory.toList())
+                    }
                 },
                 onFinished = { msg, proposals ->
                     ApplicationManager.getApplication().invokeLater {
-                        if (genId != activeGenId) return@invokeLater
+                        taskHandles.remove(taskId)
                         proposals.forEach { pendingEdits[it.id] = it }
                         val clean = ToolCallParser.cleanForDisplay(msg.content, allowThinkFallback = false)
 
@@ -415,8 +590,11 @@ class LlamatikToolWindowPanel(
                                     onFailure = { null },
                                 )
                             }
-                            agentTabPanel.showAnswer(text = clean, genId = genId)
-                            setGenerating(false)
+                            if (selectedTaskId == taskId) {
+                                agentTabPanel.showAnswer(text = clean, genId = genId)
+                                setGenerating(false)
+                            }
+                            markTaskFinished(taskId, TaskStatus.DONE, changeCount = appliedFiles.size)
                             if (appliedFiles.isNotEmpty() && settings.data().agentAutoBuild) {
                                 startVerification(appliedFiles)
                             }
@@ -432,36 +610,43 @@ class LlamatikToolWindowPanel(
                                 startVerification(appliedFiles.toList())
                             }
                         }
-                        agentTabPanel.showAnswer(
-                            text = clean,
-                            genId = genId,
-                            proposals = proposals,
-                            onViewDiff = { proposal -> diffService.showDiff(proposal) },
-                            onApply = { proposal ->
-                                diffService.showDiff(proposal)
-                                diffService.applyProposal(proposal)
-                                appliedFiles += proposal.filePath
-                                checkAllResolved()
-                            },
-                            onRejectProposal = { checkAllResolved() },
-                        )
-                        setGenerating(false)
+                        if (selectedTaskId == taskId) {
+                            agentTabPanel.showAnswer(
+                                text = clean,
+                                genId = genId,
+                                proposals = proposals,
+                                onViewDiff = { proposal -> diffService.showDiff(proposal) },
+                                onApply = { proposal ->
+                                    diffService.showDiff(proposal)
+                                    diffService.applyProposal(proposal)
+                                    appliedFiles += proposal.filePath
+                                    checkAllResolved()
+                                },
+                                onRejectProposal = { checkAllResolved() },
+                            )
+                            setGenerating(false)
+                        }
+                        markTaskFinished(taskId, TaskStatus.DONE, changeCount = proposals.size)
                     }
                 },
                 onTrace = { trace: AgentTrace ->
                     ApplicationManager.getApplication().invokeLater {
-                        if (genId != activeGenId) return@invokeLater
-                        agentTabPanel.showAgentTrace(trace.formatted())
+                        if (selectedTaskId == taskId) agentTabPanel.showAgentTrace(trace.formatted())
                     }
                 },
                 onError = { message ->
                     ApplicationManager.getApplication().invokeLater {
-                        if (genId != activeGenId) return@invokeLater
-                        agentTabPanel.showAnswer("Error: $message", genId = genId)
-                        setGenerating(false)
+                        taskHandles.remove(taskId)
+                        if (selectedTaskId == taskId) {
+                            agentTabPanel.showAnswer("Error: $message", genId = genId)
+                            setGenerating(false)
+                        }
+                        markTaskFinished(taskId, TaskStatus.ERROR)
                     }
                 },
             )
+            agentHandle = handle
+            taskHandles[taskId] = handle
             return
         }
 
