@@ -230,7 +230,7 @@ class LlamatikToolWindowPanel(
             askToggle.text = "<html><span style='color:${if (askToggle.isSelected) LlamatikTheme.htmlOnPrimary else LlamatikTheme.htmlOnSurface};'>${Strings.Mode.ASK}</span></html>"
             disclaimerLabel.foreground = LlamatikTheme.onSurfaceVariant
             agentTabPanel.refreshThemeColors()
-            chatTabPanel.rebuildTabs()
+            chatTabPanel.rebuildSessions()
         }
     }
 
@@ -652,7 +652,7 @@ class LlamatikToolWindowPanel(
 
         val session = chatTabPanel.currentSession()
         sessionController.appendMessage(session.id, ChatMessage(role = ChatRole.USER, content = submittedPrompt))
-        chatTabPanel.rebuildTabs()
+        chatTabPanel.rebuildSessions()
 
         val streamPanel = ChatMessagePanel(
             project = project,

@@ -416,6 +416,15 @@ object Strings {
             "A task is already running. Upgrade to Pro to run multiple tasks in parallel."
     }
 
+    // ── Chat list panel ───────────────────────────────────────────────────────
+    object ChatList {
+        const val PANEL_TITLE = "Chats"
+        const val EMPTY_HINT = "No chats yet"
+        const val NEW_CHAT_TOOLTIP = "Start a new chat"
+        const val DELETE_TOOLTIP = "Remove chat"
+        const val TOGGLE_TOOLTIP = "Chat list"
+    }
+
     // ── About ─────────────────────────────────────────────────────────────────
     object About {
         const val BUTTON = "About Llamatik Code"
