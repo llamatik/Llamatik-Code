@@ -289,7 +289,7 @@ class ChatTabPanel(
         sessionController.selectedSessionId = targetId
         (sessionContainer.layout as CardLayout).show(sessionContainer, targetId)
 
-        chatListPanel.setSessions(sessionController.sessions.toList())
+        chatListPanel.setSessions(sessionController.sessions.filter { it.messages.isNotEmpty() })
         chatListPanel.setSelectedSession(targetId)
 
         sessionContainer.revalidate()
