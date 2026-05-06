@@ -170,12 +170,24 @@ class ChatTabPanel(
     }
     private val composerSendButton = JButton(AllIcons.Actions.Execute).apply {
         toolTipText = Strings.Composer.SEND_TOOLTIP
+        isFocusPainted = false
+        isContentAreaFilled = false
         preferredSize = Dimension(38, 32)
+        border = JBUI.Borders.compound(
+            BorderFactory.createLineBorder(LlamatikTheme.outline, 1, true),
+            JBUI.Borders.empty(5, 10),
+        )
     }
     private val composerStopButton = JButton(AllIcons.Actions.Suspend).apply {
         isEnabled = false
         toolTipText = Strings.Composer.STOP_TOOLTIP
+        isFocusPainted = false
+        isContentAreaFilled = false
         preferredSize = Dimension(38, 32)
+        border = JBUI.Borders.compound(
+            BorderFactory.createLineBorder(LlamatikTheme.outline, 1, true),
+            JBUI.Borders.empty(5, 10),
+        )
     }
 
     init {
