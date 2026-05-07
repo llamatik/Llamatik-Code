@@ -1414,7 +1414,7 @@ class AgentTabPanel(
 
         val rightButtons = JPanel(FlowLayout(FlowLayout.RIGHT, 4, 8)).apply {
             isOpaque = false
-            add(taskQueueToggleButton); add(clearButton); add(copyButton)
+            add(copyButton); add(clearButton); add(taskQueueToggleButton)
         }
 
         // Spinner sits inline next to the elapsed timer and token counter in the top bar

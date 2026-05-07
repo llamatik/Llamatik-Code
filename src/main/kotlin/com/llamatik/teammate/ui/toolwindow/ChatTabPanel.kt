@@ -76,6 +76,10 @@ class ChatTabPanel(
     // ── Per-session card panels keyed by session id ───────────────────────────
     private val sessionCardPanels = LinkedHashMap<String, JPanel>()
 
+    // ── Active streaming panels keyed by session id ───────────────────────────
+    // Kept so rebuildSessions() can re-attach them after recreating card panels.
+    private val activeStreamPanels = LinkedHashMap<String, ChatMessagePanel>()
+
     // ── Main content area: shows one session at a time ────────────────────────
     private val sessionContainer = JPanel(CardLayout()).apply {
         background = rootBackground
@@ -215,6 +219,24 @@ class ChatTabPanel(
         composerSendButton.isVisible = !generating
         composerStopButton.isVisible = generating
         composerInput.isEnabled = !generating
+        val sessionId = sessionController.selectedSessionId ?: return
+        if (generating) {
+            chatListPanel.addGeneratingSession(sessionId)
+        } else {
+            chatListPanel.removeGeneratingSession(sessionId)
+            activeStreamPanels.remove(sessionId)
+        }
+    }
+
+    fun finishGeneratingSession(sessionId: String) {
+        chatListPanel.removeGeneratingSession(sessionId)
+        activeStreamPanels.remove(sessionId)
+        // Only flip composer back if no other sessions are still generating
+        if (chatListPanel.generatingSessionIds.isEmpty()) {
+            composerSendButton.isVisible = true
+            composerStopButton.isVisible = false
+            composerInput.isEnabled = true
+        }
     }
 
     fun setComposerEnabled(enabled: Boolean) {
@@ -289,6 +311,11 @@ class ChatTabPanel(
         sessionController.selectedSessionId = targetId
         (sessionContainer.layout as CardLayout).show(sessionContainer, targetId)
 
+        // Re-attach any in-flight streaming panels that were displaced by the rebuild
+        activeStreamPanels.forEach { (sessionId, streamPanel) ->
+            attachStreamPanelToCard(sessionId, streamPanel)
+        }
+
         chatListPanel.setSessions(sessionController.sessions.filter { it.messages.isNotEmpty() })
         chatListPanel.setSelectedSession(targetId)
 
@@ -340,6 +367,10 @@ class ChatTabPanel(
             }
         }
 
+        val chatListToggleButton = toolbarButton(AllIcons.General.LayoutEditorPreview, Strings.ChatList.TOGGLE_TOOLTIP).apply {
+            addActionListener { toggleChatListPanel() }
+        }
+
         val tabToolbar = JPanel(BorderLayout()).apply {
             isOpaque = false
             val left = JPanel(FlowLayout(FlowLayout.LEFT, 4, 4)).apply {
@@ -349,6 +380,7 @@ class ChatTabPanel(
             val right = JPanel(FlowLayout(FlowLayout.RIGHT, 4, 4)).apply {
                 isOpaque = false
                 add(sessionClearButton)
+                add(chatListToggleButton)
             }
             add(left, BorderLayout.WEST)
             add(right, BorderLayout.EAST)
@@ -448,7 +480,7 @@ class ChatTabPanel(
             promptsGrid.add(promptChip(suggestion))
         }
 
-        val toggleListButton = JButton(AllIcons.Actions.SplitVertically).apply {
+        val toggleListButton = JButton(AllIcons.General.LayoutEditorPreview).apply {
             toolTipText = Strings.ChatList.TOGGLE_TOOLTIP
             isFocusPainted = false
             isContentAreaFilled = false
@@ -530,6 +562,7 @@ class ChatTabPanel(
             isContentAreaFilled = true
             isOpaque = true
             background = cardBackground
+            preferredSize = Dimension(32, 32)
             border = JBUI.Borders.compound(
                 BorderFactory.createLineBorder(LlamatikTheme.outline, 1, true),
                 JBUI.Borders.empty(3, 5),
@@ -627,6 +660,11 @@ class ChatTabPanel(
 
     fun appendStreamingPanel(streamPanel: ChatMessagePanel) {
         val sessionId = sessionController.selectedSessionId ?: return
+        activeStreamPanels[sessionId] = streamPanel
+        attachStreamPanelToCard(sessionId, streamPanel)
+    }
+
+    private fun attachStreamPanelToCard(sessionId: String, streamPanel: ChatMessagePanel) {
         val cardPanel = sessionCardPanels[sessionId] ?: return
         val cardLayout = cardPanel.layout as? CardLayout ?: return
         cardLayout.show(cardPanel, CARD_MESSAGES)
@@ -636,9 +674,11 @@ class ChatTabPanel(
         val scrollPane = messagesCard.components.filterIsInstance<JBScrollPane>().firstOrNull() ?: return
         val content = scrollPane.viewport.view as? JPanel ?: return
 
-        content.add(streamPanel)
-        content.revalidate()
-        content.repaint()
+        if (streamPanel.parent != content) {
+            content.add(streamPanel)
+            content.revalidate()
+            content.repaint()
+        }
 
         SwingUtilities.invokeLater {
             val bar = scrollPane.verticalScrollBar

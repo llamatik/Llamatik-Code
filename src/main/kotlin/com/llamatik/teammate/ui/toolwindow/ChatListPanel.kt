@@ -3,6 +3,7 @@ package com.llamatik.teammate.ui.toolwindow
 import com.intellij.icons.AllIcons
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
+import com.intellij.util.ui.AsyncProcessIcon
 import com.intellij.util.ui.JBUI
 import com.llamatik.teammate.model.ChatRole
 import com.llamatik.teammate.model.ChatSession
@@ -31,6 +32,8 @@ class ChatListPanel(
 
     private val sessions = mutableListOf<ChatSession>()
     private var selectedSessionId: String? = null
+    var generatingSessionIds: Set<String> = emptySet()
+        private set
 
     private val rootBackground = LlamatikTheme.background
     private val cardBackground = LlamatikTheme.surface
@@ -98,6 +101,21 @@ class ChatListPanel(
         SwingUtilities.invokeLater { rebuild() }
     }
 
+    fun setGeneratingSession(sessionId: String?) {
+        generatingSessionIds = if (sessionId != null) setOf(sessionId) else emptySet()
+        SwingUtilities.invokeLater { rebuild() }
+    }
+
+    fun addGeneratingSession(sessionId: String) {
+        generatingSessionIds = generatingSessionIds + sessionId
+        SwingUtilities.invokeLater { rebuild() }
+    }
+
+    fun removeGeneratingSession(sessionId: String) {
+        generatingSessionIds = generatingSessionIds - sessionId
+        SwingUtilities.invokeLater { rebuild() }
+    }
+
     private fun rebuild() {
         listPanel.removeAll()
 
@@ -150,9 +168,28 @@ class ChatListPanel(
             cursor = java.awt.Cursor(java.awt.Cursor.HAND_CURSOR)
         }
 
+        val isGenerating = session.id in generatingSessionIds
+
         val title = sessionTitle(session)
         val textLabel = JBLabel("<html><span style='color:${LlamatikTheme.htmlOnSurface};'>$title</span></html>").apply {
             font = font.deriveFont(Font.PLAIN, font.size2D)
+        }
+
+        if (isGenerating) {
+            val spinner = AsyncProcessIcon("chat-${session.id}").apply {
+                resume()
+                preferredSize = Dimension(16, 16)
+                minimumSize = Dimension(16, 16)
+                maximumSize = Dimension(16, 16)
+            }
+            row.add(JPanel(BorderLayout()).apply {
+                isOpaque = false
+                border = JBUI.Borders.emptyRight(6)
+                add(spinner, BorderLayout.CENTER)
+                preferredSize = Dimension(22, 22)
+                minimumSize = Dimension(22, 22)
+                maximumSize = Dimension(22, 22)
+            }, BorderLayout.WEST)
         }
 
         val deleteBtn = JButton(AllIcons.Actions.GC).apply {

@@ -662,6 +662,7 @@ class LlamatikToolWindowPanel(
         )
         chatTabPanel.appendStreamingPanel(streamPanel)
 
+        val chatSessionId = session.id
         chatHandle = agent.chat(
             session = session,
             userPrompt = submittedPrompt,
@@ -673,15 +674,17 @@ class LlamatikToolWindowPanel(
             },
             onFinished = { answer ->
                 ApplicationManager.getApplication().invokeLater {
-                    sessionController.appendMessage(session.id, ChatMessage(role = ChatRole.ASSISTANT, content = answer))
+                    sessionController.appendMessage(chatSessionId, ChatMessage(role = ChatRole.ASSISTANT, content = answer))
                     streamPanel.setContent(answer)
-                    setGenerating(false, isAgent = false)
+                    chatTabPanel.finishGeneratingSession(chatSessionId)
+                    syncState()
                 }
             },
             onError = { message ->
                 ApplicationManager.getApplication().invokeLater {
                     errorBanner.showError(message) {}
-                    setGenerating(false, isAgent = false)
+                    chatTabPanel.finishGeneratingSession(chatSessionId)
+                    syncState()
                 }
             },
         )
