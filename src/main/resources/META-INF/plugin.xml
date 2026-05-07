@@ -105,6 +105,18 @@
         <applicationService
                 serviceImplementation="com.llamatik.teammate.infrastructure.ModelRuntimeTracker"/>
 
+        <!-- MCP -->
+        <applicationService
+                serviceImplementation="com.llamatik.teammate.mcp.McpServerConfigService"/>
+        <applicationService
+                serviceImplementation="com.llamatik.teammate.mcp.McpClientService"/>
+        <applicationService
+                serviceImplementation="com.llamatik.teammate.mcp.McpToolBridgeService"/>
+        <applicationService
+                serviceImplementation="com.llamatik.teammate.mcp.McpManagerService"/>
+        <applicationService
+                serviceImplementation="com.llamatik.teammate.mcp.McpPermissionService"/>
+
         <!-- Skills -->
         <applicationService
                 serviceImplementation="com.llamatik.teammate.skills.SkillService"/>
@@ -177,6 +189,11 @@
                 id="llamatik.code.settings.inference"
                 parentId="llamatik.code.settings"
                 instance="com.llamatik.teammate.settings.InferenceSettingsConfigurable"/>
+        <applicationConfigurable
+                displayName="MCP Servers"
+                id="llamatik.code.settings.mcp"
+                parentId="llamatik.code.settings"
+                instance="com.llamatik.teammate.mcp.McpSettingsConfigurable"/>
 
     </extensions>
 

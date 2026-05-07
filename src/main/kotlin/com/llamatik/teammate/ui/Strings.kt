@@ -459,4 +459,48 @@ object Strings {
         const val STATUS_EXPIRED = "Trial expired"
         const val REQUEST_LICENSE_MESSAGE = "Upgrade to Llamatik Code Pro to unlock Agent mode and advanced features."
     }
+
+    // ── MCP ───────────────────────────────────────────────────────────────────
+    object Mcp {
+        const val SETTINGS_PAGE_NAME = "MCP Servers"
+        const val SECTION_MCP_SERVERS = "Configured MCP servers"
+        const val ADD_SERVER = "Add server"
+        const val EDIT_SERVER = "Edit server"
+        const val REMOVE_SERVER = "Remove server"
+        const val TEST_CONNECTION = "Test connection"
+        const val REFRESH_TOOLS = "Refresh tools"
+        const val VIEW_LOGS = "View logs"
+        const val TESTING = "Testing…"
+        const val FREE_TIER_NOTE = "Free plan: only one active server allowed. Upgrade to Pro for multiple servers and auto-approval."
+        const val AUTO_APPROVAL_PRO_REQUIRED = "Auto-approval rules require Pro."
+        const val SECURITY_NOTE = "MCP servers are local processes but may access external services."
+        const val FIELD_NAME = "Name:"
+        const val FIELD_COMMAND = "Command:"
+        const val FIELD_ARGS = "Arguments (one per line):"
+        const val FIELD_ENV = "Environment variables (KEY=value, one per line):"
+        const val FIELD_WORKING_DIR = "Working directory (optional):"
+        const val FIELD_TRUST_LEVEL = "Trust level:"
+        const val ENABLED = "Enabled (active server)"
+        const val AUTO_START = "Auto-start when project opens"
+        const val ARGS_TOOLTIP = "One argument per line, e.g. --port\n8080"
+        const val ENV_TOOLTIP = "One variable per line, e.g. API_KEY=abc123"
+        const val VALIDATION_NAME_REQUIRED = "Server name is required."
+        const val VALIDATION_COMMAND_REQUIRED = "Command is required."
+        const val ERROR_SAVE_TITLE = "Could not save MCP server"
+        const val TEST_SUCCESS_TITLE = "MCP connection successful"
+        const val TEST_FAILURE_TITLE = "MCP connection failed"
+        fun testSuccessMsg(tools: Int, resources: Int, prompts: Int) =
+            "Connected successfully.\nDiscovered: $tools tool(s), $resources resource(s), $prompts prompt(s)."
+        fun testFailureMsg(error: String) = "Could not connect to server:\n$error"
+        fun confirmRemoveMsg(name: String) = "Remove MCP server '$name'?"
+        fun logsTitle(name: String) = "Logs: $name"
+
+        // Approval dialog
+        const val APPROVAL_TITLE = "MCP Tool Approval Required"
+        const val APPROVAL_ALLOW_ONCE = "Allow once"
+        const val APPROVAL_DENY = "Deny"
+        const val APPROVAL_ALLOW_ALWAYS_TOOL = "Allow always for this tool (Pro)"
+        const val APPROVAL_ALLOW_ALWAYS_SERVER = "Allow always for this server (Pro)"
+        const val APPROVAL_PRO_HINT = "Auto-approval requires Pro."
+    }
 }

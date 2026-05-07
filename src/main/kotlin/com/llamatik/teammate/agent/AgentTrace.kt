@@ -34,6 +34,7 @@ data class AgentTraceStep(
         ERROR("error"),
         DECISION("decision"),
         VERIFICATION("verify"),
+        MCP_CALL("mcp"),
     }
 
     enum class Status { SUCCESS, WARNING, FAILED, SKIPPED }
