@@ -139,29 +139,9 @@ class SmartSearchService(private val project: Project) {
         return empty(query)
     }
 
-    fun detectIntent(query: String): SearchIntent {
-        val q = query.lowercase()
-        return when {
-            q.containsAny("architecture", "structure", "layer", "module", "pattern", "design",
-                "overview", "understand", "how is", "how does") -> SearchIntent.ARCHITECTURE
-            q.containsAny("where is", "find class", "find function", "defined", "declaration",
-                "locate", "symbol") -> SearchIntent.SYMBOL
-            q.containsAny("where used", "usages", "callers", "references", "who calls",
-                "who uses") -> SearchIntent.USAGE
-            q.containsAny("test", "spec", "junit", "mock", "coverage") -> SearchIntent.TEST
-            q.containsAny("error", "exception", "failure", "crash", "stack trace",
-                "build error") -> SearchIntent.ERROR
-            else -> SearchIntent.GENERAL
-        }
-    }
+    fun detectIntent(query: String): SearchIntent = Companion.detectIntent(query)
 
-    private fun extractSymbol(query: String): String {
-        val camelCase = Regex("[A-Z][a-zA-Z0-9]+").find(query)?.value
-        if (camelCase != null) return camelCase
-        return query.split(Regex("\\s+"))
-            .filter { it.length > 3 }
-            .maxByOrNull { it.length } ?: query.take(30)
-    }
+    private fun extractSymbol(query: String): String = Companion.extractSymbol(query)
 
     private fun empty(query: String) = SmartSearchResult(
         hits = emptyList(),
@@ -173,5 +153,31 @@ class SmartSearchService(private val project: Project) {
 
     private fun Double.format() = "%.3f".format(this)
 
-    private fun String.containsAny(vararg terms: String) = terms.any { this.contains(it) }
+    companion object {
+        fun detectIntent(query: String): SearchIntent {
+            val q = query.lowercase()
+            return when {
+                q.containsAny("architecture", "structure", "layer", "module", "pattern", "design",
+                    "overview", "understand", "how is", "how does") -> SearchIntent.ARCHITECTURE
+                q.containsAny("where is", "find class", "find function", "defined", "declaration",
+                    "locate", "symbol") -> SearchIntent.SYMBOL
+                q.containsAny("where used", "usages", "callers", "references", "who calls",
+                    "who uses") -> SearchIntent.USAGE
+                q.containsAny("test", "spec", "junit", "mock", "coverage") -> SearchIntent.TEST
+                q.containsAny("error", "exception", "failure", "crash", "stack trace",
+                    "build error") -> SearchIntent.ERROR
+                else -> SearchIntent.GENERAL
+            }
+        }
+
+        fun extractSymbol(query: String): String {
+            val camelCase = Regex("[A-Z][a-zA-Z0-9]+").find(query)?.value
+            if (camelCase != null) return camelCase
+            return query.split(Regex("\\s+"))
+                .filter { it.length > 3 }
+                .maxByOrNull { it.length } ?: query.take(30)
+        }
+
+        private fun String.containsAny(vararg terms: String) = terms.any { this.contains(it) }
+    }
 }

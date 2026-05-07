@@ -153,29 +153,36 @@ class TestCoverageHeuristicService(private val project: Project) {
         }
     }
 
-    private fun suggestTestPath(sourcePath: String): String {
-        val testPath = sourcePath
-            .replace("src/main/kotlin", "src/test/kotlin")
-            .replace("src/main/java", "src/test/java")
-            .replace("app/src/main/kotlin", "app/src/test/kotlin")
-            .replace("commonMain", "commonTest")
-        val base = testPath.substringBeforeLast('.')
-        val ext = testPath.substringAfterLast('.')
-        return "${base}Test.$ext"
-    }
+    private fun suggestTestPath(sourcePath: String) = Companion.suggestTestPath(sourcePath)
+    private fun normalizeName(path: String) = Companion.normalizeName(path)
+    private fun isTestPath(path: String) = Companion.isTestPath(path)
+    private fun isNonTestableFile(name: String) = Companion.isNonTestableFile(name)
 
-    private fun normalizeName(path: String) =
-        path.substringAfterLast('/').removeSuffix(".kt").removeSuffix(".java").lowercase()
+    companion object {
+        fun suggestTestPath(sourcePath: String): String {
+            val testPath = sourcePath
+                .replace("src/main/kotlin", "src/test/kotlin")
+                .replace("src/main/java", "src/test/java")
+                .replace("app/src/main/kotlin", "app/src/test/kotlin")
+                .replace("commonMain", "commonTest")
+            val base = testPath.substringBeforeLast('.')
+            val ext = testPath.substringAfterLast('.')
+            return "${base}Test.$ext"
+        }
 
-    private fun isTestPath(path: String): Boolean {
-        val p = path.lowercase()
-        return "test" in p || "spec" in p || "androidtest" in p
-    }
+        fun normalizeName(path: String) =
+            path.substringAfterLast('/').removeSuffix(".kt").removeSuffix(".java").lowercase()
 
-    private fun isNonTestableFile(name: String): Boolean {
-        val n = name.lowercase()
-        return n.endsWith("module") || n.endsWith("application") ||
-            n == "main" || n.endsWith("buildconfig") || n.endsWith("di") ||
-            n.endsWith("config") || n.endsWith("constants")
+        fun isTestPath(path: String): Boolean {
+            val p = path.lowercase()
+            return "test" in p || "spec" in p || "androidtest" in p
+        }
+
+        fun isNonTestableFile(name: String): Boolean {
+            val n = name.lowercase()
+            return n.endsWith("module") || n.endsWith("application") ||
+                n == "main" || n.endsWith("buildconfig") || n.endsWith("di") ||
+                n.endsWith("config") || n.endsWith("constants")
+        }
     }
 }
