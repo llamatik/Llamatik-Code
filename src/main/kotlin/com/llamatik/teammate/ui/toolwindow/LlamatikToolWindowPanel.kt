@@ -407,11 +407,7 @@ class LlamatikToolWindowPanel(
     private fun startNewTask() {
         val licensed = runCatching { com.llamatik.teammate.licensing.LicenseChecker.isLicensed() == true }.getOrElse { false }
         if (!licensed && taskHistory.any { it.status == TaskStatus.RUNNING }) {
-            Messages.showInfoMessage(
-                project,
-                Strings.TaskQueue.PRO_REQUIRED_MSG,
-                Strings.TaskQueue.PRO_REQUIRED_TITLE,
-            )
+            trialService.requestLicense(Strings.TaskQueue.PRO_REQUIRED_MSG)
             return
         }
         // Save snapshot of current task before opening blank canvas
