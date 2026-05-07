@@ -29,14 +29,12 @@ class McpServerConfigService {
         val state = settings()
         val existing = state.mcpServers.indexOfFirst { it.id == config.id }
 
-        if (config.enabled && !isPro()) {
-            val otherEnabled = state.mcpServers.count { it.enabled && it.id != config.id }
-            if (otherEnabled >= 1) {
-                return Result.failure(McpProLimitException(
-                    "Only one active MCP server is allowed on the Free plan. Upgrade to Pro to enable multiple servers."
-                ))
-            }
-        }
+        val limitCheck = checkServerLimit(
+            existingEnabled = state.mcpServers.filter { it.enabled }.map { it.toConfig() },
+            newConfig = config,
+            isPro = isPro(),
+        )
+        if (limitCheck.isFailure) return limitCheck
 
         val stored = StoredMcpServer.fromConfig(config)
         if (existing >= 0) {
@@ -131,6 +129,33 @@ class McpServerConfigService {
     // ── Internal ──────────────────────────────────────────────────────────────
 
     private fun settings(): LlamatikAppSettings.State = service<LlamatikAppSettings>().data()
+
+    companion object {
+        /**
+         * Pure function: returns failure if saving [newConfig] would violate the Free
+         * one-active-server limit.
+         *
+         * [existingEnabled] must include the current state of all enabled servers
+         * (including [newConfig] itself if it already exists — pass the full list,
+         * not the list minus the id being replaced).
+         */
+        fun checkServerLimit(
+            existingEnabled: List<McpServerConfig>,
+            newConfig: McpServerConfig,
+            isPro: Boolean,
+        ): Result<Unit> {
+            if (isPro) return Result.success(Unit)
+            if (!newConfig.enabled) return Result.success(Unit)
+            // Count other enabled servers (exclude the config being saved — it may already be in the list)
+            val otherEnabled = existingEnabled.count { it.id != newConfig.id && it.enabled }
+            if (otherEnabled >= 1) {
+                return Result.failure(McpProLimitException(
+                    "Only one active MCP server is allowed on the Free plan. Upgrade to Pro to enable multiple servers."
+                ))
+            }
+            return Result.success(Unit)
+        }
+    }
 }
 
 class McpProLimitException(message: String) : Exception(message)

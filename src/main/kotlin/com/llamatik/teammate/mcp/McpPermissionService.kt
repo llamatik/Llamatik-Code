@@ -17,12 +17,13 @@ class McpPermissionService {
     private val configService by lazy { service<McpServerConfigService>() }
 
     fun requiresApproval(serverId: String, toolName: String, descriptor: McpToolDescriptor?): Boolean {
-        if (!configService.isPro()) return true
-
         val risk = descriptor?.riskLevel ?: classifyRisk(toolName, descriptor?.description ?: "")
-        if (risk == McpRiskLevel.HIGH && !isExplicitlyAutoApproved(serverId, toolName)) return true
-
-        return !isAutoApproved(serverId, toolName)
+        return computeApprovalRequired(
+            isPro = configService.isPro(),
+            riskLevel = risk,
+            isExplicitlyAutoApproved = isExplicitlyAutoApproved(serverId, toolName),
+            isServerAutoApproved = configService.isAutoApproved(serverId, toolName),
+        )
     }
 
     /** Classifies a tool by name/description heuristic. */
@@ -66,6 +67,27 @@ class McpPermissionService {
     }
 
     companion object {
+        /**
+         * Pure function: given all inputs already resolved, returns whether a tool call
+         * needs user approval.
+         *
+         * Rules:
+         * - Free: always requires approval.
+         * - Pro + HIGH risk: requires approval unless explicitly auto-approved per-tool.
+         * - Pro + non-HIGH: no approval needed if either explicit per-tool or server-level
+         *   auto-approval is configured.
+         */
+        fun computeApprovalRequired(
+            isPro: Boolean,
+            riskLevel: McpRiskLevel,
+            isExplicitlyAutoApproved: Boolean,
+            isServerAutoApproved: Boolean,
+        ): Boolean {
+            if (!isPro) return true
+            if (riskLevel == McpRiskLevel.HIGH && !isExplicitlyAutoApproved) return true
+            return !(isExplicitlyAutoApproved || isServerAutoApproved)
+        }
+
         private val HIGH_RISK_KEYWORDS = listOf(
             "delete", "remove", "drop", "destroy", "purge", "wipe", "truncate",
             "execute", "run", "exec", "shell", "bash", "cmd", "script",
