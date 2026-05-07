@@ -173,6 +173,8 @@ class LlamatikToolWindowPanel(
         onAutoBuildChanged = { checked -> settings.data().agentAutoBuild = checked },
         isAutoFix = { settings.data().agentAutoFix },
         onAutoFixChanged = { checked -> settings.data().agentAutoFix = checked },
+        isAggressiveMode = { settings.data().agentExecutionMode == "AGGRESSIVE" },
+        onAggressiveModeChanged = { checked -> settings.data().agentExecutionMode = if (checked) "AGGRESSIVE" else "NORMAL" },
         project = project,
     )
 

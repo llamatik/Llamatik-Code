@@ -314,6 +314,7 @@ class LlamatikSettingsConfigurable : Configurable {
             agentAutoApproveCheck.isEnabled = false
             agentAutoBuildCheck.isEnabled = false
             agentAutoFixCheck.isEnabled = false
+            agentAggressiveModeCheck.isEnabled = false
         }
 
         return FormBuilder.createFormBuilder()
@@ -331,8 +332,6 @@ class LlamatikSettingsConfigurable : Configurable {
             .addComponent(agentAutoApproveCheck)
             .addComponent(agentAutoBuildCheck)
             .addComponent(agentAutoFixCheck)
-            .addSeparator()
-            .addLabeledComponent(JBLabel(Strings.Settings.SECTION_AGENT_MODE), JBLabel(""))
             .addComponent(agentAggressiveModeCheck)
             .addSeparator()
             .addLabeledComponent(JBLabel(Strings.Settings.SECTION_CONTEXT),

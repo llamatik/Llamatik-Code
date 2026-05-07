@@ -80,6 +80,8 @@ class AgentTabPanel(
     private val onAutoBuildChanged: (Boolean) -> Unit = {},
     private val isAutoFix: () -> Boolean = { false },
     private val onAutoFixChanged: (Boolean) -> Unit = {},
+    private val isAggressiveMode: () -> Boolean = { false },
+    private val onAggressiveModeChanged: (Boolean) -> Unit = {},
     private val project: com.intellij.openapi.project.Project? = null,
 ) : JPanel(BorderLayout()) {
 
@@ -349,6 +351,11 @@ class AgentTabPanel(
         isSelected = isAutoFix()
         addActionListener { onAutoFixChanged(isSelected); updateRunOptionsButton() }
     }
+    private val aggressiveItem = JCheckBoxMenuItem(Strings.Agent.AGGRESSIVE_MODE_NEXT).apply {
+        isSelected = isAggressiveMode()
+        toolTipText = Strings.Agent.AGGRESSIVE_MODE_TOOLTIP
+        addActionListener { onAggressiveModeChanged(isSelected); updateRunOptionsButton() }
+    }
     private val runOptionsPopup = JPopupMenu().apply {
         val licensed = runCatching { LicenseChecker.isLicensed() == true }.getOrElse { false }
         if (!licensed) {
@@ -362,10 +369,13 @@ class AgentTabPanel(
             autoApproveItem.isEnabled = false
             autoBuildItem.isEnabled = false
             autoFixItem.isEnabled = false
+            aggressiveItem.isEnabled = false
         }
         add(autoApproveItem)
         add(autoBuildItem)
         add(autoFixItem)
+        addSeparator()
+        add(aggressiveItem)
     }
     private val runOptionsButton = JButton().apply {
         isFocusPainted = false
@@ -868,6 +878,7 @@ class AgentTabPanel(
         autoApproveItem.isSelected = isAutoApprove()
         autoBuildItem.isSelected = isAutoBuild()
         autoFixItem.isSelected = isAutoFix()
+        aggressiveItem.isSelected = isAggressiveMode()
         updateRunOptionsButton()
 
         conversationScroll.viewport.viewPosition = java.awt.Point(0, 0)
@@ -1828,6 +1839,7 @@ class AgentTabPanel(
             if (autoApproveItem.isSelected) "Auto-apply" else null,
             if (autoBuildItem.isSelected) "Auto-build" else null,
             if (autoFixItem.isSelected) "Auto-fix" else null,
+            if (aggressiveItem.isSelected) "Aggressive" else null,
         )
         val label = if (active.isEmpty()) "Run options ▾" else "${active.joinToString(", ")} ▾"
         runOptionsButton.text = "<html><span style='color:${LlamatikTheme.htmlOnSurfaceVariant};'>$label</span></html>"
