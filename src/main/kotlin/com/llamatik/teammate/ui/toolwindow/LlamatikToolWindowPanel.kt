@@ -90,6 +90,9 @@ class LlamatikToolWindowPanel(
     private val taskHandles = mutableMapOf<String, GenerationHandle>()
     // Per-task genId so the panel can accept tokens for the correct task when re-selected
     private val taskGenIds = mutableMapOf<String, Int>()
+    // Per-task text accumulators — capture all tokens even for background tasks
+    private val taskAnswerBuffers = mutableMapOf<String, StringBuilder>()
+    private val taskThinkBuffers = mutableMapOf<String, StringBuilder>()
 
     companion object {
         private const val MAX_AUTO_FIX_ITERATIONS = 3
@@ -369,23 +372,16 @@ class LlamatikToolWindowPanel(
 
         val snap = record.snapshot
         when {
-            snap != null -> {
-                agentTabPanel.restoreSnapshot(snap)
-                // If still running, re-sync the genId so incoming tokens land correctly
-                if (record.status == TaskStatus.RUNNING) {
-                    taskGenIds[record.id]?.let { agentTabPanel.setActiveGenId(it) }
-                    agentTabPanel.setGenerating(true)
-                }
-            }
             record.status == TaskStatus.RUNNING -> {
-                // No snapshot yet — show a fresh response view and sync the genId
                 val existingGenId = taskGenIds[record.id]
                 if (existingGenId != null) {
-                    agentTabPanel.startResponse(record.prompt)
-                    agentTabPanel.setActiveGenId(existingGenId)
+                    // Restore from accumulated buffers so no content is lost
+                    val answeredSoFar = taskAnswerBuffers[record.id]?.toString() ?: snap?.responseText ?: ""
+                    agentTabPanel.restoreRunningTask(record.prompt, answeredSoFar, existingGenId)
                     agentTabPanel.setGenerating(true)
                 }
             }
+            snap != null -> agentTabPanel.restoreSnapshot(snap)
             else -> agentTabPanel.showWelcomeForNewTask()
         }
     }
@@ -396,6 +392,8 @@ class LlamatikToolWindowPanel(
             taskHandles.remove(record.id)
         }
         taskGenIds.remove(record.id)
+        taskAnswerBuffers.remove(record.id)
+        taskThinkBuffers.remove(record.id)
         taskHistory.removeAll { it.id == record.id }
         if (selectedTaskId == record.id) {
             selectedTaskId = null
@@ -441,6 +439,8 @@ class LlamatikToolWindowPanel(
     }
 
     private fun registerTaskStart(taskId: String, prompt: String) {
+        taskAnswerBuffers[taskId] = StringBuilder()
+        taskThinkBuffers[taskId] = StringBuilder()
         taskHistory.removeAll { it.id == taskId }
         taskHistory.add(TaskRecord(id = taskId, prompt = prompt, status = TaskStatus.RUNNING, startedAtMs = System.currentTimeMillis()))
         taskQueuePanel.setTasks(taskHistory.toList())
@@ -546,26 +546,31 @@ class LlamatikToolWindowPanel(
                 images = images,
                 onToken = { token ->
                     SwingUtilities.invokeLater {
-                        // Only update the panel if this task is currently selected
-                        if (selectedTaskId != taskId) return@invokeLater
                         when {
-                            token.startsWith(AgentOrchestrator.STATUS_PREFIX) ->
-                                agentTabPanel.setStatus(token.removePrefix(AgentOrchestrator.STATUS_PREFIX))
-                            token.startsWith(AgentOrchestrator.TOOL_PREFIX) -> {
-                                val payload = token.removePrefix(AgentOrchestrator.TOOL_PREFIX)
-                                val sep = payload.indexOf(':')
-                                val name = if (sep >= 0) payload.substring(0, sep) else payload
-                                val arg = if (sep >= 0) payload.substring(sep + 1) else ""
-                                agentTabPanel.addToolCall(name, arg)
+                            token.startsWith(AgentOrchestrator.STATUS_PREFIX) -> {
+                                if (selectedTaskId == taskId)
+                                    agentTabPanel.setStatus(token.removePrefix(AgentOrchestrator.STATUS_PREFIX))
                             }
-                            else -> agentTabPanel.appendAnswerToken(token, genId)
+                            token.startsWith(AgentOrchestrator.TOOL_PREFIX) -> {
+                                if (selectedTaskId == taskId) {
+                                    val payload = token.removePrefix(AgentOrchestrator.TOOL_PREFIX)
+                                    val sep = payload.indexOf(':')
+                                    val name = if (sep >= 0) payload.substring(0, sep) else payload
+                                    val arg = if (sep >= 0) payload.substring(sep + 1) else ""
+                                    agentTabPanel.addToolCall(name, arg)
+                                }
+                            }
+                            else -> {
+                                taskAnswerBuffers.getOrPut(taskId) { StringBuilder() }.append(token)
+                                if (selectedTaskId == taskId) agentTabPanel.appendAnswerToken(token, genId)
+                            }
                         }
                     }
                 },
                 onThinkingToken = { token ->
                     SwingUtilities.invokeLater {
-                        if (selectedTaskId != taskId) return@invokeLater
-                        agentTabPanel.appendThinkingToken(token, genId)
+                        taskThinkBuffers.getOrPut(taskId) { StringBuilder() }.append(token)
+                        if (selectedTaskId == taskId) agentTabPanel.appendThinkingToken(token, genId)
                     }
                 },
                 onTokenCount = { count ->
@@ -573,7 +578,6 @@ class LlamatikToolWindowPanel(
                         if (selectedTaskId == taskId) agentTabPanel.updateTokenCount(count)
                         val idx = taskHistory.indexOfFirst { it.id == taskId }
                         if (idx >= 0) taskHistory[idx] = taskHistory[idx].copy(tokenCount = count)
-                        taskQueuePanel.setTasks(taskHistory.toList())
                     }
                 },
                 onFinished = { msg, proposals ->

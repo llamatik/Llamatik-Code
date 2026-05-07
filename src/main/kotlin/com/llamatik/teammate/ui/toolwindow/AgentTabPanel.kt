@@ -738,6 +738,8 @@ class AgentTabPanel(
         verificationPanel.isVisible = false
         stopSpinnerAndTimer()
         showCard(CARD_RESPONSE)
+        cardPanel.revalidate()
+        cardPanel.repaint()
         conversationPanel.revalidate()
         conversationPanel.repaint()
     }
@@ -756,6 +758,40 @@ class AgentTabPanel(
 
     fun setActiveGenId(genId: Int) {
         currentGenerationId = genId
+    }
+
+    fun restoreRunningTask(prompt: String, accumulatedText: String, genId: Int) {
+        currentGenerationId = genId
+        streamBuffer.clear()
+        streamingBlocked = false
+        thinkBuffer.clear()
+        thinkingBlocked = false
+
+        promptLabel.text = "<html>${prompt.replace("\n", "<br>")}</html>"
+        promptBubble.isVisible = true
+        responseTextArea.text = accumulatedText
+        if (accumulatedText.isNotEmpty()) responseTextArea.caretPosition = 0
+
+        thinkingSection.isVisible = false
+        toolCallsPanel.isVisible = false
+        statusPill.isVisible = true
+        statusPill.text = Strings.Agent.STATUS_ANALYZING
+        proposalsPanel.isVisible = false
+        traceSection.isVisible = false
+        responseActionsPanel.isVisible = false
+        hideVerification()
+
+        loadingSpinner.resume()
+        loadingSpinner.isVisible = true
+        spinnerPanel.isVisible = true
+
+        if (!elapsedTimer.isRunning) elapsedTimer.start()
+
+        showCard(CARD_RESPONSE)
+        cardPanel.revalidate()
+        cardPanel.repaint()
+        conversationPanel.revalidate()
+        conversationPanel.repaint()
     }
 
     private fun stopSpinnerAndTimer() {

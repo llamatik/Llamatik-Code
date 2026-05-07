@@ -37,8 +37,11 @@ class TaskQueuePanel(
     private val tasks = mutableListOf<TaskRecord>()
     private var selectedTaskId: String? = null
 
-    // Rebuilds running rows every second to update elapsed time
-    private val refreshTimer = Timer(1000) { rebuild() }.apply { isRepeats = true }
+    // Map from taskId → status label for in-place elapsed tick (avoids full rebuild)
+    private val statusLabels = mutableMapOf<String, JBLabel>()
+
+    // Ticks only the elapsed labels of running rows — no removeAll/rebuild
+    private val refreshTimer = Timer(1000) { tickElapsed() }.apply { isRepeats = true }
 
     private val rootBackground = LlamatikTheme.background
     private val cardBackground = LlamatikTheme.surface
@@ -111,7 +114,17 @@ class TaskQueuePanel(
         SwingUtilities.invokeLater { rebuild() }
     }
 
+    private fun tickElapsed() {
+        tasks.filter { it.status == TaskStatus.RUNNING }.forEach { record ->
+            statusLabels[record.id]?.let { label ->
+                val elapsed = formatElapsed(System.currentTimeMillis() - record.startedAtMs)
+                label.text = "<html><span style='color:${LlamatikTheme.htmlOnSurfaceVariant};'>$elapsed</span></html>"
+            }
+        }
+    }
+
     private fun rebuild() {
+        statusLabels.clear()
         listPanel.removeAll()
 
         val running = tasks.filter { it.status == TaskStatus.RUNNING }
@@ -216,16 +229,30 @@ class TaskQueuePanel(
         val statusText = when (record.status) {
             TaskStatus.RUNNING -> {
                 val elapsed = formatElapsed(System.currentTimeMillis() - record.startedAtMs)
-                val tokens = if (record.tokenCount > 0) " · ${formatTokens(record.tokenCount)}" else ""
-                "$elapsed$tokens"
+                elapsed
             }
-            TaskStatus.DONE -> if (record.changeCount > 0)
-                Strings.TaskQueue.statusDoneChanges(record.changeCount)
-            else
-                Strings.TaskQueue.STATUS_DONE
-            TaskStatus.HALTED -> Strings.TaskQueue.STATUS_HALTED
-            TaskStatus.ERROR -> Strings.TaskQueue.STATUS_ERROR
+            TaskStatus.DONE -> {
+                val tokens = if (record.tokenCount > 0) " · ${formatTokens(record.tokenCount)}" else ""
+                if (record.changeCount > 0)
+                    Strings.TaskQueue.statusDoneChanges(record.changeCount) + tokens
+                else
+                    Strings.TaskQueue.STATUS_DONE + tokens
+            }
+            TaskStatus.HALTED -> {
+                val tokens = if (record.tokenCount > 0) " · ${formatTokens(record.tokenCount)}" else ""
+                Strings.TaskQueue.STATUS_HALTED + tokens
+            }
+            TaskStatus.ERROR -> {
+                val tokens = if (record.tokenCount > 0) " · ${formatTokens(record.tokenCount)}" else ""
+                Strings.TaskQueue.STATUS_ERROR + tokens
+            }
         }
+
+        val statusLabel = JBLabel("<html><span style='color:${LlamatikTheme.htmlOnSurfaceVariant};'>$statusText</span></html>").apply {
+            font = font.deriveFont(Font.PLAIN, font.size2D - 1.5f)
+            border = JBUI.Borders.emptyTop(2)
+        }
+        if (record.status == TaskStatus.RUNNING) statusLabels[record.id] = statusLabel
 
         val textPanel = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
@@ -233,10 +260,7 @@ class TaskQueuePanel(
             add(JBLabel("<html><span style='color:${LlamatikTheme.htmlOnSurface};'>$promptText</span></html>").apply {
                 font = font.deriveFont(Font.PLAIN, font.size2D)
             })
-            add(JBLabel("<html><span style='color:${LlamatikTheme.htmlOnSurfaceVariant};'>$statusText</span></html>").apply {
-                font = font.deriveFont(Font.PLAIN, font.size2D - 1.5f)
-                border = JBUI.Borders.emptyTop(2)
-            })
+            add(statusLabel)
         }
 
         val deleteBtn = JButton(AllIcons.Actions.GC).apply {
