@@ -161,8 +161,8 @@ class ChatTabPanel(
         border = JBUI.Borders.empty()
 
         chatSurface.add(sessionContainer, BorderLayout.CENTER)
+        chatSurface.add(buildComposer(), BorderLayout.SOUTH)
         add(chatSurface, BorderLayout.CENTER)
-        add(buildComposer(), BorderLayout.SOUTH)
 
         composerSendButton.addActionListener {
             val text = composerInput.text.trim()
@@ -223,20 +223,21 @@ class ChatTabPanel(
         if (generating) {
             chatListPanel.addGeneratingSession(sessionId)
         } else {
+            activeStreamPanels[sessionId]?.stopSpinner()
             chatListPanel.removeGeneratingSession(sessionId)
             activeStreamPanels.remove(sessionId)
         }
     }
 
     fun finishGeneratingSession(sessionId: String) {
+        activeStreamPanels[sessionId]?.stopSpinner()
         chatListPanel.removeGeneratingSession(sessionId)
         activeStreamPanels.remove(sessionId)
-        // Only flip composer back if no other sessions are still generating
-        if (chatListPanel.generatingSessionIds.isEmpty()) {
-            composerSendButton.isVisible = true
-            composerStopButton.isVisible = false
-            composerInput.isEnabled = true
-        }
+        // Sync composer buttons for the currently visible session
+        val isCurrentSessionStillGenerating = sessionController.selectedSessionId in chatListPanel.generatingSessionIds
+        composerSendButton.isVisible = !isCurrentSessionStillGenerating
+        composerStopButton.isVisible = isCurrentSessionStillGenerating
+        composerInput.isEnabled = !isCurrentSessionStillGenerating
     }
 
     fun setComposerEnabled(enabled: Boolean) {
@@ -258,12 +259,12 @@ class ChatTabPanel(
     fun toggleChatListPanel() {
         chatListVisible = !chatListVisible
         if (chatListVisible) {
-            chatSurface.add(chatListPanel, BorderLayout.EAST)
+            add(chatListPanel, BorderLayout.EAST)
         } else {
-            chatSurface.remove(chatListPanel)
+            remove(chatListPanel)
         }
-        chatSurface.revalidate()
-        chatSurface.repaint()
+        revalidate()
+        repaint()
     }
 
     private fun addNewSession() {
@@ -278,6 +279,10 @@ class ChatTabPanel(
         val cardLayout = sessionContainer.layout as CardLayout
         cardLayout.show(sessionContainer, session.id)
         chatListPanel.setSelectedSession(session.id)
+        val isGenerating = session.id in chatListPanel.generatingSessionIds
+        composerSendButton.isVisible = !isGenerating
+        composerStopButton.isVisible = isGenerating
+        composerInput.isEnabled = !isGenerating
     }
 
     private fun deleteSession(session: ChatSession) {
