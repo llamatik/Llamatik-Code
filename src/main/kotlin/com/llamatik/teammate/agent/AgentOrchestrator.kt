@@ -49,6 +49,7 @@ class AgentOrchestrator(private val project: Project) {
         onError: (String) -> Unit,
         images: List<AttachedImage> = emptyList(),
         onTokenCount: ((Int) -> Unit)? = null,
+        onTrace: ((AgentTrace) -> Unit)? = null,
     ): GenerationHandle {
         // Route to multimodal pipeline when images are attached
         if (images.isNotEmpty()) {
@@ -189,6 +190,7 @@ class AgentOrchestrator(private val project: Project) {
         // Collects rejection reasons across all rounds so they can be shown in the final message
         // if the agent exhausts rounds without producing a valid proposal.
         val accumulatedRejections = mutableListOf<String>()
+        val agentTrace = AgentTrace()
 
         // Multi-round agentic loop: model can call tools across up to MAX_ROUNDS before answering.
         // Each round feeds tool results back so the model can: list files -> read files -> write files.
@@ -260,6 +262,7 @@ class AgentOrchestrator(private val project: Project) {
                                     }
                                 }
                             }
+                            if (!agentTrace.isEmpty()) onTrace?.invoke(agentTrace)
                             onFinished(
                                 ChatMessage(role = ChatRole.ASSISTANT, content = clean, editProposalId = proposals.firstOrNull()?.id),
                                 proposals,
@@ -273,7 +276,27 @@ class AgentOrchestrator(private val project: Project) {
                         val toolMessages = toolCalls.map { call ->
                             val mainArg = call.arguments.values.firstOrNull().orEmpty().take(TOOL_ARG_DISPLAY_MAX_CHARS)
                             if (!cancelled.get()) onToken("${TOOL_PREFIX}${call.name}:$mainArg")
+                            val t0 = System.currentTimeMillis()
                             val result = toolRegistry.execute(call, ToolExecutionContext(project))
+                            val elapsed = System.currentTimeMillis() - t0
+                            val traceType = when {
+                                call.name == TOOL_READ_FILE -> AgentTraceStep.Type.FILE_READ
+                                call.name in setOf(TOOL_SEARCH_CODE, TOOL_SEARCH_FILENAMES, "index_search", "smart_search") -> AgentTraceStep.Type.SEARCH
+                                call.name in EDIT_TOOL_NAMES -> AgentTraceStep.Type.VERIFICATION
+                                else -> AgentTraceStep.Type.TOOL_CALL
+                            }
+                            val traceStatus = if (result.content.startsWith("Error") || result.content.startsWith("No ")) {
+                                AgentTraceStep.Status.WARNING
+                            } else {
+                                AgentTraceStep.Status.SUCCESS
+                            }
+                            agentTrace.add(AgentTraceStep(
+                                type = traceType,
+                                title = "${call.name}($mainArg)",
+                                summary = result.content.take(120).replace('\n', ' '),
+                                status = traceStatus,
+                                durationMs = elapsed,
+                            ))
                             ChatMessage(role = ChatRole.TOOL, content = result.content, toolName = result.name)
                         }
 
@@ -288,6 +311,7 @@ class AgentOrchestrator(private val project: Project) {
                         // Valid proposals produced → task done. Stop immediately.
                         val wroteFiles = toolCalls.any { it.name in EDIT_TOOL_NAMES }
                         if (wroteFiles && roundProposals.isNotEmpty()) {
+                            if (!agentTrace.isEmpty()) onTrace?.invoke(agentTrace)
                             onFinished(
                                 ChatMessage(role = ChatRole.ASSISTANT, content = "", editProposalId = allProposals.firstOrNull()?.id),
                                 allProposals,
@@ -476,6 +500,10 @@ class AgentOrchestrator(private val project: Project) {
         if (rulesBlock.isNotBlank()) { appendLine(); append(rulesBlock) }
         val memoryBlock = memoryService.buildPromptBlock()
         if (memoryBlock.isNotBlank()) { appendLine(); append(memoryBlock) }
+        if (service<LlamatikAppSettings>().data().agentExecutionMode == AgentExecutionMode.AGGRESSIVE.name) {
+            appendLine()
+            append(AgentFallbackPolicy.aggressiveModeSystemPromptAddition().take(600))
+        }
     }
 
     /**
@@ -1108,6 +1136,14 @@ class AgentOrchestrator(private val project: Project) {
             "model_benchmark_list", "model_benchmark_run", "model_benchmark_results",
             // Diagnostics
             "diagnostics_run", "diagnostics_fix_suggestions",
+            // Smart search
+            "smart_search",
+            // Test coverage
+            "tests_missing_analyze",
+            // Project snapshot
+            "project_snapshot_get", "project_snapshot_refresh",
+            // KMP/native
+            "kmp_native_diagnose",
         )
         private val READ_ONLY_TOOL_NAMES = setOf(
             TOOL_LIST_FILES, TOOL_READ_FILE, TOOL_SEARCH_CODE, TOOL_SEARCH_FILENAMES,
@@ -1127,6 +1163,10 @@ class AgentOrchestrator(private val project: Project) {
             "ui_image_analyze", "ui_find_candidate_files",
             "model_benchmark_list", "model_benchmark_results",
             "diagnostics_run", "diagnostics_fix_suggestions",
+            "smart_search",
+            "tests_missing_analyze",
+            "project_snapshot_get", "project_snapshot_refresh",
+            "kmp_native_diagnose",
         )
         private val EDIT_TOOL_NAMES = setOf(TOOL_WRITE_FILE, TOOL_REPLACE_IN_FILE, TOOL_CREATE_FILE)
 

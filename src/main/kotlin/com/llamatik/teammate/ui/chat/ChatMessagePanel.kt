@@ -163,6 +163,11 @@ class ChatMessagePanel(
         textArea.caretPosition = 0
     }
 
+    fun stopSpinner() {
+        spinner.isVisible = false
+        spinner.suspend()
+    }
+
     fun attachEditProposal(onApply: () -> Unit, onViewDiff: () -> Unit) {
         editActions.add(actionButton(Strings.App.VIEW_DIFF) { onViewDiff() })
         editActions.add(actionButton(Strings.App.APPLY_EDIT) { onApply() })

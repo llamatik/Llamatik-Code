@@ -64,6 +64,12 @@
 -keep class com.llamatik.teammate.ui_repair.UiRepairService { *; }
 -keep class com.llamatik.teammate.diagnostics.DiagnosticsService { *; }
 -keep class com.llamatik.teammate.benchmark.ModelBenchmarkService { *; }
+-keep class com.llamatik.teammate.context.ContextRecoveryService { *; }
+-keep class com.llamatik.teammate.kmp.KmpNativeDiagnosticService { *; }
+-keep class com.llamatik.teammate.model.ModelCapabilityService { *; }
+-keep class com.llamatik.teammate.search.SmartSearchService { *; }
+-keep class com.llamatik.teammate.snapshot.ProjectSnapshotService { *; }
+-keep class com.llamatik.teammate.testing.TestCoverageHeuristicService { *; }
 
 -keep class com.llamatik.teammate.actions.BasePromptAction { *; }
 -keep class com.llamatik.teammate.actions.AskAboutSelectionAction { *; }

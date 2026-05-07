@@ -23,7 +23,7 @@ plugins {
 }
 
 group = "com.llamatik.teammate"
-version = "1.2.0"
+version = "1.3.0"
 
 repositories {
     mavenCentral()
@@ -49,34 +49,44 @@ intellijPlatform {
             sinceBuild = "252"
         }
         changeNotes = """
-            <h2>1.2.0 — Expanded Agent Toolset & Bug Fixes</h2>
+            <h2>1.3.0 — Multi-task Agent, Parallel Chats &amp; Aggressive Mode</h2>
 
-            <h3>New agent tools</h3>
+            <h3>Multi-task agent (Pro)</h3>
             <ul>
-                <li><b>Model benchmark</b> — measure inference speed (tok/s, time-to-first-token) across four coding prompts and compare models side by side.</li>
-                <li><b>Diagnostics</b> — self-check the plugin setup: model file, native library, RAM, disk, Java version, Git availability, project index, write permissions, and inference settings.</li>
-                <li><b>Multi-file plan</b> — the agent proposes a structured plan (files, actions, risk levels, verification steps, rollback info) before touching multiple files, and waits for your approval.</li>
-                <li><b>Project memory</b> — the agent can store and recall project-specific facts across sessions (conventions, key decisions, known pitfalls).</li>
-                <li><b>Codebase rules</b> — automatically detect project conventions (language, DI framework, test library, UI toolkit) and surface them as instructions the agent follows.</li>
-                <li><b>UI repair</b> — analyse a screenshot of a broken UI, find the relevant layout files, and generate a targeted patch plan.</li>
-                <li><b>Static analysis</b> — detect available linters (ktlint, detekt, ESLint…), run them, and parse results so the agent can explain and fix violations.</li>
-                <li><b>Dependency tools</b> — list project dependencies, check for outdated versions, and plan safe upgrade paths.</li>
-                <li><b>Build failure tools</b> — parse Kotlin/Java/Gradle build errors and generate actionable fix plans.</li>
-                <li><b>Changelog &amp; PR tools</b> — generate PR summaries, Keep-a-Changelog entries, and conventional-commit messages from your current diff.</li>
-                <li><b>Git awareness</b> — git status, diff, changed files, and branch are now visible to the agent so it can reason about your current changes without needing a file open.</li>
-                <li><b>PSI tools</b> — navigate code structure, find symbols, and trace usages across the project using IntelliJ's program structure index.</li>
-                <li><b>Run configuration tools</b> — list run configs, retrieve last output, and let the agent explain build/run failures.</li>
-                <li><b>Terminal tools</b> — run allowed shell commands and feed their output back to the agent.</li>
-                <li><b>Project index tools</b> — semantic search and relevant-file retrieval across the entire codebase.</li>
+                <li><b>Task queue panel</b> — run multiple agent tasks in parallel; each task tracks its own status (running, done, halted, error) with elapsed time and token count.</li>
+                <li>Switch between tasks at any time — the panel preserves each task's full response so you can review, re-run, or delete individual tasks without losing context.</li>
+                <li>Free tier is limited to one running task at a time; Pro unlocks unlimited concurrent tasks.</li>
+            </ul>
+
+            <h3>Parallel chat sessions (Ask mode)</h3>
+            <ul>
+                <li><b>Chats list panel</b> — a collapsible sidebar lists all chat sessions; click any entry to switch instantly or start a new one with the + button.</li>
+                <li>Multiple chats can generate responses simultaneously — each session shows its own spinner in the list while generating.</li>
+                <li>The composer correctly shows Send / Stop depending on whether the selected session is currently generating, even when switching between sessions mid-stream.</li>
+                <li>Stopping a generation immediately clears the spinner inside the assistant bubble.</li>
+                <li>The Chats panel spans the full height of the view, matching the Tasks panel layout in Agent mode.</li>
+            </ul>
+
+            <h3>Aggressive mode</h3>
+            <ul>
+                <li>New agent execution mode that instructs the model to act more decisively — make more changes per turn, skip unnecessary confirmations, and apply fixes immediately.</li>
+                <li>Configurable from Settings → Llamatik Code.</li>
+            </ul>
+
+            <h3>New agent tools &amp; services</h3>
+            <ul>
+                <li><b>Smart search</b> — semantic and keyword search across the project index, returning ranked results with surrounding context.</li>
+                <li><b>Test coverage heuristics</b> — detect untested files and suggest which tests are most likely missing based on project structure.</li>
+                <li><b>Project snapshot</b> — capture a lightweight snapshot of the project state (files, git status, open editors) for use as agent context.</li>
+                <li><b>KMP native diagnostics</b> — detect Kotlin Multiplatform / native target configuration issues and surface actionable fix suggestions.</li>
+                <li><b>Context recovery</b> — automatically rebuild lost or stale context when the agent re-enters a long session.</li>
+                <li><b>Model capability service</b> — query the active model's supported features (context length, function calling, vision) so the agent can adapt its strategy.</li>
             </ul>
 
             <h3>Fixes</h3>
             <ul>
-                <li>Agent no longer shows "completed without producing a file change" for read-only queries (git status, diagnostics, benchmarks, etc.).</li>
-                <li>Benchmark no longer picks up context from previous agent conversations — it now runs in its own isolated session.</li>
-                <li>Benchmark no longer hangs: uses the loaded model's context size to avoid a full context rebuild, and caps generated tokens at 128 for consistent timing.</li>
-                <li>System prompt size reduced (compact tool list) to stay within batch-size limits on all models.</li>
-                <li>Open file no longer leaks into unrelated agent requests such as "benchmark the model".</li>
+                <li>Background chat sessions no longer lose their streaming panel when a new session starts — in-flight panels are re-attached after the session list rebuilds.</li>
+                <li>Finishing or stopping one chat session no longer incorrectly resets the composer state for other concurrently-generating sessions.</li>
             </ul>
         """.trimIndent()
     }

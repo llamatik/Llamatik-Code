@@ -75,9 +75,18 @@ object Strings {
         const val AUTO_APPROVE_NEXT = "Auto-apply edits on next run"
         const val AUTO_BUILD_NEXT = "Auto-build after applying edits"
         const val AUTO_FIX_NEXT = "Auto-fix build errors"
+        const val AGGRESSIVE_MODE_NEXT = "Aggressive mode"
         const val RUN_OPTIONS_PRO_REQUIRED = "Requires Pro"
         const val SCROLL_TO_BOTTOM = "↓  Scroll to bottom"
         fun brewedFor(elapsed: String) = "brewed for $elapsed"
+
+        const val TRACE_COLLAPSED = "▶ What I tried"
+        const val TRACE_EXPANDED  = "▼ What I tried"
+        const val RESPONSE_ACTION_FIX_IT      = "Fix it automatically"
+        const val RESPONSE_ACTION_CREATE_PLAN = "Create plan"
+        const val RESPONSE_ACTION_EXPLAIN_MORE = "Explain more"
+        const val AGGRESSIVE_MODE_LABEL = "Aggressive mode"
+        const val AGGRESSIVE_MODE_TOOLTIP = "Agent tries multiple fallback strategies before giving up"
 
         val SUGGESTIONS = listOf(
             "Find and resolve build errors in my project",
@@ -254,6 +263,8 @@ object Strings {
         fun validationNotExists(path: String) = "File does not exist: $path"
         fun validationNotFile(path: String) = "Path is not a file: $path"
         const val VALIDATION_NOT_GGUF = "File must end with .gguf"
+        const val SECTION_AGENT_MODE = "<html><b>Agent Mode</b></html>"
+        const val AGGRESSIVE_MODE_SETTING = "Aggressive agent mode (try fallbacks before giving up)"
     }
 
     // ── Inference settings ────────────────────────────────────────────────────
@@ -380,6 +391,39 @@ object Strings {
     object Upgrade {
         const val UNLOCK_PRO_BUTTON = "Unlock PRO"
         const val UNLOCK_PRO_TOOLTIP = "Upgrade to Llamatik Code Pro"
+    }
+
+    // ── Task queue panel ──────────────────────────────────────────────────────
+    object TaskQueue {
+        const val PANEL_TITLE = "Tasks"
+        const val SECTION_RUNNING = "Running"
+        const val SECTION_DONE = "Done"
+        const val EMPTY_HINT = "No tasks yet"
+        const val STATUS_RUNNING = "Running…"
+        const val STATUS_DONE = "Done"
+        const val STATUS_HALTED = "Halted"
+        const val STATUS_ERROR = "Failed"
+        fun statusDoneChanges(n: Int) = "Done · $n change${if (n == 1) "" else "s"}"
+        const val NEW_TASK_BUTTON = "+ New"
+        const val NEW_TASK_TOOLTIP = "Start a new task"
+        const val RERUN_TOOLTIP = "Re-run task"
+        const val DELETE_TOOLTIP = "Remove task"
+        const val TOGGLE_TOOLTIP = "Task queue"
+        const val PRO_REQUIRED_TITLE = "Pro feature"
+        const val PRO_REQUIRED_MSG =
+            "Running multiple tasks in parallel requires a Llamatik Code Pro subscription."
+        const val BUSY_TITLE = "Task in progress"
+        const val BUSY_MSG =
+            "A task is already running. Upgrade to Pro to run multiple tasks in parallel."
+    }
+
+    // ── Chat list panel ───────────────────────────────────────────────────────
+    object ChatList {
+        const val PANEL_TITLE = "Chats"
+        const val EMPTY_HINT = "No chats yet"
+        const val NEW_CHAT_TOOLTIP = "Start a new chat"
+        const val DELETE_TOOLTIP = "Remove chat"
+        const val TOGGLE_TOOLTIP = "Chat list"
     }
 
     // ── About ─────────────────────────────────────────────────────────────────

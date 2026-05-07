@@ -84,6 +84,15 @@ class ToolRegistry(project: Project) {
         // Diagnostics tools
         DiagnosticsRunTool(project),
         DiagnosticsFixSuggestionsTool(project),
+        // Smart search
+        SmartSearchTool(project),
+        // Test coverage heuristics
+        TestsMissingAnalyzeTool(project),
+        // Project snapshot
+        ProjectSnapshotGetTool(project),
+        ProjectSnapshotRefreshTool(project),
+        // KMP/native diagnostics
+        KmpNativeDiagnoseTool(project),
     ).associateBy { it.name }
 
     fun describeTools(): String = tools.values.joinToString("\n") { "- ${it.name}: ${it.description}" }
