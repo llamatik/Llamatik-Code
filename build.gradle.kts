@@ -19,11 +19,11 @@ buildscript {
 plugins {
     id("java")
     id("org.jetbrains.kotlin.jvm") version "2.3.0"
-    id("org.jetbrains.intellij.platform") version "2.14.0"
+    id("org.jetbrains.intellij.platform") version "2.16.0"
 }
 
 group = "com.llamatik.teammate"
-version = "1.3.0"
+version = "1.4.0"
 
 repositories {
     mavenCentral()
@@ -49,44 +49,45 @@ intellijPlatform {
             sinceBuild = "252"
         }
         changeNotes = """
-            <h2>1.3.0 — Multi-task Agent, Parallel Chats &amp; Aggressive Mode</h2>
+            <h2>1.4.0 — MCP Server Support</h2>
 
-            <h3>Multi-task agent (Pro)</h3>
+            <p>Llamatik Code is now an IDE-native MCP host. Configure local MCP servers, discover their tools, resources, and prompts, and let the agent call them through the existing tool pipeline — all without leaving IntelliJ.</p>
+
+            <h3>MCP server configuration</h3>
             <ul>
-                <li><b>Task queue panel</b> — run multiple agent tasks in parallel; each task tracks its own status (running, done, halted, error) with elapsed time and token count.</li>
-                <li>Switch between tasks at any time — the panel preserves each task's full response so you can review, re-run, or delete individual tasks without losing context.</li>
-                <li>Free tier is limited to one running task at a time; Pro unlocks unlimited concurrent tasks.</li>
+                <li><b>Settings → Llamatik Code → MCP Servers</b> — new dedicated settings page to add, edit, and remove MCP servers.</li>
+                <li>Per-server configuration: command, arguments (one per line), environment variables, working directory, enabled toggle, auto-start toggle, and trust level.</li>
+                <li><b>Test connection</b> — starts the server, initialises the protocol, lists its tools/resources/prompts, and reports success or failure with a tool count summary.</li>
+                <li><b>Refresh tools</b> — re-discovers tools from a running server and updates the agent tool list immediately.</li>
+                <li><b>View logs</b> — shows the in-memory stderr log ring buffer for each server.</li>
             </ul>
 
-            <h3>Parallel chat sessions (Ask mode)</h3>
+            <h3>MCP agent tools</h3>
             <ul>
-                <li><b>Chats list panel</b> — a collapsible sidebar lists all chat sessions; click any entry to switch instantly or start a new one with the + button.</li>
-                <li>Multiple chats can generate responses simultaneously — each session shows its own spinner in the list while generating.</li>
-                <li>The composer correctly shows Send / Stop depending on whether the selected session is currently generating, even when switching between sessions mid-stream.</li>
-                <li>Stopping a generation immediately clears the spinner inside the assistant bubble.</li>
-                <li>The Chats panel spans the full height of the view, matching the Tasks panel layout in Agent mode.</li>
+                <li>Six new built-in agent tools: <code>mcp_list_servers</code>, <code>mcp_list_tools</code>, <code>mcp_call_tool</code>, <code>mcp_list_resources</code>, <code>mcp_read_resource</code>, <code>mcp_list_prompts</code>.</li>
+                <li>Discovered MCP tools are also bridged into the agent as first-class tools under <code>mcp_&lt;serverName&gt;_&lt;toolName&gt;</code> names, visible in the agent trace like any built-in tool.</li>
+                <li>MCP tool calls appear in the "What I tried" trace panel with server name, tool name, duration, and outcome.</li>
             </ul>
 
-            <h3>Aggressive mode</h3>
+            <h3>Approval flow</h3>
             <ul>
-                <li>New agent execution mode that instructs the model to act more decisively — make more changes per turn, skip unnecessary confirmations, and apply fixes immediately.</li>
-                <li>Configurable from Settings → Llamatik Code.</li>
+                <li>Every MCP tool call shows an approval dialog with server name, tool name, arguments, and a risk level (LOW / MEDIUM / HIGH based on the tool name and description).</li>
+                <li>HIGH-risk tools (write, delete, execute, deploy, send, and similar) are never auto-approved unless the user explicitly opts in.</li>
+                <li>Free: <b>Allow once</b> or <b>Deny</b> on every call — no persistent rules.</li>
+                <li>Pro: additional <b>Allow always for this tool</b> and <b>Allow always for this server</b> options store auto-approval rules that skip future dialogs.</li>
             </ul>
 
-            <h3>New agent tools &amp; services</h3>
+            <h3>Free vs Pro</h3>
             <ul>
-                <li><b>Smart search</b> — semantic and keyword search across the project index, returning ranked results with surrounding context.</li>
-                <li><b>Test coverage heuristics</b> — detect untested files and suggest which tests are most likely missing based on project structure.</li>
-                <li><b>Project snapshot</b> — capture a lightweight snapshot of the project state (files, git status, open editors) for use as agent context.</li>
-                <li><b>KMP native diagnostics</b> — detect Kotlin Multiplatform / native target configuration issues and surface actionable fix suggestions.</li>
-                <li><b>Context recovery</b> — automatically rebuild lost or stale context when the agent re-enters a long session.</li>
-                <li><b>Model capability service</b> — query the active model's supported features (context length, function calling, vision) so the agent can adapt its strategy.</li>
+                <li><b>Free</b> — one active MCP server; every tool call requires manual approval.</li>
+                <li><b>Pro</b> — unlimited active servers; optional per-server and per-tool auto-approval; MCP tools usable in autonomous multi-step agent runs.</li>
             </ul>
 
-            <h3>Fixes</h3>
+            <h3>Security &amp; privacy</h3>
             <ul>
-                <li>Background chat sessions no longer lose their streaming panel when a new session starts — in-flight panels are re-attached after the session list rebuilds.</li>
-                <li>Finishing or stopping one chat session no longer incorrectly resets the composer state for other concurrently-generating sessions.</li>
+                <li>MCP servers run as local child processes. The UI clearly notes they may access external services.</li>
+                <li>Secrets (tokens, passwords, API keys, Authorization headers) are redacted from all logs and trace output before display or storage.</li>
+                <li>Broken or crashed MCP servers are isolated — the plugin marks them FAILED and continues normally without affecting any other feature.</li>
             </ul>
         """.trimIndent()
     }

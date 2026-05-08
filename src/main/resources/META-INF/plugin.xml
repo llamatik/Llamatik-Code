@@ -17,30 +17,39 @@
         optional      – true = FREEMIUM: free tier works without a licence.
     -->
     <product-descriptor code="PLLAMATIKCODE"
-                        release-date="20260507"
-                        release-version="13"
+                        release-date="20260508"
+                        release-version="14"
                         optional="true"/>
 
     <description><![CDATA[
         <p><b>Llamatik Code</b> is a local-first AI coding assistant for IntelliJ-based IDEs, designed to help you understand, modify, and generate code directly inside your project.</p>
 
-        <p>Built for developers who value <b>privacy, performance, and control</b>, Llamatik Code runs AI models locally on your machine and provides an agent-based workflow similar to tools like Claude Code or Cursor—without relying on the cloud.</p>
+        <p>Built for developers who value <b>privacy, performance, and control</b>, Llamatik Code runs AI models locally on your machine and provides an agent-based workflow similar to tools like Claude Code or Cursor — without relying on the cloud.</p>
 
         <br/>
 
         <p><b>🚀 Key Features</b></p>
         <ul>
-            <li><b>Project-aware chat</b> – Ask questions about your codebase with persistent, multi-chat support</li>
-            <li><b>Local AI models</b> – Run models fully offline, keeping your code on your machine</li>
+            <li><b>Project-aware chat</b> – Ask questions about your codebase with persistent, multi-session support</li>
+            <li><b>Local AI models</b> – Run models fully offline; your code never leaves your machine</li>
             <li><b>AI agent for code editing</b> – Generate and modify code using natural language with safe diff previews</li>
-            <li><b>Context-aware assistance</b> – Understands the current file, selection, and project structure</li>
+            <li><b>Context-aware assistance</b> – Understands the current file, selection, git state, and project structure</li>
             <li><b>Multi-file workflows</b> – Perform coordinated changes across multiple files (Pro)</li>
+            <li><b>MCP server support</b> – Connect any MCP-compatible tool server and let the agent call its tools directly</li>
+            <li><b>Multi-task agent</b> – Run multiple agent tasks in parallel with a live task queue panel (Pro)</li>
+            <li><b>Parallel chat sessions</b> – Switch between multiple simultaneous conversations in Ask mode</li>
+            <li><b>Aggressive mode</b> – Instruct the agent to act more decisively and apply fixes without hesitation (Pro)</li>
         </ul>
 
         <br/>
 
+        <p><b>🔌 IDE-native MCP host</b><br/>
+        Configure local MCP servers under <b>Settings → Llamatik Code → MCP Servers</b>. The agent discovers their tools, resources, and prompts automatically and calls them through the same approval pipeline as built-in tools. Free users get one active server with manual approval on every call; Pro users get unlimited servers with optional per-tool and per-server auto-approval rules.</p>
+
+        <br/>
+
         <p><b>🔒 Privacy-first</b><br/>
-        Your code is processed locally by default. No data is sent to external servers unless explicitly configured.</p>
+        Your code is processed locally by default. No data is sent to external servers unless you explicitly configure an MCP server that does so. Secrets in tool arguments and environment variables are redacted from all logs and trace output.</p>
 
         <br/>
 
@@ -48,13 +57,17 @@
         <ul>
             <li>Developers who want a <b>local alternative to cloud AI tools</b></li>
             <li>Teams working with <b>private or sensitive codebases</b></li>
-            <li>Power users looking for <b>agent-based workflows inside IntelliJ</b></li>
+            <li>Power users looking for <b>extensible, agent-based workflows inside IntelliJ</b></li>
+            <li>Anyone who wants to <b>connect their own tools</b> to the agent via MCP</li>
         </ul>
 
         <br/>
 
-        <p><b>💡 Free & Pro</b><br/>
-        Llamatik Code includes a free tier for everyday coding assistance, with advanced capabilities such as multi-file agent workflows available in Pro.</p>
+        <p><b>💡 Free &amp; Pro</b></p>
+        <ul>
+            <li><b>Free</b> – Chat, single-session agent, 1 active MCP server with manual approval</li>
+            <li><b>Pro</b> – Multi-task agent, unlimited MCP servers, auto-approval rules, aggressive mode, multi-file apply, auto-build, auto-fix</li>
+        </ul>
 
         <br/>
 
@@ -104,6 +117,18 @@
                 serviceImplementation="com.llamatik.teammate.infrastructure.ModelDownloadManager"/>
         <applicationService
                 serviceImplementation="com.llamatik.teammate.infrastructure.ModelRuntimeTracker"/>
+
+        <!-- MCP -->
+        <applicationService
+                serviceImplementation="com.llamatik.teammate.mcp.McpServerConfigService"/>
+        <applicationService
+                serviceImplementation="com.llamatik.teammate.mcp.McpClientService"/>
+        <applicationService
+                serviceImplementation="com.llamatik.teammate.mcp.McpToolBridgeService"/>
+        <applicationService
+                serviceImplementation="com.llamatik.teammate.mcp.McpManagerService"/>
+        <applicationService
+                serviceImplementation="com.llamatik.teammate.mcp.McpPermissionService"/>
 
         <!-- Skills -->
         <applicationService
@@ -177,6 +202,11 @@
                 id="llamatik.code.settings.inference"
                 parentId="llamatik.code.settings"
                 instance="com.llamatik.teammate.settings.InferenceSettingsConfigurable"/>
+        <applicationConfigurable
+                displayName="MCP Servers"
+                id="llamatik.code.settings.mcp"
+                parentId="llamatik.code.settings"
+                instance="com.llamatik.teammate.mcp.McpSettingsConfigurable"/>
 
     </extensions>
 

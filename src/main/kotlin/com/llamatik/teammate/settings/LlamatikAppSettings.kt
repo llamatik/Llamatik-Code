@@ -4,6 +4,7 @@ import com.intellij.openapi.components.PersistentStateComponent
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
+import com.llamatik.teammate.mcp.McpServerConfigService
 import com.llamatik.teammate.model.ModelDescriptor
 import java.nio.file.Path
 
@@ -45,6 +46,10 @@ class LlamatikAppSettings : PersistentStateComponent<LlamatikAppSettings.State> 
         var mmprojPath: String = "",
         var downloadedMmprojs: MutableList<String> = mutableListOf(),
         var agentExecutionMode: String = "NORMAL",
+        /** MCP server configurations — persisted as flat objects for XmlSerializer compatibility. */
+        var mcpServers: MutableList<McpServerConfigService.StoredMcpServer> = mutableListOf(),
+        /** Per-tool auto-approval entries: "serverId::toolName" for Pro users. */
+        var mcpAutoApprovedTools: MutableList<String> = mutableListOf(),
     )
 
     private var myState = State()

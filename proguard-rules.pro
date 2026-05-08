@@ -71,6 +71,24 @@
 -keep class com.llamatik.teammate.snapshot.ProjectSnapshotService { *; }
 -keep class com.llamatik.teammate.testing.TestCoverageHeuristicService { *; }
 
+-keep class com.llamatik.teammate.mcp.McpServerConfigService { *; }
+-keep class com.llamatik.teammate.mcp.McpServerConfigService$* { *; }
+-keep class com.llamatik.teammate.mcp.McpClientService { *; }
+-keep class com.llamatik.teammate.mcp.McpClientService$* { *; }
+-keep class com.llamatik.teammate.mcp.McpToolBridgeService { *; }
+-keep class com.llamatik.teammate.mcp.McpManagerService { *; }
+-keep class com.llamatik.teammate.mcp.McpPermissionService { *; }
+-keep class com.llamatik.teammate.mcp.McpSettingsConfigurable { *; }
+-keep class com.llamatik.teammate.mcp.McpSettingsConfigurable$* { *; }
+-keep class com.llamatik.teammate.mcp.McpServerEditDialog { *; }
+-keep class com.llamatik.teammate.mcp.McpServerEditDialog$* { *; }
+-keep class com.llamatik.teammate.mcp.McpApprovalDialog { *; }
+-keep class com.llamatik.teammate.mcp.McpApprovalDialog$* { *; }
+
+# MCP state classes serialised by XmlSerializer
+-keep class com.llamatik.teammate.mcp.McpServerConfigService$StoredMcpServer { *; }
+-keep class com.llamatik.teammate.settings.LlamatikAppSettings$State { *; }
+
 -keep class com.llamatik.teammate.actions.BasePromptAction { *; }
 -keep class com.llamatik.teammate.actions.AskAboutSelectionAction { *; }
 -keep class com.llamatik.teammate.actions.ExplainFileAction { *; }

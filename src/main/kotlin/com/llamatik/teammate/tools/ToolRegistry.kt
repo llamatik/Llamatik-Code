@@ -1,12 +1,22 @@
 package com.llamatik.teammate.tools
 
 import com.intellij.openapi.components.Service
+import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
+import com.llamatik.teammate.mcp.McpListServersTool
+import com.llamatik.teammate.mcp.McpListToolsTool
+import com.llamatik.teammate.mcp.McpCallToolTool
+import com.llamatik.teammate.mcp.McpListResourcesTool
+import com.llamatik.teammate.mcp.McpReadResourceTool
+import com.llamatik.teammate.mcp.McpListPromptsTool
+import com.llamatik.teammate.mcp.McpManagerService
+import com.llamatik.teammate.mcp.McpToolBridgeService
 import com.llamatik.teammate.tools.impl.*
+import java.util.concurrent.ConcurrentHashMap
 
 @Service(Service.Level.PROJECT)
-class ToolRegistry(project: Project) {
-    private val tools: Map<String, LlamatikTool> = listOf(
+class ToolRegistry(private val project: Project) {
+    private val builtinTools: Map<String, LlamatikTool> = listOf(
         // Core file tools
         ListFilesTool(project),
         ReadFileTool(project),
@@ -93,16 +103,43 @@ class ToolRegistry(project: Project) {
         ProjectSnapshotRefreshTool(project),
         // KMP/native diagnostics
         KmpNativeDiagnoseTool(project),
+        // MCP agent tools (always present; actual MCP servers are optional)
+        McpListServersTool(project),
+        McpListToolsTool(project),
+        McpCallToolTool(project),
+        McpListResourcesTool(project),
+        McpReadResourceTool(project),
+        McpListPromptsTool(project),
     ).associateBy { it.name }
 
-    fun describeTools(): String = tools.values.joinToString("\n") { "- ${it.name}: ${it.description}" }
+    /** Dynamically registered MCP bridged tools (added/removed as servers start/stop). */
+    private val dynamicTools = ConcurrentHashMap<String, LlamatikTool>()
 
-    /** Compact list of just tool names, one per line — used when the char budget is tight. */
-    fun listToolNames(): String = tools.keys.joinToString(" | ")
+    private val allTools: Map<String, LlamatikTool>
+        get() = builtinTools + dynamicTools
+
+    fun describeTools(): String = allTools.values.joinToString("\n") { "- ${it.name}: ${it.description}" }
+
+    /** Compact list of just tool names — used when the char budget is tight. */
+    fun listToolNames(): String = allTools.keys.joinToString(" | ")
 
     fun execute(call: ToolCall, context: ToolExecutionContext): ToolResult {
-        val tool = tools[call.name] ?: return ToolResult(call.name, false, "Unknown tool: ${call.name}")
+        val tool = allTools[call.name] ?: return ToolResult(call.name, false, "Unknown tool: ${call.name}")
         return runCatching { tool.execute(call, context) }
             .getOrElse { ToolResult(call.name, false, it.message ?: "Tool execution failed") }
     }
+
+    /** Registers MCP bridged tools from the bridge service (called after a server starts). */
+    fun refreshMcpTools() {
+        val bridgeService = service<McpToolBridgeService>()
+        // Remove stale dynamic MCP tools
+        dynamicTools.keys.toList().forEach { dynamicTools.remove(it) }
+        // Add current bridged tools
+        bridgeService.bridgedTools().forEach { (bridgedName, _) ->
+            val tool = bridgeService.asLlamatikTool(bridgedName, project)
+            if (tool != null) dynamicTools[bridgedName] = tool
+        }
+    }
+
+    fun dynamicToolNames(): Set<String> = dynamicTools.keys.toSet()
 }

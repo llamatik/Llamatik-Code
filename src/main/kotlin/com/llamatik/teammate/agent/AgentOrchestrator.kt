@@ -226,9 +226,11 @@ class AgentOrchestrator(private val project: Project) {
                             }
                         }
                         val answerText = ToolCallParser.stripThinking(echoStripped)
-                        // Filter to known tool names — hallucinated names (e.g. "diff_tool") would loop forever
+                        // Filter to known tool names — hallucinated names (e.g. "diff_tool") would loop forever.
+                        // Dynamic MCP bridged tools are also allowed (they are in the registry's dynamicTools map).
+                        val dynamicMcpNames = toolRegistry.dynamicToolNames()
                         val toolCalls = ToolCallParser.parseIncludingIncomplete(answerText)
-                            .filter { it.name in KNOWN_TOOL_NAMES }
+                            .filter { it.name in KNOWN_TOOL_NAMES || it.name in dynamicMcpNames }
                             .take(MAX_TOOL_CALLS_PER_ROUND)
 
                         if (toolCalls.isEmpty() || round >= MAX_ROUNDS) {
@@ -283,6 +285,7 @@ class AgentOrchestrator(private val project: Project) {
                                 call.name == TOOL_READ_FILE -> AgentTraceStep.Type.FILE_READ
                                 call.name in setOf(TOOL_SEARCH_CODE, TOOL_SEARCH_FILENAMES, "index_search", "smart_search") -> AgentTraceStep.Type.SEARCH
                                 call.name in EDIT_TOOL_NAMES -> AgentTraceStep.Type.VERIFICATION
+                                call.name.startsWith("mcp_") -> AgentTraceStep.Type.MCP_CALL
                                 else -> AgentTraceStep.Type.TOOL_CALL
                             }
                             val traceStatus = if (result.content.startsWith("Error") || result.content.startsWith("No ")) {
@@ -1144,6 +1147,9 @@ class AgentOrchestrator(private val project: Project) {
             "project_snapshot_get", "project_snapshot_refresh",
             // KMP/native
             "kmp_native_diagnose",
+            // MCP agent tools
+            "mcp_list_servers", "mcp_list_tools", "mcp_call_tool",
+            "mcp_list_resources", "mcp_read_resource", "mcp_list_prompts",
         )
         private val READ_ONLY_TOOL_NAMES = setOf(
             TOOL_LIST_FILES, TOOL_READ_FILE, TOOL_SEARCH_CODE, TOOL_SEARCH_FILENAMES,
@@ -1167,6 +1173,9 @@ class AgentOrchestrator(private val project: Project) {
             "tests_missing_analyze",
             "project_snapshot_get", "project_snapshot_refresh",
             "kmp_native_diagnose",
+            // MCP agent tools (read-only: listing and reading)
+            "mcp_list_servers", "mcp_list_tools",
+            "mcp_list_resources", "mcp_read_resource", "mcp_list_prompts",
         )
         private val EDIT_TOOL_NAMES = setOf(TOOL_WRITE_FILE, TOOL_REPLACE_IN_FILE, TOOL_CREATE_FILE)
 
