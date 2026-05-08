@@ -3,6 +3,7 @@ package com.llamatik.teammate.context
 import com.intellij.openapi.components.service
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.project.guessProjectDir
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.VfsUtilCore
 import com.llamatik.teammate.persistence.ChatSessionStore
@@ -26,6 +27,7 @@ class ProjectContextService(private val project: Project) {
         ".git", ".idea", ".gradle", ".gradle-cache", ".kotlin", ".cxx", ".cache",
         "build", "out", "target", "node_modules", "__pycache__", ".tox",
         "generated", "intermediates", "dist", ".dart_tool", ".pub-cache",
+        ".intellijPlatform",
     )
 
     fun projectName(): String = project.name
@@ -42,7 +44,7 @@ class ProjectContextService(private val project: Project) {
     fun pinnedInstructions(): String = project.service<ChatSessionStore>().pinnedInstructions()
 
     fun listFiles(relativePath: String?): List<String> {
-        val base = project.baseDir ?: return emptyList()
+        val base = project.guessProjectDir() ?: return emptyList()
         val start = resolveFile(relativePath) ?: base
         // For root or shallow paths, return a tree-style directory summary so the model can
         // navigate purposefully instead of receiving a flat dump of build/cache files.
@@ -126,7 +128,7 @@ class ProjectContextService(private val project: Project) {
     }
 
     private fun allFiles(): List<String> {
-        val base = project.baseDir ?: return emptyList()
+        val base = project.guessProjectDir() ?: return emptyList()
         val result = mutableListOf<String>()
         collectFiles(base, result)
         return result.sorted().take(1000)
@@ -136,7 +138,7 @@ class ProjectContextService(private val project: Project) {
     fun getSelectedText(): String? = FileEditorManager.getInstance(project).selectedTextEditor?.selectionModel?.selectedText
 
     fun resolveFile(path: String?): VirtualFile? {
-        val base = project.baseDir ?: return null
+        val base = project.guessProjectDir() ?: return null
         if (path.isNullOrBlank() || path == ".") return base
         return base.findFileByRelativePath(path)
     }
@@ -144,7 +146,7 @@ class ProjectContextService(private val project: Project) {
     private fun resolveRequiredFile(path: String): VirtualFile = resolveFile(path) ?: error("File not found: $path")
 
     private fun relativePath(file: VirtualFile): String {
-        val root = project.baseDir ?: return file.path
+        val root = project.guessProjectDir() ?: return file.path
         return VfsUtilCore.getRelativePath(file, root, '/') ?: file.path
     }
 
