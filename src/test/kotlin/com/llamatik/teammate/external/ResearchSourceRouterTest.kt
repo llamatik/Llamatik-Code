@@ -11,7 +11,7 @@ class ResearchSourceRouterTest {
         val lower = query.lowercase()
         val routedDomains = mutableListOf<String>()
         when {
-            lower.contains("kotlin") || lower.contains("coroutine") || lower.contains("flow") ->
+            lower.contains("kotlin") || lower.contains("coroutine") || lower.contains("flow") || lower.contains("suspend") ->
                 routedDomains.addAll(listOf("kotlinlang.org", "blog.jetbrains.com"))
             lower.contains("android") || lower.contains("jetpack") || lower.contains("compose") ->
                 routedDomains.add("developer.android.com")
@@ -115,5 +115,23 @@ class ResearchSourceRouterTest {
         val result = routeSources("kotlin coroutines", listOf("kotlinlang.org"))
         val unique = result.distinct()
         assertTrue("No duplicates in result", result.size == unique.size)
+    }
+
+    @Test
+    fun `suspend keyword routes to kotlinlang org`() {
+        val result = routeSources("suspend function explanation", emptyList())
+        assertTrue("suspend should route to kotlinlang.org", result.contains("kotlinlang.org"))
+    }
+
+    @Test
+    fun `ios keyword routes to developer apple com`() {
+        val result = routeSources("ios 17 new features", emptyList())
+        assertTrue("ios should route to developer.apple.com", result.contains("developer.apple.com"))
+    }
+
+    @Test
+    fun `bug keyword routes to github com`() {
+        val result = routeSources("bug in library regression", emptyList())
+        assertTrue("bug should route to github.com", result.contains("github.com"))
     }
 }
