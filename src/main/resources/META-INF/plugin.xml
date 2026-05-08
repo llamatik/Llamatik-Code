@@ -138,6 +138,10 @@
         <applicationService
                 serviceImplementation="com.llamatik.teammate.benchmark.ModelBenchmarkService"/>
 
+        <!-- Code Health Monitor -->
+        <applicationService
+                serviceImplementation="com.llamatik.teammate.codehealth.CodeHealthBudgetService"/>
+
         <!-- External Knowledge services -->
         <applicationService
                 serviceImplementation="com.llamatik.teammate.external.search.ExternalSearchService"/>
@@ -208,6 +212,26 @@
         <projectService
                 serviceImplementation="com.llamatik.teammate.kmp.KmpNativeDiagnosticService"/>
 
+        <!-- Code Health Monitor project services -->
+        <projectService
+                serviceImplementation="com.llamatik.teammate.codehealth.CodeHealthInsightStore"/>
+        <projectService
+                serviceImplementation="com.llamatik.teammate.codehealth.BackgroundInsightAnalyzer"/>
+        <projectService
+                serviceImplementation="com.llamatik.teammate.codehealth.CodeHealthScheduler"/>
+        <projectService
+                serviceImplementation="com.llamatik.teammate.codehealth.RegressionRiskAnalyzer"/>
+        <projectService
+                serviceImplementation="com.llamatik.teammate.codehealth.WatchedAreaService"/>
+        <projectService
+                serviceImplementation="com.llamatik.teammate.codehealth.CurrentWorkContextService"/>
+        <projectService
+                serviceImplementation="com.llamatik.teammate.codehealth.BeforeCommitAssistant"/>
+        <projectService
+                serviceImplementation="com.llamatik.teammate.codehealth.RefactorOpportunityAnalyzer"/>
+        <projectService
+                serviceImplementation="com.llamatik.teammate.codehealth.CodeHealthNotificationService"/>
+
         <!-- Settings page -->
         <applicationConfigurable
                 displayName="Llamatik Code"
@@ -228,6 +252,11 @@
                 id="llamatik.code.settings.external"
                 parentId="llamatik.code.settings"
                 instance="com.llamatik.teammate.settings.ExternalKnowledgeSettingsConfigurable"/>
+        <applicationConfigurable
+                displayName="Code Health Monitor"
+                id="llamatik.code.settings.codehealth"
+                parentId="llamatik.code.settings"
+                instance="com.llamatik.teammate.settings.CodeHealthSettingsConfigurable"/>
 
     </extensions>
 

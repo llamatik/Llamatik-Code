@@ -535,4 +535,31 @@ object Strings {
         const val APPROVAL_ALLOW_ALWAYS_SERVER = "Allow always for this server (Pro)"
         const val APPROVAL_PRO_HINT = "Auto-approval requires Pro."
     }
+
+    // ── Code Health Monitor ───────────────────────────────────────────────────
+    object CodeHealth {
+        const val FEATURE_NAME = "Code Health Monitor"
+        const val DISABLED_MSG =
+            "Code Health Monitor is not enabled. Enable it in Settings → Llamatik Code → Code Health Monitor."
+        const val ENABLED_LABEL = "Enable Code Health Monitor"
+        const val MODE_LABEL = "Analysis mode"
+        const val RUN_ON_LABEL = "Run analysis"
+        const val REFRESH = "Refresh"
+        const val INSIGHTS_EMPTY = "No insights yet. Run an analysis to get started."
+        const val EXPLAIN = "Explain"
+        const val CREATE_FIX_PLAN = "Create Fix Plan"
+        const val IGNORE = "Ignore"
+        const val PRO_REQUIRED = "Pro subscription required for this mode"
+        const val BEFORE_COMMIT_TITLE = "Before-Commit Review"
+        const val WATCH_ADD = "Watch This Area"
+        const val WATCH_REMOVE = "Stop Watching"
+        const val DASHBOARD_TITLE = "Code Health"
+        const val HIGH_PRIORITY = "High Priority Insights"
+        const val MISSING_TESTS_SECTION = "Missing Tests"
+        const val COMPLEXITY_SECTION = "Complexity Hotspots"
+        const val REGRESSION_SECTION = "Regression Risks"
+        const val WATCHED_SECTION = "Watched Areas"
+        const val LAST_ANALYSIS = "Last analysis"
+        const val NEVER_RUN = "Never run"
+    }
 }

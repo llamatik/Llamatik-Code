@@ -305,6 +305,34 @@
     protected void installDefaults();
 }
 
+# ── Code Health Monitor ────────────────────────────────────────────────────────
+-keep class com.llamatik.teammate.codehealth.CodeHealthBudgetService { *; }
+-keep class com.llamatik.teammate.codehealth.CodeHealthInsightStore { *; }
+-keep class com.llamatik.teammate.codehealth.BackgroundInsightAnalyzer { *; }
+-keep class com.llamatik.teammate.codehealth.BackgroundInsightAnalyzer$* { *; }
+-keep class com.llamatik.teammate.codehealth.CodeHealthScheduler { *; }
+-keep class com.llamatik.teammate.codehealth.CodeHealthScheduler$* { *; }
+-keep class com.llamatik.teammate.codehealth.RegressionRiskAnalyzer { *; }
+-keep class com.llamatik.teammate.codehealth.RegressionRiskAnalyzer$* { *; }
+-keep class com.llamatik.teammate.codehealth.WatchedAreaService { *; }
+-keep class com.llamatik.teammate.codehealth.CurrentWorkContextService { *; }
+-keep class com.llamatik.teammate.codehealth.BeforeCommitAssistant { *; }
+-keep class com.llamatik.teammate.codehealth.BeforeCommitAssistant$* { *; }
+-keep class com.llamatik.teammate.codehealth.RefactorOpportunityAnalyzer { *; }
+-keep class com.llamatik.teammate.codehealth.RefactorOpportunityAnalyzer$* { *; }
+-keep class com.llamatik.teammate.codehealth.CodeHealthNotificationService { *; }
+-keep class com.llamatik.teammate.settings.CodeHealthSettingsConfigurable { *; }
+-keep class com.llamatik.teammate.settings.CodeHealthSettingsConfigurable$* { *; }
+-keep class com.llamatik.teammate.codehealth.CodeHealthInsight { *; }
+-keep class com.llamatik.teammate.codehealth.WatchedArea { *; }
+-keep class com.llamatik.teammate.codehealth.SessionContext { *; }
+-keep class com.llamatik.teammate.codehealth.CodeHealthBudgets { *; }
+-keepclassmembers enum com.llamatik.teammate.codehealth.AnalysisMode { *; }
+-keepclassmembers enum com.llamatik.teammate.codehealth.RunTrigger { *; }
+-keepclassmembers enum com.llamatik.teammate.codehealth.InsightType { *; }
+-keepclassmembers enum com.llamatik.teammate.codehealth.InsightSeverity { *; }
+-keepclassmembers enum com.llamatik.teammate.codehealth.WatchedAreaType { *; }
+
 # ── JetBrains Marketplace recommendations ────────────────────────────────────
 # https://plugins.jetbrains.com/docs/marketplace/obfuscate-the-plugin.html
 #

@@ -131,6 +131,21 @@ class ToolRegistry(private val project: Project) {
         // Error research tools
         ErrorResearchAnalyzeTool(project),
         ErrorResearchFixTool(project),
+        // Code Health Monitor tools
+        CodeHealthStatusTool(project),
+        CodeHealthRefreshTool(project),
+        CodeHealthListInsightsTool(project),
+        CodeHealthExplainInsightTool(project),
+        CodeHealthCreateFixPlanTool(project),
+        CodeHealthIgnoreInsightTool(project),
+        WatchAreaAddTool(project),
+        WatchAreaRemoveTool(project),
+        WatchAreaListTool(project),
+        SessionContextGetTool(project),
+        SessionContextClearTool(project),
+        BeforeCommitReviewTool(project),
+        RegressionRiskAnalyzeTool(project),
+        RefactorAnalyzeFileTool(project),
     ).associateBy { it.name }
 
     /** Dynamically registered MCP bridged tools (added/removed as servers start/stop). */

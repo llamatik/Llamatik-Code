@@ -59,6 +59,18 @@ class LlamatikAppSettings : PersistentStateComponent<LlamatikAppSettings.State> 
         var externalResearchSearchProvider: String = "duckduckgo",
         var externalSearchUsedToday: Int = 0,
         var externalSearchCountDate: String = "",
+        // Code Health Monitor
+        var codeHealthEnabled: Boolean = false,
+        var codeHealthMode: String = "OFF",
+        var codeHealthRunOn: String = "MANUAL",
+        var codeHealthMaxFilesPerScan: Int = 10,
+        var codeHealthMaxRuntimeMs: Long = 10_000L,
+        var codeHealthMaxModelCallsPerHour: Int = 5,
+        var codeHealthLiveSuggestions: Boolean = false,
+        var codeHealthTestAwareness: Boolean = true,
+        var codeHealthRegressionDetection: Boolean = false,
+        var codeHealthDashboard: Boolean = true,
+        var codeHealthBeforeCommit: Boolean = false,
     )
 
     private var myState = State()

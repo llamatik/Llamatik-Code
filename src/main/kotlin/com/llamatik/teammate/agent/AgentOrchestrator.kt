@@ -1160,6 +1160,12 @@ class AgentOrchestrator(private val project: Project) {
             "docs_sources_list", "docs_source_add", "docs_index_refresh", "docs_search",
             // Error research
             "error_research_analyze", "error_research_fix",
+            // Code Health Monitor
+            "code_health_status", "code_health_refresh", "code_health_list_insights",
+            "code_health_explain_insight", "code_health_create_fix_plan", "code_health_ignore_insight",
+            "watch_area_add", "watch_area_remove", "watch_area_list",
+            "session_context_get", "session_context_clear",
+            "before_commit_review", "regression_risk_analyze", "refactor_analyze_file",
         )
         private val READ_ONLY_TOOL_NAMES = setOf(
             TOOL_LIST_FILES, TOOL_READ_FILE, TOOL_SEARCH_CODE, TOOL_SEARCH_FILENAMES,
@@ -1196,6 +1202,10 @@ class AgentOrchestrator(private val project: Project) {
             "docs_sources_list", "docs_search",
             // Error research (read-only)
             "error_research_analyze", "error_research_fix",
+            // Code Health Monitor (read-only subset)
+            "code_health_status", "code_health_list_insights", "code_health_explain_insight",
+            "code_health_create_fix_plan", "watch_area_list", "session_context_get",
+            "before_commit_review", "regression_risk_analyze", "refactor_analyze_file",
         )
         private val EDIT_TOOL_NAMES = setOf(TOOL_WRITE_FILE, TOOL_REPLACE_IN_FILE, TOOL_CREATE_FILE)
 
