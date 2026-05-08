@@ -39,6 +39,8 @@
             <li><b>Multi-task agent</b> – Run multiple agent tasks in parallel with a live task queue panel (Pro)</li>
             <li><b>Parallel chat sessions</b> – Switch between multiple simultaneous conversations in Ask mode</li>
             <li><b>Aggressive mode</b> – Instruct the agent to act more decisively and apply fixes without hesitation (Pro)</li>
+            <li><b>External Knowledge</b> – Let the agent search the web, read official docs, and research errors in real time, with citations</li>
+            <li><b>Code Health Monitor</b> – Proactive background analysis that surfaces regression risks, complexity issues, and refactor opportunities before they become problems</li>
         </ul>
 
         <br/>
@@ -48,8 +50,18 @@
 
         <br/>
 
+        <p><b>🌐 Context-Aware External Knowledge</b><br/>
+        The agent can search the web via DuckDuckGo, read documentation pages, route queries to the right source (kotlinlang.org, developer.android.com, GitHub Issues, and more), analyse compiler errors, and build fix plans — all without leaving the IDE. Every answer backed by external content includes structured citations. Enable under <b>Settings → Llamatik Code → External Knowledge</b>. Free: 5 searches/day, 1 docs source. Pro: 50 searches/day, 10 docs sources.</p>
+
+        <br/>
+
+        <p><b>🩺 Code Health Monitor</b><br/>
+        An opt-in background analysis layer that continuously monitors your codebase for structural problems and regression risks. Detects long files, TODO/FIXME accumulation, empty catch blocks, deprecated APIs, removed public declarations, deleted tests, and dependency changes — without a model call for the fast checks. Includes a before-commit assistant, watched areas, refactor opportunity detection, and 14 dedicated agent tools. Enable under <b>Settings → Llamatik Code → Code Health Monitor</b>. Free: LIGHT mode with manual trigger. Pro: BALANCED and AGGRESSIVE modes with on-save, idle, and before-commit scheduling.</p>
+
+        <br/>
+
         <p><b>🔒 Privacy-first</b><br/>
-        Your code is processed locally by default. No data is sent to external servers unless you explicitly configure an MCP server that does so. Secrets in tool arguments and environment variables are redacted from all logs and trace output.</p>
+        Your code is processed locally by default. No data is sent to external servers unless you explicitly configure an MCP server or enable External Knowledge searches. Secrets in tool arguments and environment variables are redacted from all logs and trace output.</p>
 
         <br/>
 
@@ -59,14 +71,15 @@
             <li>Teams working with <b>private or sensitive codebases</b></li>
             <li>Power users looking for <b>extensible, agent-based workflows inside IntelliJ</b></li>
             <li>Anyone who wants to <b>connect their own tools</b> to the agent via MCP</li>
+            <li>Engineers who want <b>proactive code quality monitoring</b> without a separate CI step</li>
         </ul>
 
         <br/>
 
         <p><b>💡 Free &amp; Pro</b></p>
         <ul>
-            <li><b>Free</b> – Chat, single-session agent, 1 active MCP server with manual approval</li>
-            <li><b>Pro</b> – Multi-task agent, unlimited MCP servers, auto-approval rules, aggressive mode, multi-file apply, auto-build, auto-fix</li>
+            <li><b>Free</b> – Chat, single-session agent, 1 active MCP server with manual approval, External Knowledge (5 searches/day), Code Health Monitor (LIGHT / manual)</li>
+            <li><b>Pro</b> – Multi-task agent, unlimited MCP servers, auto-approval rules, aggressive mode, multi-file apply, auto-build, auto-fix, External Knowledge (50 searches/day, 10 docs sources), Code Health Monitor (BALANCED + AGGRESSIVE modes, background scheduling)</li>
         </ul>
 
         <br/>
