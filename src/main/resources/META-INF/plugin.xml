@@ -138,6 +138,22 @@
         <applicationService
                 serviceImplementation="com.llamatik.teammate.benchmark.ModelBenchmarkService"/>
 
+        <!-- External Knowledge services -->
+        <applicationService
+                serviceImplementation="com.llamatik.teammate.external.search.ExternalSearchService"/>
+        <applicationService
+                serviceImplementation="com.llamatik.teammate.external.reader.ExternalPageReaderService"/>
+        <applicationService
+                serviceImplementation="com.llamatik.teammate.external.research.ResearchOrchestratorService"/>
+        <applicationService
+                serviceImplementation="com.llamatik.teammate.external.research.ResearchSourceRouter"/>
+        <applicationService
+                serviceImplementation="com.llamatik.teammate.external.docs.DocsSourceService"/>
+        <applicationService
+                serviceImplementation="com.llamatik.teammate.external.docs.DocsIndexerService"/>
+        <applicationService
+                serviceImplementation="com.llamatik.teammate.external.research.ErrorResearchService"/>
+
         <!-- Project-level services -->
         <projectService
                 serviceImplementation="com.llamatik.teammate.persistence.LlamatikProjectState"/>
@@ -207,6 +223,11 @@
                 id="llamatik.code.settings.mcp"
                 parentId="llamatik.code.settings"
                 instance="com.llamatik.teammate.mcp.McpSettingsConfigurable"/>
+        <applicationConfigurable
+                displayName="External Knowledge"
+                id="llamatik.code.settings.external"
+                parentId="llamatik.code.settings"
+                instance="com.llamatik.teammate.settings.ExternalKnowledgeSettingsConfigurable"/>
 
     </extensions>
 
@@ -273,6 +294,13 @@
                 class="com.llamatik.teammate.actions.ExplainCurrentChangesAction"
                 text="Explain Current Git Changes"
                 description="Ask Llamatik Code to explain current git changes and suggest a commit message">
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+        </action>
+        <action id="LlamatikCode.SearchDocsWeb"
+                class="com.llamatik.teammate.actions.SearchDocsWebAction"
+                text="Search Docs &amp; Web"
+                description="Search documentation and web for the selected text or a query">
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>
             <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
         </action>

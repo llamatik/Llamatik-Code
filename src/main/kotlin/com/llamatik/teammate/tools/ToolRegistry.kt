@@ -110,6 +110,27 @@ class ToolRegistry(private val project: Project) {
         McpListResourcesTool(project),
         McpReadResourceTool(project),
         McpListPromptsTool(project),
+        // External search tools
+        ExternalSearchTool(project),
+        ExternalSearchOfficialDocsTool(project),
+        ExternalSearchGithubIssuesTool(project),
+        // External page reader tools
+        ExternalReadPageTool(project),
+        ExternalReadPagesTool(project),
+        // Research tools
+        ResearchPlanTool(project),
+        ResearchExecuteTool(project),
+        ResearchSummarizeTool(project),
+        ResearchRouteSourcesTool(project),
+        ResearchFixPlanTool(project),
+        // Docs source tools
+        DocsSourcesListTool(project),
+        DocsSourceAddTool(project),
+        DocsIndexRefreshTool(project),
+        DocsSearchTool(project),
+        // Error research tools
+        ErrorResearchAnalyzeTool(project),
+        ErrorResearchFixTool(project),
     ).associateBy { it.name }
 
     /** Dynamically registered MCP bridged tools (added/removed as servers start/stop). */

@@ -1150,6 +1150,16 @@ class AgentOrchestrator(private val project: Project) {
             // MCP agent tools
             "mcp_list_servers", "mcp_list_tools", "mcp_call_tool",
             "mcp_list_resources", "mcp_read_resource", "mcp_list_prompts",
+            // External search
+            "external_search", "external_search_official_docs", "external_search_github_issues",
+            // External page reader
+            "external_read_page", "external_read_pages",
+            // Research
+            "research_plan", "research_execute", "research_summarize", "research_route_sources", "research_fix_plan",
+            // Docs sources
+            "docs_sources_list", "docs_source_add", "docs_index_refresh", "docs_search",
+            // Error research
+            "error_research_analyze", "error_research_fix",
         )
         private val READ_ONLY_TOOL_NAMES = setOf(
             TOOL_LIST_FILES, TOOL_READ_FILE, TOOL_SEARCH_CODE, TOOL_SEARCH_FILENAMES,
@@ -1176,6 +1186,16 @@ class AgentOrchestrator(private val project: Project) {
             // MCP agent tools (read-only: listing and reading)
             "mcp_list_servers", "mcp_list_tools",
             "mcp_list_resources", "mcp_read_resource", "mcp_list_prompts",
+            // External search (read-only)
+            "external_search", "external_search_official_docs", "external_search_github_issues",
+            // External page reader (read-only)
+            "external_read_page", "external_read_pages",
+            // Research (read-only)
+            "research_plan", "research_execute", "research_summarize", "research_route_sources", "research_fix_plan",
+            // Docs sources (read-only for list/search)
+            "docs_sources_list", "docs_search",
+            // Error research (read-only)
+            "error_research_analyze", "error_research_fix",
         )
         private val EDIT_TOOL_NAMES = setOf(TOOL_WRITE_FILE, TOOL_REPLACE_IN_FILE, TOOL_CREATE_FILE)
 

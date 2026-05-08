@@ -460,6 +460,38 @@ object Strings {
         const val REQUEST_LICENSE_MESSAGE = "Upgrade to Llamatik Code Pro to unlock Agent mode and advanced features."
     }
 
+    // ── External Knowledge ────────────────────────────────────────────────
+    object ExternalKnowledge {
+        const val SECTION_TITLE = "<html><b>External Knowledge</b></html>"
+        const val ENABLE_RESEARCH = "Enable external research (searches docs and web)"
+        const val SEARCH_PROVIDER = "Search provider:"
+        const val PROVIDER_DEFAULT = "DuckDuckGo (default)"
+        const val AUTO_USE = "Allow agent to use web automatically"
+        const val AUTO_USE_PRO_ONLY = "Auto-use requires Pro"
+        const val PREFERRED_SOURCES = "Preferred sources (domains, comma-separated):"
+        const val BLOCKED_DOMAINS = "Blocked domains (comma-separated):"
+        const val SHOW_CITATIONS = "Always show sources and citations"
+        const val DAILY_LIMIT = "Daily search limit:"
+        const val PAGES_PER_TASK = "Pages per research task:"
+        const val SECTION_DOCS_SOURCES = "<html><b>Docs Sources</b></html>"
+        const val ADD_DOCS_SOURCE = "Add docs source"
+        const val REMOVE_DOCS_SOURCE = "Remove selected"
+        const val REFRESH_DOCS_SOURCE = "Re-index selected"
+        const val DOCS_SOURCE_LIMIT_FREE = "Free plan: 1 docs source. Upgrade to add more."
+        const val PRIVACY_NOTICE = "External research sends queries and URLs to the configured search provider. No source files are sent."
+        const val DISABLED_MSG = "External research is disabled. Enable it in Settings → Llamatik Code → External Knowledge."
+        const val DAILY_LIMIT_MSG = "Daily search limit reached. Resets tomorrow."
+        const val SEARCH_DOCS_WEB_ACTION = "Search Docs & Web"
+        fun dailyLimitStatus(used: Int, max: Int) = "Searches today: $used / $max"
+        fun pagesPerTaskLabel(n: Int) = "Up to $n pages per research task"
+        const val CONFIDENCE_HIGH = "Official docs (high confidence)"
+        const val CONFIDENCE_MEDIUM = "Community/maintainer (medium confidence)"
+        const val CONFIDENCE_LOW = "Community (lower confidence)"
+        const val SOURCES_HEADER = "Sources:"
+        const val NO_RELIABLE_SOURCE = "No reliable source found for this claim."
+        const val PRO_REQUIRED_AUTO_USE = "Requires Pro subscription"
+    }
+
     // ── MCP ───────────────────────────────────────────────────────────────────
     object Mcp {
         const val SETTINGS_PAGE_NAME = "MCP Servers"

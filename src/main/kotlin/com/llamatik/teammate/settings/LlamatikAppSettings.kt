@@ -50,6 +50,15 @@ class LlamatikAppSettings : PersistentStateComponent<LlamatikAppSettings.State> 
         var mcpServers: MutableList<McpServerConfigService.StoredMcpServer> = mutableListOf(),
         /** Per-tool auto-approval entries: "serverId::toolName" for Pro users. */
         var mcpAutoApprovedTools: MutableList<String> = mutableListOf(),
+        // External knowledge / research
+        var externalResearchEnabled: Boolean = false,
+        var externalResearchAutoUse: Boolean = false,
+        var externalResearchShowCitations: Boolean = true,
+        var externalResearchPreferredSources: String = "",
+        var externalResearchBlockedDomains: String = "",
+        var externalResearchSearchProvider: String = "duckduckgo",
+        var externalSearchUsedToday: Int = 0,
+        var externalSearchCountDate: String = "",
     )
 
     private var myState = State()
