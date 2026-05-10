@@ -23,7 +23,7 @@ plugins {
 }
 
 group = "com.llamatik.teammate"
-version = "1.4.0"
+version = "1.5.0"
 
 repositories {
     mavenCentral()
@@ -49,6 +49,36 @@ intellijPlatform {
             sinceBuild = "252"
         }
         changeNotes = """
+            <h2>1.5.0 — Code Health Monitor &amp; External Knowledge</h2>
+
+            <p>This release ships two major feature areas: a proactive <b>Code Health Monitor</b> that analyses your codebase in the background and surfaces actionable insights, and <b>Context-Aware External Knowledge</b> that gives the agent the ability to research the web, official docs, and GitHub issues in real time.</p>
+
+            <h3>Code Health Monitor (opt-in)</h3>
+            <ul>
+                <li>Background static analysis detects long files, TODO/FIXME accumulation, empty catch blocks, and deprecated API usage — no model calls required.</li>
+                <li><b>Regression risk detection</b> — analyses git diffs for removed public declarations, deleted tests, dependency changes in Gradle files, removed error handling, and AndroidManifest modifications.</li>
+                <li><b>Before-commit review</b> — summarises all staged changes and flags potential regressions before you commit.</li>
+                <li><b>Watched areas</b> — pin files, directories, packages, or modules; the monitor prioritises insights for areas you care about most.</li>
+                <li><b>Refactor opportunity detection</b> — highlights long functions and repeated catch patterns across the project.</li>
+                <li><b>Session context</b> — tracks recent files, branch, and build failures to provide richer, context-aware suggestions.</li>
+                <li>14 new agent tools: <code>code_health_status</code>, <code>code_health_refresh</code>, <code>code_health_list_insights</code>, <code>code_health_explain_insight</code>, <code>code_health_create_fix_plan</code>, <code>code_health_ignore_insight</code>, <code>watch_area_add/remove/list</code>, <code>session_context_get/clear</code>, <code>before_commit_review</code>, <code>regression_risk_analyze</code>, <code>refactor_analyze_file</code>.</li>
+                <li><b>Settings → Llamatik Code → Code Health Monitor</b> — configure analysis mode, run triggers, budget limits, and notification behaviour.</li>
+                <li>Free: LIGHT mode, manual trigger only, up to 5 files per scan, 3 model calls/hour. Pro: BALANCED (30 files, 30 s) and AGGRESSIVE (150 files, 120 s) modes with background scheduling and on-save/idle/before-commit triggers.</li>
+            </ul>
+
+            <h3>Context-Aware External Knowledge (opt-in)</h3>
+            <ul>
+                <li>The agent can now search the web via DuckDuckGo and read pages from official documentation, GitHub issues, and other sources — entirely within the IDE.</li>
+                <li><b>Research orchestration</b> — detects research intent (library docs, bug/error, API behaviour, migration, latest version) and plans multi-query searches automatically.</li>
+                <li><b>Smart source routing</b> — directs queries to the most relevant source (kotlinlang.org, developer.android.com, developer.apple.com, github.com, etc.) based on query context.</li>
+                <li><b>Error research</b> — analyses compiler errors, detects the build tool and framework, and produces a structured fix plan with actionable steps.</li>
+                <li><b>Private docs indexing</b> — add up to 10 (Pro) or 1 (Free) custom documentation sources; the indexer keeps them fresh and searchable.</li>
+                <li><b>Citations</b> — every answer backed by external content includes structured citations with source type, confidence, and URL.</li>
+                <li>16 new agent tools: <code>external_search</code>, <code>external_search_official_docs</code>, <code>external_search_github_issues</code>, <code>external_read_page/pages</code>, <code>research_plan/execute/summarize/route_sources/fix_plan</code>, <code>docs_sources_list/add/index_refresh/search</code>, <code>error_research_analyze/fix</code>.</li>
+                <li>New editor action: <b>Search Docs &amp; Web</b> in the right-click context menu.</li>
+                <li>Free: 5 searches/day, 3 pages/task, 1 docs source. Pro: 50 searches/day, 10 pages/task, 10 docs sources.</li>
+            </ul>
+
             <h2>1.4.0 — MCP Server Support</h2>
 
             <p>Llamatik Code is now an IDE-native MCP host. Configure local MCP servers, discover their tools, resources, and prompts, and let the agent call them through the existing tool pipeline — all without leaving IntelliJ.</p>
@@ -88,6 +118,68 @@ intellijPlatform {
                 <li>MCP servers run as local child processes. The UI clearly notes they may access external services.</li>
                 <li>Secrets (tokens, passwords, API keys, Authorization headers) are redacted from all logs and trace output before display or storage.</li>
                 <li>Broken or crashed MCP servers are isolated — the plugin marks them FAILED and continues normally without affecting any other feature.</li>
+            </ul>
+
+            <h2>1.3.0 — Agent Tools, Git Awareness &amp; Advanced Intelligence</h2>
+
+            <p>Expanded the agent tool set significantly and added deep project intelligence features including git context, PSI code insight, codebase rules, model benchmarking, and KMP native diagnostics.</p>
+
+            <h3>New agent tools</h3>
+            <ul>
+                <li><b>Git tools</b>: <code>git_diff</code>, <code>git_status</code>, <code>git_log</code>, <code>git_blame</code>, <code>git_changed_files</code> — full read-only git context for the agent.</li>
+                <li><b>Project index tools</b>: <code>index_search_files</code>, <code>index_search_symbols</code>, <code>index_list_recent</code> — fast symbol and file search powered by the persistent project index.</li>
+                <li><b>PSI tools</b>: <code>psi_find_usages</code>, <code>psi_get_type</code>, <code>psi_get_declarations</code> — semantic code insight via IntelliJ's PSI layer.</li>
+                <li><b>Rules tools</b>: <code>rules_get</code>, <code>rules_set</code>, <code>rules_clear</code> — read and write persistent codebase rules that the agent follows in every session.</li>
+                <li><b>Run config tools</b>: <code>run_config_list</code>, <code>run_config_execute</code> — list and trigger IDE run configurations from inside the agent.</li>
+                <li><b>KMP native tools</b>: <code>kmp_diagnose</code>, <code>kmp_fix_plan</code> — detect and plan fixes for Kotlin Multiplatform native compilation issues.</li>
+            </ul>
+
+            <h3>Aggressive mode (Pro)</h3>
+            <ul>
+                <li>New <code>AGGRESSIVE</code> execution mode instructs the agent to apply changes decisively without asking for confirmation on each step.</li>
+                <li>Configurable fallback policy: <code>ABORT</code>, <code>RETRY</code>, or <code>ESCALATE</code> when a step fails.</li>
+            </ul>
+
+            <h3>Model intelligence</h3>
+            <ul>
+                <li><b>ModelCapabilityService</b> — detects whether the loaded model supports tool use, long context, code tasks, and instruction following.</li>
+                <li><b>ModelBenchmarkService</b> — runs a quick benchmark on the active model and records tokens/second for display in settings.</li>
+                <li><b>SmartSearchService</b> — fuzzy file and symbol search with ranking by recency, relevance, and file type.</li>
+            </ul>
+
+            <h3>Snapshots &amp; context recovery</h3>
+            <ul>
+                <li><b>ProjectSnapshotService</b> — captures a full snapshot of open files, recent edits, and context state before an agent run.</li>
+                <li><b>ContextRecoveryService</b> — detects mid-session context drift and offers recovery options to restore the agent's context.</li>
+            </ul>
+
+            <h2>1.2.0 — Multi-task Agent &amp; Session Management</h2>
+
+            <p>Foundation release that established the core agent workflow, parallel task execution, multi-session chat, and the initial tool ecosystem.</p>
+
+            <h3>Agent &amp; tools</h3>
+            <ul>
+                <li>Tool-driven agent loop with two LLM passes (plan + execute), safe diff preview, and build verification after each apply.</li>
+                <li>Initial built-in tool set: <code>read_file</code>, <code>write_file</code>, <code>list_files</code>, <code>search_code</code>, <code>run_terminal</code>, <code>get_diagnostics</code>, and more.</li>
+                <li>Agent trace panel — shows every tool call, argument, result, and duration in the "What I tried" sidebar.</li>
+            </ul>
+
+            <h3>Multi-task agent (Pro)</h3>
+            <ul>
+                <li>Run multiple agent tasks in parallel with a live task queue panel.</li>
+                <li>Each task runs on a pooled thread; the UI stays responsive throughout.</li>
+            </ul>
+
+            <h3>Multi-session chat</h3>
+            <ul>
+                <li>Persistent chat session store — conversations survive IDE restarts.</li>
+                <li>Chat session list panel — switch between multiple simultaneous conversations.</li>
+                <li>Parallel chat sessions in Ask mode.</li>
+            </ul>
+
+            <h3>Context actions</h3>
+            <ul>
+                <li>Right-click editor actions: <b>Ask About Selection</b>, <b>Explain This File</b>, <b>Refactor Selection</b>, <b>Fix Selected Code</b>, <b>Generate Tests</b>, <b>Add Documentation</b>, <b>Edit with Prompt</b>, <b>Explain Failing Build</b>, <b>Explain Current Git Changes</b>.</li>
             </ul>
         """.trimIndent()
     }

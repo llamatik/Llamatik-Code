@@ -100,6 +100,43 @@
 -keep class com.llamatik.teammate.actions.ExplainFailingBuildAction { *; }
 -keep class com.llamatik.teammate.actions.RunDiagnosticsAction { *; }
 -keep class com.llamatik.teammate.actions.ExplainCurrentChangesAction { *; }
+-keep class com.llamatik.teammate.actions.SearchDocsWebAction { *; }
+
+# ── External Knowledge ────────────────────────────────────────────────────────
+# Application services loaded by name from plugin.xml — must not be renamed.
+-keep class com.llamatik.teammate.external.ExternalKnowledgeLimits { *; }
+-keep class com.llamatik.teammate.external.search.ExternalSearchService { *; }
+-keep class com.llamatik.teammate.external.search.SearchQuery { *; }
+-keep class com.llamatik.teammate.external.search.SearchResult { *; }
+-keep class com.llamatik.teammate.external.search.SearchIntent { *; }
+-keep class com.llamatik.teammate.external.reader.ExternalPageReaderService { *; }
+-keep class com.llamatik.teammate.external.reader.PageReadRequest { *; }
+-keep class com.llamatik.teammate.external.reader.PageContent { *; }
+-keep class com.llamatik.teammate.external.reader.ExtractionMode { *; }
+-keep class com.llamatik.teammate.external.citation.Citation { *; }
+-keep class com.llamatik.teammate.external.citation.SourceType { *; }
+-keep class com.llamatik.teammate.external.citation.SourceConfidence { *; }
+# Top-level classifySourceType function compiled to CitationModelsKt
+-keep class com.llamatik.teammate.external.citation.CitationModelsKt { *; }
+-keep class com.llamatik.teammate.external.research.ResearchOrchestratorService { *; }
+-keep class com.llamatik.teammate.external.research.ResearchSourceRouter { *; }
+-keep class com.llamatik.teammate.external.research.ErrorResearchService { *; }
+-keep class com.llamatik.teammate.external.research.ErrorResearchService$ErrorContext { *; }
+-keep class com.llamatik.teammate.external.research.ResearchTask { *; }
+-keep class com.llamatik.teammate.external.research.ResearchPlan { *; }
+-keep class com.llamatik.teammate.external.research.ResearchFinding { *; }
+-keep class com.llamatik.teammate.external.research.ResearchReport { *; }
+-keep class com.llamatik.teammate.external.research.ResearchIntent { *; }
+-keep class com.llamatik.teammate.external.docs.DocsSourceService { *; }
+-keep class com.llamatik.teammate.external.docs.DocsIndexerService { *; }
+-keep class com.llamatik.teammate.external.docs.DocsSource { *; }
+-keep class com.llamatik.teammate.external.docs.DocsIndexEntry { *; }
+-keep class com.llamatik.teammate.external.docs.DocsSourceType { *; }
+-keep class com.llamatik.teammate.external.docs.DocsRefreshMode { *; }
+
+# Settings configurable loaded by name from plugin.xml
+-keep class com.llamatik.teammate.settings.ExternalKnowledgeSettingsConfigurable { *; }
+-keep class com.llamatik.teammate.settings.ExternalKnowledgeSettingsConfigurable$* { *; }
 
 # ── Kotlin enums ─────────────────────────────────────────────────────────────
 # ordinal(), name(), hashCode(), values() are called by compiler-generated
@@ -267,6 +304,34 @@
     protected void paintContentBorder(java.awt.Graphics, int, int);
     protected void installDefaults();
 }
+
+# ── Code Health Monitor ────────────────────────────────────────────────────────
+-keep class com.llamatik.teammate.codehealth.CodeHealthBudgetService { *; }
+-keep class com.llamatik.teammate.codehealth.CodeHealthInsightStore { *; }
+-keep class com.llamatik.teammate.codehealth.BackgroundInsightAnalyzer { *; }
+-keep class com.llamatik.teammate.codehealth.BackgroundInsightAnalyzer$* { *; }
+-keep class com.llamatik.teammate.codehealth.CodeHealthScheduler { *; }
+-keep class com.llamatik.teammate.codehealth.CodeHealthScheduler$* { *; }
+-keep class com.llamatik.teammate.codehealth.RegressionRiskAnalyzer { *; }
+-keep class com.llamatik.teammate.codehealth.RegressionRiskAnalyzer$* { *; }
+-keep class com.llamatik.teammate.codehealth.WatchedAreaService { *; }
+-keep class com.llamatik.teammate.codehealth.CurrentWorkContextService { *; }
+-keep class com.llamatik.teammate.codehealth.BeforeCommitAssistant { *; }
+-keep class com.llamatik.teammate.codehealth.BeforeCommitAssistant$* { *; }
+-keep class com.llamatik.teammate.codehealth.RefactorOpportunityAnalyzer { *; }
+-keep class com.llamatik.teammate.codehealth.RefactorOpportunityAnalyzer$* { *; }
+-keep class com.llamatik.teammate.codehealth.CodeHealthNotificationService { *; }
+-keep class com.llamatik.teammate.settings.CodeHealthSettingsConfigurable { *; }
+-keep class com.llamatik.teammate.settings.CodeHealthSettingsConfigurable$* { *; }
+-keep class com.llamatik.teammate.codehealth.CodeHealthInsight { *; }
+-keep class com.llamatik.teammate.codehealth.WatchedArea { *; }
+-keep class com.llamatik.teammate.codehealth.SessionContext { *; }
+-keep class com.llamatik.teammate.codehealth.CodeHealthBudgets { *; }
+-keepclassmembers enum com.llamatik.teammate.codehealth.AnalysisMode { *; }
+-keepclassmembers enum com.llamatik.teammate.codehealth.RunTrigger { *; }
+-keepclassmembers enum com.llamatik.teammate.codehealth.InsightType { *; }
+-keepclassmembers enum com.llamatik.teammate.codehealth.InsightSeverity { *; }
+-keepclassmembers enum com.llamatik.teammate.codehealth.WatchedAreaType { *; }
 
 # ── JetBrains Marketplace recommendations ────────────────────────────────────
 # https://plugins.jetbrains.com/docs/marketplace/obfuscate-the-plugin.html

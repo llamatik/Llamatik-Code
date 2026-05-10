@@ -35,6 +35,8 @@ data class AgentTraceStep(
         DECISION("decision"),
         VERIFICATION("verify"),
         MCP_CALL("mcp"),
+        RESEARCH("research"),
+        CITATION("citation"),
     }
 
     enum class Status { SUCCESS, WARNING, FAILED, SKIPPED }
