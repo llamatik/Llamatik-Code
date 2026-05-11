@@ -42,6 +42,7 @@ class LlamatikAppSettings : PersistentStateComponent<LlamatikAppSettings.State> 
         var modelStoragePath: String = "",
         var downloadedSkillIds: MutableList<String> = mutableListOf(),
         var activeSkillIds: MutableList<String> = mutableListOf(),
+        var customSkillPaths: MutableList<String> = mutableListOf(),
         /** Path to the companion mmproj GGUF file for multimodal/VLM inference. Empty = not configured. */
         var mmprojPath: String = "",
         var downloadedMmprojs: MutableList<String> = mutableListOf(),
@@ -84,6 +85,8 @@ class LlamatikAppSettings : PersistentStateComponent<LlamatikAppSettings.State> 
     fun data(): State = myState
 
     fun storageDir(): Path = Path.of(System.getProperty("user.home"), ".llamatik", "models")
+
+    fun skillsDir(): Path = Path.of(System.getProperty("user.home"), ".llamatik", "skills")
 
     fun predefinedModels(): List<ModelDescriptor> = listOf(
         ModelDescriptor(

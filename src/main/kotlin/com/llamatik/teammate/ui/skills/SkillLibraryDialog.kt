@@ -1,6 +1,7 @@
 package com.llamatik.teammate.ui.skills
 
 import com.intellij.openapi.components.service
+import com.intellij.openapi.ui.Messages
 import com.intellij.ui.DocumentAdapter
 import com.llamatik.teammate.licensing.LicenseChecker
 import com.intellij.ui.SearchTextField
@@ -60,6 +61,13 @@ class SkillLibraryDialog(
             }
         })
 
+        val addButton = buildButton(Strings.Skills.ADD_SKILL_BUTTON, primary = true) {
+            AddCustomSkillDialog(skillService) { descriptor ->
+                onChanged()
+                rebuildList(searchField.text.trim())
+            }.show()
+        }
+
         val searchRow = JPanel(BorderLayout()).apply {
             background = LlamatikTheme.background
             border = JBUI.Borders.compound(
@@ -67,6 +75,7 @@ class SkillLibraryDialog(
                 JBUI.Borders.empty(8, 12),
             )
             add(searchField, BorderLayout.CENTER)
+            add(addButton, BorderLayout.EAST)
         }
 
         rebuildList("")
@@ -85,7 +94,7 @@ class SkillLibraryDialog(
     private fun rebuildList(query: String) {
         listPanel.removeAll()
 
-        val filtered = skillService.catalog().filter { skill ->
+        val filtered = skillService.allSkills().filter { skill ->
             query.isBlank() ||
                 skill.displayName.contains(query, ignoreCase = true) ||
                 skill.description.contains(query, ignoreCase = true) ||
@@ -131,18 +140,18 @@ class SkillLibraryDialog(
             alignmentX = LEFT_ALIGNMENT
         }
 
-        // ── Header row: name + category badge ──────────────────────────────
+        // ── Header row: name + badges ─────────────────────────────────────────
         val nameLabel = JBLabel("<html><b>${skill.displayName}</b></html>").apply {
             foreground = LlamatikTheme.onSurface
         }
 
         val categoryBadge = buildBadge(skill.category, LlamatikTheme.primary)
-
         val statusBadge = buildStatusBadge(status)
 
         val headerRight = JPanel(FlowLayout(FlowLayout.RIGHT, 6, 0)).apply {
             isOpaque = false
             add(statusBadge)
+            if (skill.isCustom) add(buildBadge(Strings.Skills.CUSTOM_BADGE, LlamatikTheme.onSurfaceVariant))
             add(categoryBadge)
         }
 
@@ -152,14 +161,14 @@ class SkillLibraryDialog(
             add(headerRight, BorderLayout.EAST)
         }
 
-        // ── Description ─────────────────────────────────────────────────────
+        // ── Description ───────────────────────────────────────────────────────
         val descLabel = JBLabel(
             "<html><span style='color:${LlamatikTheme.htmlOnSurfaceVariant};'>${skill.description}</span></html>",
         ).apply {
             border = JBUI.Borders.emptyTop(2)
         }
 
-        // ── Footer row: tags + action buttons ───────────────────────────────
+        // ── Footer row: tags + action buttons ─────────────────────────────────
         val tagsLabel = JBLabel(
             "<html><span style='color:${LlamatikTheme.htmlOnSurfaceVariant};'>" +
                 skill.tags.joinToString("  ") { "#$it" } +
@@ -175,7 +184,6 @@ class SkillLibraryDialog(
             add(actionButtons, BorderLayout.EAST)
         }
 
-        // ── Center content ───────────────────────────────────────────────────
         val centerPanel = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
             isOpaque = false
@@ -185,7 +193,6 @@ class SkillLibraryDialog(
 
         card.add(headerRow, BorderLayout.NORTH)
         card.add(centerPanel, BorderLayout.CENTER)
-        // Fill full width in BoxLayout.Y_AXIS; height unconstrained so card uses preferred size.
         card.maximumSize = Dimension(Int.MAX_VALUE, Short.MAX_VALUE.toInt())
 
         return Pair(card, lockActivate)
@@ -240,6 +247,22 @@ class SkillLibraryDialog(
             }
         } else null
 
+        val deleteButton: JButton? = if (skill.isCustom) {
+            buildButton(Strings.Skills.ACTION_DELETE, primary = false) {
+                val confirmed = Messages.showYesNoDialog(
+                    contentPane,
+                    Strings.Skills.DELETE_SKILL_CONFIRM_MSG,
+                    Strings.Skills.DELETE_SKILL_CONFIRM_TITLE,
+                    Messages.getWarningIcon(),
+                ) == Messages.YES
+                if (confirmed) {
+                    skillService.deleteCustomSkill(skill.id)
+                    onChanged()
+                    rebuildList(searchField.text.trim())
+                }
+            }
+        } else null
+
         val upgradeLabel = JBLabel(Strings.Skills.FREE_PLAN_SKILL_LIMIT).apply {
             foreground = LlamatikTheme.onSurfaceVariant
             font = font.deriveFont(Font.ITALIC, font.size2D - 1f)
@@ -258,6 +281,7 @@ class SkillLibraryDialog(
             isOpaque = false
             val buttonsRow = JPanel(FlowLayout(FlowLayout.RIGHT, 6, 0)).apply {
                 isOpaque = false
+                deleteButton?.let { add(it) }
                 deactivateButton?.let { add(it) }
                 activateButton?.let { add(it) }
             }

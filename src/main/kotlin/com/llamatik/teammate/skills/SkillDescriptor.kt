@@ -12,4 +12,6 @@ data class SkillDescriptor(
     val author: String = "Llamatik",
     val tags: List<String> = emptyList(),
     val sourceUrl: String = "",
+    val isCustom: Boolean = false,
+    val filePath: String = "",
 )

@@ -139,7 +139,7 @@ class DocsIndexerService {
                 entry to score
             }
             .filter { (_, score) -> score > 0 }
-            .sortedByDescending { (_, score) -> score }
+            .sortedWith(Comparator { a, b -> b.second.compareTo(a.second) })
             .map { (entry, _) -> entry }
             .take(10)
     }
