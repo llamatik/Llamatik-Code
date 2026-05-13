@@ -42,6 +42,8 @@ import java.awt.datatransfer.StringSelection
 import java.awt.event.AdjustmentEvent
 import java.awt.event.InputEvent
 import java.awt.event.KeyEvent
+import java.awt.event.MouseAdapter
+import java.awt.event.MouseEvent
 import java.awt.geom.RoundRectangle2D
 import javax.swing.AbstractAction
 import javax.swing.BorderFactory
@@ -52,7 +54,9 @@ import javax.swing.JComponent
 import javax.swing.JLabel
 import javax.swing.JLayeredPane
 import javax.swing.JPanel
+import javax.swing.JMenuItem
 import javax.swing.JPopupMenu
+import javax.swing.text.DefaultCaret
 import javax.swing.JProgressBar
 import javax.swing.KeyStroke
 import javax.swing.ScrollPaneConstants
@@ -230,6 +234,13 @@ class AgentTabPanel(
         foreground = mutedText
         border = JBUI.Borders.empty(0, 0, 8, 0)
         font = font.deriveFont(Font.PLAIN, font.size2D - 1f)
+        caret = object : DefaultCaret() {
+            override fun setSelectionVisible(visible: Boolean) = super.setSelectionVisible(true)
+        }
+        addMouseListener(object : MouseAdapter() {
+            override fun mousePressed(e: MouseEvent) { if (e.isPopupTrigger) showTextContextMenu(e, this@apply) }
+            override fun mouseReleased(e: MouseEvent) { if (e.isPopupTrigger) showTextContextMenu(e, this@apply) }
+        })
     }
     private val thinkContent = JPanel(BorderLayout()).apply {
         isOpaque = false
@@ -275,6 +286,13 @@ class AgentTabPanel(
         foreground = mutedText
         border = JBUI.Borders.empty(0, 0, 8, 0)
         font = font.deriveFont(Font.PLAIN, font.size2D - 1f)
+        caret = object : DefaultCaret() {
+            override fun setSelectionVisible(visible: Boolean) = super.setSelectionVisible(true)
+        }
+        addMouseListener(object : MouseAdapter() {
+            override fun mousePressed(e: MouseEvent) { if (e.isPopupTrigger) showTextContextMenu(e, this@apply) }
+            override fun mouseReleased(e: MouseEvent) { if (e.isPopupTrigger) showTextContextMenu(e, this@apply) }
+        })
     }
     private val traceContent = JPanel(BorderLayout()).apply {
         isOpaque = false
@@ -312,6 +330,13 @@ class AgentTabPanel(
         foreground = LlamatikTheme.onSurface
         border = JBUI.Borders.empty(0)
         font = font.deriveFont(Font.PLAIN, font.size2D + 1f)
+        caret = object : DefaultCaret() {
+            override fun setSelectionVisible(visible: Boolean) = super.setSelectionVisible(true)
+        }
+        addMouseListener(object : MouseAdapter() {
+            override fun mousePressed(e: MouseEvent) { if (e.isPopupTrigger) showTextContextMenu(e, this@apply) }
+            override fun mouseReleased(e: MouseEvent) { if (e.isPopupTrigger) showTextContextMenu(e, this@apply) }
+        })
     }
     private val responseContent = JPanel(BorderLayout()).apply {
         isOpaque = false
@@ -415,6 +440,13 @@ class AgentTabPanel(
         foreground = LlamatikTheme.onSurface
         border = JBUI.Borders.empty(4, 0)
         font = font.deriveFont(Font.PLAIN, font.size2D - 1f)
+        caret = object : DefaultCaret() {
+            override fun setSelectionVisible(visible: Boolean) = super.setSelectionVisible(true)
+        }
+        addMouseListener(object : MouseAdapter() {
+            override fun mousePressed(e: MouseEvent) { if (e.isPopupTrigger) showTextContextMenu(e, this@apply) }
+            override fun mouseReleased(e: MouseEvent) { if (e.isPopupTrigger) showTextContextMenu(e, this@apply) }
+        })
     }
     private val verifyErrorContent = JPanel(BorderLayout()).apply {
         isOpaque = false
@@ -1856,6 +1888,28 @@ class AgentTabPanel(
             font = font.deriveFont(Font.PLAIN, font.size2D - 1f)
             addActionListener { onClick() }
         }
+
+    private fun showTextContextMenu(e: MouseEvent, area: JBTextArea) {
+        val menu = JPopupMenu()
+        val hasSelection = area.selectedText?.isNotEmpty() == true
+
+        menu.add(JMenuItem(Strings.App.COPY).apply {
+            isEnabled = hasSelection
+            addActionListener {
+                CopyPasteManager.getInstance().setContents(StringSelection(area.selectedText ?: ""))
+            }
+        })
+        menu.add(JMenuItem(Strings.App.COPY_ALL).apply {
+            addActionListener {
+                CopyPasteManager.getInstance().setContents(StringSelection(area.text))
+            }
+        })
+        menu.addSeparator()
+        menu.add(JMenuItem(Strings.App.SELECT_ALL).apply {
+            addActionListener { area.selectAll() }
+        })
+        menu.show(e.component, e.x, e.y)
+    }
 
     private fun formatElapsed(ms: Long): String {
         val secs = ms / 1000
