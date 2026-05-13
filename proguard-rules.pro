@@ -36,6 +36,8 @@
 -keep class com.llamatik.teammate.infrastructure.ModelRuntimeTracker { *; }
 -keep class com.llamatik.teammate.infrastructure.HardwareDetector { *; }
 -keep class com.llamatik.teammate.skills.SkillService { *; }
+-keep class com.llamatik.teammate.skills.SkillDescriptor { *; }
+-keep class com.llamatik.teammate.skills.SkillStatus { *; }
 -keep class com.llamatik.teammate.persistence.LlamatikProjectState { *; }
 -keep class com.llamatik.teammate.persistence.ChatSessionStore { *; }
 -keep class com.llamatik.teammate.agent.AgentOrchestrator { *; }
@@ -46,6 +48,8 @@
 -keep class com.llamatik.teammate.ui.onboarding.OnboardingDialog { *; }
 -keep class com.llamatik.teammate.ui.onboarding.OnboardingDialog$* { *; }
 -keep class com.llamatik.teammate.ui.onboarding.OnboardingLauncher { *; }
+-keep class com.llamatik.teammate.ui.skills.AddCustomSkillDialog { *; }
+-keep class com.llamatik.teammate.ui.skills.AddCustomSkillDialog$* { *; }
 -keep class com.llamatik.teammate.ui.models.LoadModelFromFileAction { *; }
 -keep class com.llamatik.teammate.ui.toolwindow.ToolWindowAccess { *; }
 
@@ -221,6 +225,10 @@
 # prevents ProGuard renaming their compare() method.
 -keep class com.llamatik.teammate.ui_repair.UiRepairService$* { *; }
 -keep class com.llamatik.teammate.index.ProjectIndexService$* { *; }
+# sortedWith(Comparator { ... }) in DocsIndexerService and ResearchOrchestratorService
+# generates anonymous Comparator inner classes; compare() must not be renamed.
+-keep class com.llamatik.teammate.external.docs.DocsIndexerService$* { *; }
+-keep class com.llamatik.teammate.external.research.ResearchOrchestratorService$* { *; }
 # Synthetic bridge methods — Kotlin generates ACC_BRIDGE overrides for generic
 # interface methods (PersistentStateComponent.getState/loadState, Comparator.compare).
 # ProGuard's { *; } wildcard does not cover synthetic members; this rule preserves
@@ -229,9 +237,10 @@
     synthetic <methods>;
 }
 #
-# DialogWrapper.createCenterPanel()
+# DialogWrapper.createCenterPanel() / doOKAction() — called by platform via virtual dispatch
 -keepclassmembers class ** {
     javax.swing.JComponent createCenterPanel();
+    void doOKAction();
 }
 # ActionListener.actionPerformed()
 -keepclassmembers class ** {

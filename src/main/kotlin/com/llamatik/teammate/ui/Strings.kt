@@ -373,6 +373,23 @@ object Strings {
         const val SECTION_SETTINGS = "<html><b>Skills</b></html>"
         fun activeCount(n: Int) = if (n == 0) "No skills active" else "$n skill${if (n == 1) "" else "s"} active"
         const val FREE_PLAN_SKILL_LIMIT = "Free plan supports 1 active skill. Upgrade to activate all."
+        const val ADD_SKILL_BUTTON = "+ Add Skill"
+        const val ADD_SKILL_DIALOG_TITLE = "Add Custom Skill"
+        const val ADD_SKILL_TAB_PASTE = "Paste Markdown"
+        const val ADD_SKILL_TAB_URL = "Download from URL"
+        const val ADD_SKILL_NAME_LABEL = "Skill name:"
+        const val ADD_SKILL_NAME_PLACEHOLDER = "e.g. My Kotlin Rules"
+        const val ADD_SKILL_CONTENT_LABEL = "Markdown content:"
+        const val ADD_SKILL_CONTENT_PLACEHOLDER = "Paste your skill markdown here…"
+        const val ADD_SKILL_URL_LABEL = "URL to .md file:"
+        const val ADD_SKILL_URL_PLACEHOLDER = "https://example.com/my-skill.md"
+        const val ADD_SKILL_ERROR_EMPTY_NAME = "Please enter a skill name."
+        const val ADD_SKILL_ERROR_EMPTY_CONTENT = "Please paste markdown content."
+        const val ADD_SKILL_ERROR_EMPTY_URL = "Please enter a URL."
+        const val ADD_SKILL_ERROR_DOWNLOAD = "Failed to download the file. Check the URL and try again."
+        const val DELETE_SKILL_CONFIRM_TITLE = "Delete Custom Skill"
+        const val DELETE_SKILL_CONFIRM_MSG = "Delete this skill and remove its file from disk?"
+        const val CUSTOM_BADGE = "Custom"
     }
 
     // ── Build verification ────────────────────────────────────────────────────

@@ -85,7 +85,7 @@ class ResearchOrchestratorService {
             val pageLimit = ExternalKnowledgeLimits.pagesPerTask(task.isPro)
             val bestResults = allResults
                 .filter { it.url.isNotBlank() && !it.url.startsWith("system") }
-                .sortedByDescending { it.relevanceScore }
+                .sortedWith(Comparator { a, b -> b.relevanceScore.compareTo(a.relevanceScore) })
                 .distinctBy { it.url }
                 .take(pageLimit)
 

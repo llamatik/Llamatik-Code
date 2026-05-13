@@ -23,7 +23,7 @@ plugins {
 }
 
 group = "com.llamatik.teammate"
-version = "1.5.0"
+version = "1.6.0"
 
 repositories {
     mavenCentral()
@@ -49,6 +49,25 @@ intellijPlatform {
             sinceBuild = "252"
         }
         changeNotes = """
+            <h2>1.6.0 — Custom Skills &amp; PyCharm Compatibility</h2>
+
+            <p>This release adds user-defined custom skills and fixes a hard dependency on the Kotlin plugin that prevented the plugin from loading in PyCharm and other non-IntelliJ JetBrains IDEs.</p>
+
+            <h3>Custom Skills</h3>
+            <ul>
+                <li><b>Add your own skills</b> — a new <b>+ Add Skill</b> button in the Skill Library lets you create custom skills in two ways: paste markdown directly, or download a <code>.md</code> file from a URL.</li>
+                <li>Custom skills are saved to <code>~/.llamatik/skills/</code> and persist across IDE restarts.</li>
+                <li>The first H1 heading in the markdown becomes the skill name; the first paragraph becomes the description; the full file content is injected into the agent system prompt when the skill is active.</li>
+                <li>Custom skills appear in the Skill Library with a <b>Custom</b> badge and a <b>Delete</b> button that removes both the entry and the file from disk after confirmation.</li>
+                <li>Custom skills support search, activate/deactivate, and the same Free/Pro activation limits as built-in skills.</li>
+                <li>Stale skill paths (files deleted outside the IDE) are pruned automatically on next load.</li>
+            </ul>
+
+            <h3>IDE Compatibility Fix</h3>
+            <ul>
+                <li>Fixed a bug that caused the plugin to fail to load in <b>PyCharm</b>, <b>WebStorm</b>, and other JetBrains IDEs that do not bundle the Kotlin plugin. The Kotlin dependency is now correctly declared as optional with a separate config file (<code>llamatik-kotlin.xml</code>), so Kotlin-specific extensions are only registered when the Kotlin plugin is available.</li>
+            </ul>
+
             <h2>1.5.0 — Code Health Monitor &amp; External Knowledge</h2>
 
             <p>This release ships two major feature areas: a proactive <b>Code Health Monitor</b> that analyses your codebase in the background and surfaces actionable insights, and <b>Context-Aware External Knowledge</b> that gives the agent the ability to research the web, official docs, and GitHub issues in real time.</p>
