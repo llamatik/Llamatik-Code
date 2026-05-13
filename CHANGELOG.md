@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.6.1] - 2026-05-13
+
+### Fixed
+- **File read through `build/` directories** — explicitly referenced files (e.g. via `@path`) inside `build/`, `generated/`, or other ignored directories were incorrectly blocked with "Access denied". Explicit `read_file` calls now bypass the directory ignore list while still blocking secret files (`.env`, `*.keystore`, etc.).
+- **Absolute path references** — using `@` to attach a file with an absolute path (e.g. `/Users/.../build/...`) caused a silent "File not found" error because the path was resolved relative to the project root. Absolute paths are now routed through `LocalFileSystem` directly.
+- **Text selection lost on focus change** — selecting text in a chat or agent message bubble and then clicking elsewhere caused the selection highlight to disappear, making copy/paste unreliable. The selection is now kept visible regardless of focus.
+
+### Added
+- **Right-click context menu on message bubbles** — right-clicking any message in the Chat panel shows a popup with _Copy_ (selection), _Copy All_, and _Select All_. Works on both user and assistant messages.
+- **Right-click context menu in Agent panel** — same context menu is available on the response text, reasoning (think) block, agent trace, and build error areas.
+
 ## [1.0.0] - 2026-04-20
 
 ### Added

@@ -14,6 +14,8 @@ object Strings {
         const val RETRY = "Retry"
         const val BACK = "Back"
         const val COPY = "Copy"
+        const val COPY_ALL = "Copy All"
+        const val SELECT_ALL = "Select All"
         const val CLOSE = "Close"
         const val VIEW_DIFF = "View Diff"
         const val APPLY_EDIT = "Apply Edit"

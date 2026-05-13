@@ -16,10 +16,15 @@ import java.awt.Graphics
 import java.awt.Graphics2D
 import java.awt.RenderingHints
 import java.awt.datatransfer.StringSelection
+import java.awt.event.MouseAdapter
+import java.awt.event.MouseEvent
+import javax.swing.text.DefaultCaret
 import javax.swing.BoxLayout
 import javax.swing.JButton
 import javax.swing.JLabel
+import javax.swing.JMenuItem
 import javax.swing.JPanel
+import javax.swing.JPopupMenu
 
 class ChatMessagePanel(
     private val project: Project,
@@ -44,6 +49,14 @@ class ChatMessagePanel(
         foreground = LlamatikTheme.onSurface
         border = JBUI.Borders.empty(10, 12, 4, 12)
         font = font.deriveFont(font.size2D + 1f)
+        // Keep selection highlight visible even when focus moves to the composer.
+        caret = object : DefaultCaret() {
+            override fun setSelectionVisible(visible: Boolean) = super.setSelectionVisible(true)
+        }
+        addMouseListener(object : MouseAdapter() {
+            override fun mousePressed(e: MouseEvent) { if (e.isPopupTrigger) showContextMenu(e) }
+            override fun mouseReleased(e: MouseEvent) { if (e.isPopupTrigger) showContextMenu(e) }
+        })
     }
 
     private val editActions = JPanel(FlowLayout(FlowLayout.RIGHT, 4, 0)).apply {
@@ -173,6 +186,32 @@ class ChatMessagePanel(
         editActions.add(actionButton(Strings.App.APPLY_EDIT) { onApply() })
         editActions.revalidate()
         editActions.repaint()
+    }
+
+    private fun showContextMenu(e: MouseEvent) {
+        val menu = JPopupMenu()
+        val hasSelection = textArea.selectedText?.isNotEmpty() == true
+
+        val copyItem = JMenuItem(Strings.App.COPY).apply {
+            isEnabled = hasSelection
+            addActionListener {
+                CopyPasteManager.getInstance().setContents(StringSelection(textArea.selectedText ?: ""))
+            }
+        }
+        val copyAllItem = JMenuItem(Strings.App.COPY_ALL).apply {
+            addActionListener {
+                CopyPasteManager.getInstance().setContents(StringSelection(textArea.text))
+            }
+        }
+        val selectAllItem = JMenuItem(Strings.App.SELECT_ALL).apply {
+            addActionListener { textArea.selectAll() }
+        }
+
+        menu.add(copyItem)
+        menu.add(copyAllItem)
+        menu.addSeparator()
+        menu.add(selectAllItem)
+        menu.show(e.component, e.x, e.y)
     }
 
     private fun iconButton(icon: javax.swing.Icon, tooltip: String, onClick: () -> Unit): JButton =

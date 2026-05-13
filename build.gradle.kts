@@ -23,7 +23,7 @@ plugins {
 }
 
 group = "com.llamatik.teammate"
-version = "1.6.0"
+version = "1.6.1"
 
 repositories {
     mavenCentral()
@@ -49,6 +49,21 @@ intellijPlatform {
             sinceBuild = "252"
         }
         changeNotes = """
+            <h2>1.6.1 — File Access Fixes &amp; Copy/Paste Improvements</h2>
+
+            <h3>Bug Fixes</h3>
+            <ul>
+                <li><b>Files inside <code>build/</code> directories now readable</b> — explicitly referencing a file (e.g. via <code>@path</code>) inside <code>build/</code>, <code>generated/</code>, or other ignored directories no longer returns "Access denied". The ignore list now applies only to file listing, not to explicit reads.</li>
+                <li><b>Absolute path references resolved correctly</b> — using <code>@</code> to attach a file with an absolute path caused a silent "File not found" error. Absolute paths are now handled directly via the local filesystem.</li>
+                <li><b>Text selection no longer lost on focus change</b> — selecting text in a chat or agent message bubble and then clicking elsewhere no longer clears the selection highlight, making copy/paste reliable.</li>
+            </ul>
+
+            <h3>Improvements</h3>
+            <ul>
+                <li><b>Right-click context menu on message bubbles</b> — right-clicking any message in the Chat panel shows a popup with <i>Copy</i> (selection), <i>Copy All</i>, and <i>Select All</i>. Works on both user and assistant messages.</li>
+                <li><b>Right-click context menu in Agent panel</b> — same context menu is available on the response text, reasoning block, agent trace, and build error areas.</li>
+            </ul>
+
             <h2>1.6.0 — Custom Skills &amp; PyCharm Compatibility</h2>
 
             <p>This release adds user-defined custom skills and fixes a hard dependency on the Kotlin plugin that prevented the plugin from loading in PyCharm and other non-IntelliJ JetBrains IDEs.</p>
