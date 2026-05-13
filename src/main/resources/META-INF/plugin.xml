@@ -18,7 +18,7 @@
     -->
     <product-descriptor code="PLLAMATIKCODE"
                         release-date="20260513"
-                        release-version="17"
+                        release-version="16"
                         optional="true"/>
 
     <description><![CDATA[
