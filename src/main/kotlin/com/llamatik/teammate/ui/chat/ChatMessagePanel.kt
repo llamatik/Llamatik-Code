@@ -16,6 +16,7 @@ import java.awt.Graphics
 import java.awt.Graphics2D
 import java.awt.RenderingHints
 import java.awt.datatransfer.StringSelection
+import javax.swing.text.DefaultCaret
 import javax.swing.BoxLayout
 import javax.swing.JButton
 import javax.swing.JLabel
@@ -44,6 +45,10 @@ class ChatMessagePanel(
         foreground = LlamatikTheme.onSurface
         border = JBUI.Borders.empty(10, 12, 4, 12)
         font = font.deriveFont(font.size2D + 1f)
+        // Keep selection highlight visible even when focus moves to the composer.
+        caret = object : DefaultCaret() {
+            override fun setSelectionVisible(visible: Boolean) = super.setSelectionVisible(true)
+        }
     }
 
     private val editActions = JPanel(FlowLayout(FlowLayout.RIGHT, 4, 0)).apply {

@@ -4,6 +4,7 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.guessProjectDir
+import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.VfsUtilCore
 import com.llamatik.teammate.persistence.ChatSessionStore
@@ -105,7 +106,7 @@ class ProjectContextService(private val project: Project) {
 
     fun readFile(path: String): String {
         val file = resolveRequiredFile(path)
-        require(isSafe(file)) { "Access denied for file: $path" }
+        require(isSafeToRead(file)) { "Access denied for file: $path" }
         val maxBytes = service<LlamatikAppSettings>().data().maxFileSizeKb * 1024
         require(file.length <= maxBytes) { "File too large for context: $path" }
         return String(file.contentsToByteArray(), StandardCharsets.UTF_8)
@@ -140,6 +141,10 @@ class ProjectContextService(private val project: Project) {
     fun resolveFile(path: String?): VirtualFile? {
         val base = project.guessProjectDir() ?: return null
         if (path.isNullOrBlank() || path == ".") return base
+        // Absolute paths (e.g. from @-file references) must go through LocalFileSystem.
+        if (path.startsWith("/") || path.length > 1 && path[1] == ':') {
+            return LocalFileSystem.getInstance().findFileByPath(path)
+        }
         return base.findFileByRelativePath(path)
     }
 
@@ -163,6 +168,14 @@ class ProjectContextService(private val project: Project) {
     private fun isSafe(file: VirtualFile): Boolean {
         if (file.isDirectory) return !isIgnored(file)
         if (isIgnored(file)) return false
+        val relative = relativePath(file)
+        return defaultDeniedGlobs.none { globMatches(relative, it) }
+    }
+
+    // Like isSafe but does NOT block ignored directories — used for explicit read_file calls
+    // so the model can read generated/build files when the user explicitly requests them.
+    private fun isSafeToRead(file: VirtualFile): Boolean {
+        if (file.isDirectory) return false
         val relative = relativePath(file)
         return defaultDeniedGlobs.none { globMatches(relative, it) }
     }
