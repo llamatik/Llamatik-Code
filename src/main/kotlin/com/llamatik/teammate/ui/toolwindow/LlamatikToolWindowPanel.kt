@@ -408,7 +408,7 @@ class LlamatikToolWindowPanel(
 
     private fun startNewTask() {
         val licensed = runCatching { com.llamatik.teammate.licensing.LicenseChecker.isLicensed() == true }.getOrElse { false }
-        if (!licensed && taskHistory.any { it.status == TaskStatus.RUNNING }) {
+        if (!licensed && taskHistory.isNotEmpty()) {
             trialService.requestLicense(Strings.TaskQueue.PRO_REQUIRED_MSG)
             return
         }
@@ -530,7 +530,7 @@ class LlamatikToolWindowPanel(
         }
 
         val licensed = runCatching { com.llamatik.teammate.licensing.LicenseChecker.isLicensed() == true }.getOrElse { false }
-        if (isAgent && !licensed && taskHistory.any { it.status == TaskStatus.RUNNING }) {
+        if (isAgent && !licensed && selectedTaskId == null && taskHistory.isNotEmpty()) {
             Messages.showInfoMessage(
                 project,
                 Strings.TaskQueue.PRO_REQUIRED_MSG,
