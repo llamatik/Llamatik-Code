@@ -39,10 +39,10 @@ class InferenceSettingsPanel(private val onUpgrade: (() -> Unit)? = null) {
     val flashAttentionCheck = JBCheckBox(Strings.Inference.FLASH_ATTENTION)
 
     private val freeControls: List<java.awt.Component> get() = listOf(
-        temperatureSpinner, maxTokensSpinner, numThreadsSpinner, useMmapCheck,
+        temperatureSpinner, maxTokensSpinner, numThreadsSpinner, useMmapCheck, batchSizeSpinner, flashAttentionCheck,
     )
     private val proControls: List<java.awt.Component> get() = listOf(
-        contextSizeSpinner, batchSizeSpinner, flashAttentionCheck,
+        contextSizeSpinner,
     )
 
     val panel: JPanel by lazy {
@@ -135,10 +135,10 @@ class InferenceSettingsPanel(private val onUpgrade: (() -> Unit)? = null) {
     fun applyTo(s: LlamatikAppSettings.State) {
         s.temperature    = (temperatureSpinner.value as Number).toDouble()
         s.maxTokens      = (maxTokensSpinner.value as Number).toInt()
+        s.batchSize      = (batchSizeSpinner.value as Number).toInt()
+        s.flashAttention = flashAttentionCheck.isSelected
         if (licensed) {
             s.contextSize    = (contextSizeSpinner.value as Number).toInt()
-            s.batchSize      = (batchSizeSpinner.value as Number).toInt()
-            s.flashAttention = flashAttentionCheck.isSelected
         }
         s.numThreads     = (numThreadsSpinner.value as Number).toInt()
         s.useMmap        = useMmapCheck.isSelected
@@ -149,11 +149,9 @@ class InferenceSettingsPanel(private val onUpgrade: (() -> Unit)? = null) {
         (maxTokensSpinner.value as Number).toInt()      != s.maxTokens   ||
         (numThreadsSpinner.value as Number).toInt()     != s.numThreads  ||
         useMmapCheck.isSelected                         != s.useMmap     ||
-        (licensed && (
-            (contextSizeSpinner.value as Number).toInt()  != s.contextSize ||
-            (batchSizeSpinner.value as Number).toInt()    != s.batchSize   ||
-            flashAttentionCheck.isSelected                != s.flashAttention
-        ))
+        (batchSizeSpinner.value as Number).toInt()      != s.batchSize   ||
+        flashAttentionCheck.isSelected                  != s.flashAttention ||
+        (licensed && (contextSizeSpinner.value as Number).toInt() != s.contextSize)
 
     private fun resetToDefaults() {
         val d = LlamatikAppSettings.State()
@@ -161,10 +159,10 @@ class InferenceSettingsPanel(private val onUpgrade: (() -> Unit)? = null) {
         maxTokensSpinner.value      = minOf(d.maxTokens, maxTokensMax)
         numThreadsSpinner.value     = d.numThreads
         useMmapCheck.isSelected     = d.useMmap
+        batchSizeSpinner.value         = d.batchSize
+        flashAttentionCheck.isSelected = d.flashAttention
         if (licensed) {
-            contextSizeSpinner.value    = d.contextSize
-            batchSizeSpinner.value      = d.batchSize
-            flashAttentionCheck.isSelected = d.flashAttention
+            contextSizeSpinner.value = d.contextSize
         }
     }
 }

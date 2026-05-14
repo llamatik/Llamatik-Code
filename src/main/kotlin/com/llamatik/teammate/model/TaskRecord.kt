@@ -2,10 +2,16 @@ package com.llamatik.teammate.model
 
 enum class TaskStatus { RUNNING, DONE, HALTED, ERROR }
 
+data class AgentExchange(
+    val prompt: String,
+    val responseText: String,
+)
+
 data class AgentTaskSnapshot(
     val prompt: String,
     val responseText: String,
     val status: TaskStatus,
+    val pastExchanges: List<AgentExchange> = emptyList(),
 )
 
 data class TaskRecord(

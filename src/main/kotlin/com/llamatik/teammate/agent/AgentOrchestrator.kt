@@ -63,6 +63,18 @@ class AgentOrchestrator(private val project: Project) {
             )
         }
         val settings = service<LlamatikAppSettings>().data()
+
+        // The backend rejects prompts whose rendered length exceeds batchSize * 3 chars.
+        // Allocate the majority of that budget to file content; reserve the rest for the
+        // system prompt (~1 500 chars) + user instruction + history + response headroom.
+        // contextSize may be larger than batchSize, so take the minimum.
+        val effectiveBatchChars = minOf(settings.contextSize, settings.batchSize) * 3
+        val systemAndOverheadChars = 2_000  // system prompt + instruction + history
+        val fileBudgetChars = (effectiveBatchChars - systemAndOverheadChars).coerceAtLeast(4_000)
+        val fileAttachmentMax = fileBudgetChars
+        val fileContextMax    = fileBudgetChars
+        val toolResultContentMax = fileBudgetChars
+
         val cancelled = AtomicBoolean(false)
         // Tracks whichever backend call is currently active so cancel() always reaches the live handle.
         val activeHandle = AtomicReference<GenerationHandle>()
@@ -137,32 +149,49 @@ class AgentOrchestrator(private val project: Project) {
         // Resolve @{path} file references typed in the composer.
         // cleanInstruction = user text with @{…} tokens replaced by bare filenames.
         // fileContext = fenced file contents to append into the system prompt.
-        val (afterAtRefs, atFileContext) = resolveFileReferences(userPrompt)
+        val (afterAtRefs, atFileContext) = resolveFileReferences(userPrompt, fileAttachmentMax)
         // Rewrite vague "current file" / "this file" phrases to the actual filename so small
         // models don't search_code for the instruction text instead of reading the file.
-        val (cleanInstruction, currentFileContext) = resolveCurrentFileReference(afterAtRefs)
+        val (cleanInstruction, currentFileContext) = resolveCurrentFileReference(afterAtRefs, fileAttachmentMax)
         val fileContext = listOf(atFileContext, currentFileContext).filter { it.isNotBlank() }.joinToString("\n\n")
 
-        // Build the single system prompt that the renderer will place at the top.
-        // File context is appended here so it is always visible to the model and never
-        // competes with the user instruction for the USER message character budget.
+        val contextHint = buildContextHint()
+
+        // If the user didn't attach a file this turn and didn't reference "this file", inherit the
+        // last file context from session history so follow-up prompts ("add more tests", "fix that
+        // error") keep working on the same file without requiring the user to re-attach it.
+        // File context is stored inside the persisted user turn (after a sentinel line) so it can
+        // be recovered by subsequent turns without the user having to re-attach anything.
+        val inheritedFileContext = if (fileContext.isBlank()) {
+            session.messages.asReversed()
+                .firstOrNull { it.role == ChatRole.USER && it.content.contains(HISTORY_FILE_SENTINEL) }
+                ?.let { msg ->
+                    val start = msg.content.indexOf(HISTORY_FILE_SENTINEL) + HISTORY_FILE_SENTINEL.length
+                    msg.content.substring(start).trimStart('\n').take(fileContextMax)
+                }.orEmpty()
+        } else ""
+
+        val effectiveFileContext = fileContext.ifBlank { inheritedFileContext }
+
         val systemPrompt = buildString {
             append(buildSystemPrompt())
-            if (fileContext.isNotBlank()) {
+            if (effectiveFileContext.isNotBlank()) {
                 appendLine()
                 appendLine()
                 appendLine("=== Attached files ===")
-                append(fileContext.take(FILE_CONTEXT_MAX_CHARS))
+                append(effectiveFileContext.take(fileContextMax))
                 appendLine()
                 appendLine("=== End attached files ===")
             }
         }
-        val contextHint = buildContextHint()
-        val recentMessages = fitMessagesInBudget(session.messages, HISTORY_BUDGET_CHARS)
 
-        // messages list: no leading SYSTEM turn — the renderer takes systemPrompt separately.
-        // Context hint is merged into the user turn so Gemma's chat template (which drops
-        // ChatRole.SYSTEM messages) still sees it.
+        // Snapshot history before appending the current turn so recentMessages only contains
+        // prior exchanges and we can append userTurnMessage once without duplication.
+        val recentMessages = fitMessagesInBudget(session.messages, AGENT_HISTORY_BUDGET_CHARS)
+
+        // The user turn stored in session.messages embeds the file context after a sentinel so
+        // subsequent turns can inherit it. The model never sees this embedded context via history —
+        // it comes through the system prompt — but it is there for our own context propagation.
         val userContent = buildString {
             append(cleanInstruction.take(USER_INSTRUCTION_MAX_CHARS))
             if (contextHint.isNotBlank()) {
@@ -170,10 +199,26 @@ class AgentOrchestrator(private val project: Project) {
                 appendLine()
                 append(contextHint)
             }
+            if (effectiveFileContext.isNotBlank()) {
+                appendLine()
+                append(HISTORY_FILE_SENTINEL)
+                appendLine()
+                append(effectiveFileContext.take(fileContextMax))
+            }
         }
+        val userTurnMessage = ChatMessage(role = ChatRole.USER, content = userContent)
+        session.messages += userTurnMessage
+
+        // recentMessages was captured before appending userTurnMessage, so appending it here
+        // gives exactly [prior history..., current user turn] with no duplication.
+        // Strip the sentinel + file payload from userTurnMessage before sending to the model —
+        // the file content is already in the system prompt; sending it again would waste budget.
+        val userTurnForModel = if (userTurnMessage.content.contains(HISTORY_FILE_SENTINEL)) {
+            userTurnMessage.copy(content = userTurnMessage.content.substringBefore(HISTORY_FILE_SENTINEL).trimEnd())
+        } else userTurnMessage
         val toolAugmentedMessages = mutableListOf<ChatMessage>()
         toolAugmentedMessages += recentMessages
-        toolAugmentedMessages += ChatMessage(role = ChatRole.USER, content = userContent)
+        toolAugmentedMessages += userTurnForModel
 
         val config = BackendConfig(
             modelIdOrPath = settings.modelPath.ifBlank { settings.modelIdentifier },
@@ -265,10 +310,9 @@ class AgentOrchestrator(private val project: Project) {
                                 }
                             }
                             if (!agentTrace.isEmpty()) onTrace?.invoke(agentTrace)
-                            onFinished(
-                                ChatMessage(role = ChatRole.ASSISTANT, content = clean, editProposalId = proposals.firstOrNull()?.id),
-                                proposals,
-                            )
+                            val assistantMessage = ChatMessage(role = ChatRole.ASSISTANT, content = clean, editProposalId = proposals.firstOrNull()?.id)
+                            session.messages += assistantMessage
+                            onFinished(assistantMessage, proposals)
                             return
                         }
 
@@ -315,17 +359,17 @@ class AgentOrchestrator(private val project: Project) {
                         val wroteFiles = toolCalls.any { it.name in EDIT_TOOL_NAMES }
                         if (wroteFiles && roundProposals.isNotEmpty()) {
                             if (!agentTrace.isEmpty()) onTrace?.invoke(agentTrace)
-                            onFinished(
-                                ChatMessage(role = ChatRole.ASSISTANT, content = "", editProposalId = allProposals.firstOrNull()?.id),
-                                allProposals,
-                            )
+                            val fileList = allProposals.joinToString(", ") { it.filePath }
+                            val assistantMessage = ChatMessage(role = ChatRole.ASSISTANT, content = "Applied changes to: $fileList", editProposalId = allProposals.firstOrNull()?.id)
+                            session.messages += assistantMessage
+                            onFinished(assistantMessage, allProposals)
                             return
                         }
 
                         if (!cancelled.get()) onToken("${STATUS_PREFIX}Thinking…")
 
                         val toolResultsSummary = toolMessages.joinToString("\n") { msg ->
-                            "<result tool=\"${msg.toolName}\">\n${msg.content.take(TOOL_RESULT_CONTENT_MAX_CHARS)}\n</result>"
+                            "<result tool=\"${msg.toolName}\">\n${msg.content.take(toolResultContentMax)}\n</result>"
                         }
                         val allReadOnly = toolCalls.all { it.name in READ_ONLY_TOOL_NAMES }
                         val nowHasReadContent = hasReadContent || toolCalls.any { it.name in READ_ONLY_TOOL_NAMES }
@@ -337,19 +381,19 @@ class AgentOrchestrator(private val project: Project) {
                             validProposalsProduced = roundProposals.isNotEmpty(),
                             allToolsWereReadOnly = allReadOnly,
                             rejectionReasons = proposalResult.rejectionReasons,
-                            hasFileContext = fileContext.isNotBlank(),
+                            hasFileContext = effectiveFileContext.isNotBlank(),
                         ))
                         // Each round sends only the current tool results as the user turn — NOT the full
                         // accumulated history. This keeps every round's prompt small and prevents the
                         // "Prompt too long" batch-size error when rounds accumulate.
                         // Re-attach the source file context so the model always has the full source
-                        // when writing (the read_file tool result gets truncated at TOOL_RESULT_CONTENT_MAX_CHARS).
+                        // when writing (the read_file tool result gets truncated at toolResultContentMax).
                         val nextUserContent = buildString {
                             appendLine("Task: ${cleanInstruction.take(TASK_EXCERPT_MAX_CHARS)}")
-                            if (fileContext.isNotBlank()) {
+                            if (effectiveFileContext.isNotBlank()) {
                                 appendLine()
                                 appendLine("=== Source file ===")
-                                appendLine(fileContext.take(FILE_CONTEXT_MAX_CHARS))
+                                appendLine(effectiveFileContext.take(fileContextMax))
                                 appendLine("=== End source file ===")
                             }
                             appendLine()
@@ -466,9 +510,15 @@ class AgentOrchestrator(private val project: Project) {
         var used = 0
         val result = mutableListOf<ChatMessage>()
         for (msg in recent.asReversed()) {
-            val len = msg.content.length
+            // Strip the embedded file context sentinel before sending to the model — the file
+            // content is already in the current turn's system prompt and must not be duplicated
+            // through history turns (it would bloat the context significantly).
+            val stripped = if (msg.role == ChatRole.USER && msg.content.contains(HISTORY_FILE_SENTINEL)) {
+                msg.copy(content = msg.content.substringBefore(HISTORY_FILE_SENTINEL).trimEnd())
+            } else msg
+            val len = stripped.content.length
             if (used + len > budgetChars && result.isNotEmpty()) break
-            result.add(0, msg)
+            result.add(0, stripped)
             used += len
         }
         return result
@@ -518,7 +568,7 @@ class AgentOrchestrator(private val project: Project) {
      *
      * Keeping them separate ensures the user instruction is never truncated by the char budget.
      */
-    private fun resolveFileReferences(prompt: String): Pair<String, String> {
+    private fun resolveFileReferences(prompt: String, attachmentMax: Int = FILE_ATTACHMENT_MAX_CHARS): Pair<String, String> {
         val tokenRegex = Regex("""@\{([^}]+)}""")
         val matches = tokenRegex.findAll(prompt).toList()
         if (matches.isEmpty()) return Pair(prompt, "")
@@ -530,7 +580,7 @@ class AgentOrchestrator(private val project: Project) {
             if (!content.isNullOrBlank()) {
                 attachments.appendLine("$FILE_SECTION_PREFIX$path")
                 attachments.appendLine("```")
-                attachments.appendLine(content.take(FILE_ATTACHMENT_MAX_CHARS))
+                attachments.appendLine(content.take(attachmentMax))
                 attachments.appendLine("```")
                 attachments.appendLine()
             }
@@ -554,7 +604,7 @@ class AgentOrchestrator(private val project: Project) {
      * Returns (rewritten prompt, fenced file content string).
      * If no current file is open, returns the original prompt unchanged with empty context.
      */
-    private fun resolveCurrentFileReference(prompt: String): Pair<String, String> {
+    private fun resolveCurrentFileReference(prompt: String, attachmentMax: Int = FILE_ATTACHMENT_MAX_CHARS): Pair<String, String> {
         val currentFilePath = contextService.getCurrentFile() ?: return Pair(prompt, "")
         val fileName = currentFilePath.substringAfterLast('/')
 
@@ -573,7 +623,7 @@ class AgentOrchestrator(private val project: Project) {
         val context = buildString {
             appendLine("$FILE_SECTION_PREFIX$currentFilePath")
             appendLine("```")
-            appendLine(content.take(FILE_ATTACHMENT_MAX_CHARS))
+            appendLine(content.take(attachmentMax))
             appendLine("```")
         }.trimEnd()
 
@@ -1052,6 +1102,9 @@ class AgentOrchestrator(private val project: Project) {
         private const val NEW_CONTENT_OPEN = "<new_content>"
         private const val NEW_CONTENT_CLOSE = "</new_content>"
         private const val FILE_SECTION_PREFIX = "### File: "
+        // Sentinel appended to stored user-turn messages to carry file context across turns.
+        // Everything after this line is file content and must be stripped before sending to the model.
+        private const val HISTORY_FILE_SENTINEL = "\n\n[attached_file_context]\n"
 
         // XML streaming tag constants
         private const val TAG_EDIT_PROPOSAL = "<edit_proposal"
@@ -1078,7 +1131,8 @@ class AgentOrchestrator(private val project: Project) {
         private const val MAX_HISTORY_MESSAGES = 20
 
         // Character budgets for prompt sections
-        private const val HISTORY_BUDGET_CHARS = 1200
+        private const val HISTORY_BUDGET_CHARS = 1200        // chat mode
+        private const val AGENT_HISTORY_BUDGET_CHARS = 4000  // agent mode — larger to retain file context across turns
         private const val USER_INSTRUCTION_MAX_CHARS = 800
         private const val OPEN_FILE_CONTENT_MAX_CHARS = 800
         private const val SELECTED_TEXT_MAX_CHARS = 300
