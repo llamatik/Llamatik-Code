@@ -379,7 +379,7 @@ class LlamatikToolWindowPanel(
                 if (existingGenId != null) {
                     // Restore from accumulated buffers so no content is lost
                     val answeredSoFar = taskAnswerBuffers[record.id]?.toString() ?: snap?.responseText ?: ""
-                    agentTabPanel.restoreRunningTask(record.prompt, answeredSoFar, existingGenId)
+                    agentTabPanel.restoreRunningTask(record.prompt, answeredSoFar, existingGenId, snap?.pastExchanges ?: emptyList())
                     agentTabPanel.setGenerating(true)
                 }
             }
@@ -408,7 +408,7 @@ class LlamatikToolWindowPanel(
 
     private fun startNewTask() {
         val licensed = runCatching { com.llamatik.teammate.licensing.LicenseChecker.isLicensed() == true }.getOrElse { false }
-        if (!licensed && taskHistory.any { it.status == TaskStatus.RUNNING }) {
+        if (!licensed && taskHistory.isNotEmpty()) {
             trialService.requestLicense(Strings.TaskQueue.PRO_REQUIRED_MSG)
             return
         }
@@ -441,6 +441,21 @@ class LlamatikToolWindowPanel(
         taskThinkBuffers[taskId] = StringBuilder()
         taskHistory.removeAll { it.id == taskId }
         taskHistory.add(TaskRecord(id = taskId, prompt = prompt, status = TaskStatus.RUNNING, startedAtMs = System.currentTimeMillis()))
+        taskQueuePanel.setTasks(taskHistory.toList())
+        taskQueuePanel.setSelectedTask(taskId)
+    }
+
+    private fun resumeTask(taskId: String, latestPrompt: String) {
+        taskAnswerBuffers[taskId] = StringBuilder()
+        taskThinkBuffers[taskId] = StringBuilder()
+        val idx = taskHistory.indexOfFirst { it.id == taskId }
+        if (idx >= 0) {
+            taskHistory[idx] = taskHistory[idx].copy(
+                prompt = latestPrompt,
+                status = TaskStatus.RUNNING,
+                finishedAtMs = null,
+            )
+        }
         taskQueuePanel.setTasks(taskHistory.toList())
         taskQueuePanel.setSelectedTask(taskId)
     }
@@ -515,7 +530,7 @@ class LlamatikToolWindowPanel(
         }
 
         val licensed = runCatching { com.llamatik.teammate.licensing.LicenseChecker.isLicensed() == true }.getOrElse { false }
-        if (isAgent && !licensed && taskHistory.any { it.status == TaskStatus.RUNNING }) {
+        if (isAgent && !licensed && selectedTaskId == null && taskHistory.isNotEmpty()) {
             Messages.showInfoMessage(
                 project,
                 Strings.TaskQueue.PRO_REQUIRED_MSG,
@@ -529,11 +544,20 @@ class LlamatikToolWindowPanel(
         setGenerating(true, isAgent = isAgent)
 
         if (isAgent) {
-            val taskId = UUID.randomUUID().toString()
-            // Register and select the new task
-            registerTaskStart(taskId, submittedPrompt)
-            selectedTaskId = taskId
-            taskQueuePanel.setSelectedTask(taskId)
+            // Reuse the current task for follow-up prompts; only create a new task when
+            // selectedTaskId is null (user explicitly clicked "New task").
+            val existingTaskId = selectedTaskId
+            val taskId = if (existingTaskId != null) {
+                agentTabPanel.freezeCurrentTurn()
+                resumeTask(existingTaskId, submittedPrompt)
+                existingTaskId
+            } else {
+                val newId = UUID.randomUUID().toString()
+                registerTaskStart(newId, submittedPrompt)
+                selectedTaskId = newId
+                taskQueuePanel.setSelectedTask(newId)
+                newId
+            }
 
             val genId = agentTabPanel.startResponse(submittedPrompt)
             activeGenId = genId

@@ -12,6 +12,7 @@ import com.intellij.openapi.components.service
 import com.llamatik.teammate.infrastructure.ModelDownloadManager
 import com.llamatik.teammate.licensing.LicenseChecker
 import com.llamatik.teammate.llamatik.MultimodalBackendService
+import com.llamatik.teammate.model.AgentExchange
 import com.llamatik.teammate.model.AgentPhase
 import com.llamatik.teammate.model.AgentTaskSnapshot
 import com.llamatik.teammate.model.AgentTaskState
@@ -61,6 +62,7 @@ import javax.swing.JProgressBar
 import javax.swing.KeyStroke
 import javax.swing.ScrollPaneConstants
 import javax.swing.SwingUtilities
+import javax.swing.JSeparator
 import javax.swing.Timer
 
 private const val CARD_WELCOME = "WELCOME"
@@ -145,6 +147,14 @@ class AgentTabPanel(
         border = JBUI.Borders.empty(12, 16, 12, 16)
         // BoxLayout requires this so children stretch to full width
         isOpaque = true
+    }
+    // Container for frozen past exchanges — sits as the first child of conversationPanel.
+    // Adding frozen blocks here never disturbs the live-widget indices that follow it.
+    private val frozenHistoryPanel = JPanel().apply {
+        layout = BoxLayout(this, BoxLayout.Y_AXIS)
+        isOpaque = false
+        alignmentX = LEFT_ALIGNMENT
+        maximumSize = Dimension(Int.MAX_VALUE, Int.MAX_VALUE)
     }
     // Wrapper anchors conversationPanel to NORTH so it never collapses mid-scroll
     private val conversationWrapper = JPanel(BorderLayout()).apply {
@@ -540,6 +550,10 @@ class AgentTabPanel(
     // doesn't clobber CARD_RESPONSE when called after generation finishes.
     private var currentCard = CARD_WELCOME
 
+    // Completed prompt/response pairs frozen into the conversation scroll area.
+    // Each new submission appends to this list; clearing the task resets it.
+    private val pastExchanges = mutableListOf<AgentExchange>()
+
     private fun showCard(name: String) {
         currentCard = name
         cardLayout.show(cardPanel, name)
@@ -688,6 +702,8 @@ class AgentTabPanel(
         backButton.addActionListener { showCard(CARD_WELCOME) }
         clearButton.addActionListener {
             elapsedTimer.stop()
+            pastExchanges.clear()
+            clearLiveWidgets()
             onClear()
             showCard(CARD_WELCOME)
         }
@@ -764,9 +780,14 @@ class AgentTabPanel(
         prompt = promptLabel.text,
         responseText = responseTextArea.text,
         status = TaskStatus.RUNNING,
+        pastExchanges = pastExchanges.toList(),
     )
 
     fun restoreSnapshot(snapshot: AgentTaskSnapshot) {
+        pastExchanges.clear()
+        pastExchanges.addAll(snapshot.pastExchanges)
+        rebuildFrozenHistory()
+
         promptLabel.text = snapshot.prompt
         promptBubble.isVisible = snapshot.prompt.isNotEmpty()
         responseTextArea.text = snapshot.responseText
@@ -788,6 +809,8 @@ class AgentTabPanel(
 
     fun showWelcomeForNewTask() {
         elapsedTimer.stop()
+        pastExchanges.clear()
+        clearLiveWidgets()
         showCard(CARD_WELCOME)
     }
 
@@ -802,12 +825,16 @@ class AgentTabPanel(
         currentGenerationId = genId
     }
 
-    fun restoreRunningTask(prompt: String, accumulatedText: String, genId: Int) {
+    fun restoreRunningTask(prompt: String, accumulatedText: String, genId: Int, exchanges: List<AgentExchange> = emptyList()) {
         currentGenerationId = genId
         streamBuffer.clear()
         streamingBlocked = false
         thinkBuffer.clear()
         thinkingBlocked = false
+
+        pastExchanges.clear()
+        pastExchanges.addAll(exchanges)
+        rebuildFrozenHistory()
 
         promptLabel.text = "<html>${prompt.replace("\n", "<br>")}</html>"
         promptBubble.isVisible = true
@@ -842,6 +869,138 @@ class AgentTabPanel(
         loadingSpinner.isVisible = false
         spinnerPanel.isVisible = false
         statusPill.isVisible = false
+    }
+
+    /**
+     * Freezes the current live exchange (prompt + response text) into a static block
+     * at the top of conversationPanel, then resets the live response widgets.
+     * Called before starting a new prompt within the same task conversation.
+     */
+    fun freezeCurrentTurn() {
+        val prompt = promptLabel.text
+            .removePrefix("<html>").removeSuffix("</html>")
+            .replace("<br>", "\n")
+        val response = responseTextArea.text
+        if (prompt.isBlank() && response.isBlank()) return
+
+        pastExchanges += AgentExchange(prompt = prompt, responseText = response)
+
+        val frozenBlock = buildFrozenExchangeBlock(prompt, response)
+        frozenBlock.alignmentX = LEFT_ALIGNMENT
+        frozenHistoryPanel.add(frozenBlock)
+        frozenHistoryPanel.add(vStrut(16))
+
+        frozenHistoryPanel.revalidate()
+        frozenHistoryPanel.repaint()
+        conversationPanel.revalidate()
+        conversationPanel.repaint()
+    }
+
+    private fun rebuildFrozenHistory() {
+        frozenHistoryPanel.removeAll()
+        for (exchange in pastExchanges) {
+            val block = buildFrozenExchangeBlock(exchange.prompt, exchange.responseText)
+            block.alignmentX = LEFT_ALIGNMENT
+            frozenHistoryPanel.add(block)
+            frozenHistoryPanel.add(vStrut(16))
+        }
+        frozenHistoryPanel.revalidate()
+        frozenHistoryPanel.repaint()
+        conversationPanel.revalidate()
+        conversationPanel.repaint()
+    }
+
+    private fun clearLiveWidgets() {
+        frozenHistoryPanel.removeAll()
+        promptLabel.text = ""
+        promptBubble.isVisible = false
+        responseTextArea.text = ""
+        thinkTextArea.text = ""
+        thinkContent.isVisible = false
+        thinkingSection.isVisible = false
+        toolCallsPanel.removeAll()
+        toolCallsPanel.isVisible = false
+        traceTextArea.text = ""
+        traceContent.isVisible = false
+        traceSection.isVisible = false
+        responseActionsPanel.removeAll()
+        responseActionsPanel.isVisible = false
+        proposalsPanel.removeAll()
+        proposalsPanel.isVisible = false
+        verificationPanel.isVisible = false
+        statusPill.isVisible = false
+        streamBuffer.clear()
+        thinkBuffer.clear()
+        conversationPanel.revalidate()
+        conversationPanel.repaint()
+    }
+
+    private fun buildFrozenExchangeBlock(prompt: String, response: String): JPanel {
+        val userLabel = JBLabel("<html>${prompt.replace("\n", "<br>")}</html>").apply {
+            foreground = LlamatikTheme.onSurface
+            font = font.deriveFont(Font.BOLD, font.size2D)
+            border = JBUI.Borders.empty(0, 0, 6, 0)
+            alignmentX = LEFT_ALIGNMENT
+        }
+        val frozenAvatar = object : JPanel() {
+            private val initials: String get() {
+                val name = System.getProperty("user.name", "U")
+                return name.take(1).uppercase()
+            }
+            override fun paintComponent(g: Graphics) {
+                val g2 = g.create() as Graphics2D
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+                g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON)
+                g2.color = LlamatikTheme.primary
+                g2.fillOval(0, 0, width, height)
+                g2.color = LlamatikTheme.onPrimary
+                val f = font.deriveFont(Font.BOLD, width * 0.42f)
+                g2.font = f
+                val fm = g2.fontMetrics
+                val x = (width - fm.stringWidth(initials)) / 2
+                val y = (height - fm.height) / 2 + fm.ascent
+                g2.drawString(initials, x, y)
+                g2.dispose()
+            }
+        }.apply {
+            isOpaque = false
+            preferredSize = Dimension(28, 28)
+            minimumSize = Dimension(28, 28)
+            maximumSize = Dimension(28, 28)
+        }
+        val frozenPromptBubble = JPanel(BorderLayout(10, 0)).apply {
+            isOpaque = false
+            maximumSize = Dimension(Int.MAX_VALUE, Int.MAX_VALUE)
+            add(JPanel(BorderLayout()).apply {
+                isOpaque = false
+                border = JBUI.Borders.emptyTop(2)
+                add(frozenAvatar, BorderLayout.NORTH)
+            }, BorderLayout.WEST)
+            add(userLabel, BorderLayout.CENTER)
+        }
+        val frozenResponse = JBTextArea(response).apply {
+            isEditable = false
+            isOpaque = false
+            lineWrap = true
+            wrapStyleWord = true
+            background = LlamatikTheme.surface
+            foreground = LlamatikTheme.onSurface
+            border = JBUI.Borders.empty(6, 0, 0, 0)
+            font = font.deriveFont(Font.PLAIN, font.size2D + 1f)
+        }
+        val separator = JSeparator().apply {
+            maximumSize = Dimension(Int.MAX_VALUE, 1)
+            foreground = LlamatikTheme.outline
+        }
+        return JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            isOpaque = false
+            maximumSize = Dimension(Int.MAX_VALUE, Int.MAX_VALUE)
+            add(frozenPromptBubble)
+            if (response.isNotBlank()) add(frozenResponse)
+            add(javax.swing.Box.createVerticalStrut(12))
+            add(separator)
+        }
     }
 
     fun setComposerEnabled(enabled: Boolean) {
@@ -913,7 +1072,8 @@ class AgentTabPanel(
         aggressiveItem.isSelected = isAggressiveMode()
         updateRunOptionsButton()
 
-        conversationScroll.viewport.viewPosition = java.awt.Point(0, 0)
+        // Don't reset the scroll position — scroll to bottom so the new prompt is visible
+        scrollToBottom()
 
         showCard(CARD_RESPONSE)
         cardPanel.revalidate()
@@ -1480,6 +1640,8 @@ class AgentTabPanel(
         //                      response text → proposals → verification
         // (inline content only — no controls)
         conversationPanel.removeAll()
+        frozenHistoryPanel.removeAll()
+        conversationPanel.add(frozenHistoryPanel)
         fun addItem(c: javax.swing.JComponent, bottomGap: Int = 8) {
             c.alignmentX = LEFT_ALIGNMENT
             conversationPanel.add(c)

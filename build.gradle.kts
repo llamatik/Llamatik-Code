@@ -23,7 +23,7 @@ plugins {
 }
 
 group = "com.llamatik.teammate"
-version = "1.6.1"
+version = "1.6.2"
 
 repositories {
     mavenCentral()
@@ -49,6 +49,30 @@ intellijPlatform {
             sinceBuild = "252"
         }
         changeNotes = """
+            <h2>1.6.2 — Conversation Context &amp; Inference Settings</h2>
+
+            <h3>Agent Conversation History</h3>
+            <ul>
+                <li><b>Threaded agent conversations</b> — follow-up prompts in the Agent tab now continue in the same conversation instead of starting a new task. Each completed exchange is frozen into the scroll area above the live response, giving a chat-like history view.</li>
+                <li><b>New task only on explicit request</b> — a new task is created only when clicking the <b>+</b> button in the task queue. Submitting a follow-up prompt reuses the current task.</li>
+                <li><b>File context persists across turns</b> — if you attach a file in your first prompt, follow-up prompts ("add more tests", "fix that error") automatically inherit the same file context without you needing to re-attach it.</li>
+                <li><b>Conversation history sent to model</b> — prior exchanges are included in subsequent agent requests so the model knows which file was being worked on and what was already done.</li>
+                <li><b>Meaningful assistant summaries</b> — when the agent writes files, the completed turn records which files were changed, so history is informative for future turns.</li>
+            </ul>
+
+            <h3>File Size &amp; Context Budget</h3>
+            <ul>
+                <li><b>File content limits scale with model settings</b> — the amount of a file sent to the model is now derived from your configured Batch Size, so larger batch sizes unlock larger file reads automatically. Previously files were hard-capped at ~2 000 characters (~50 lines) regardless of settings.</li>
+                <li><b>read_file tool results also scale</b> — the agent's <code>read_file</code> tool result budget follows the same dynamic limit, so the model sees the full file content when reading files via tools.</li>
+            </ul>
+
+            <h3>Inference Settings</h3>
+            <ul>
+                <li><b>Batch Size now available on Free tier</b> — the Batch Size setting is no longer restricted to Pro. Free users can now increase it to fix "Prompt too long" errors when working with larger files.</li>
+                <li><b>Flash Attention now available on Free tier</b> — Flash Attention is no longer restricted to Pro. Free users with compatible hardware can enable it to reduce VRAM usage.</li>
+                <li>Context Size remains the only Pro-exclusive inference setting.</li>
+            </ul>
+
             <h2>1.6.1 — File Access Fixes &amp; Copy/Paste Improvements</h2>
 
             <h3>Bug Fixes</h3>

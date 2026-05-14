@@ -293,7 +293,7 @@ object Strings {
         const val FLASH_ATTENTION      = "Enable Flash Attention"
         const val FLASH_ATTENTION_TOOLTIP = "Use Flash Attention kernel — reduces VRAM usage on supported hardware"
         const val RESET_DEFAULTS       = "Reset to defaults"
-        const val UPGRADE_REQUIRED     = "Context size, batch size and Flash Attention require a Pro licence. Upgrade to unlock advanced settings."
+        const val UPGRADE_REQUIRED     = "Context size requires a Pro licence. Upgrade to unlock advanced settings."
         const val UPGRADE_BUTTON       = "Upgrade"
     }
 
