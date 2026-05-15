@@ -23,7 +23,7 @@ plugins {
 }
 
 group = "com.llamatik.teammate"
-version = "1.6.2"
+version = "1.6.3"
 
 repositories {
     mavenCentral()
@@ -49,6 +49,13 @@ intellijPlatform {
             sinceBuild = "252"
         }
         changeNotes = """
+            <h2>1.6.3 — Prompt Budget Fix</h2>
+
+            <h3>Bug Fixes</h3>
+            <ul>
+                <li><b>"Prompt too long" error with Batch Size 8192</b> — reviewing or attaching large files (e.g. via <code>@{path}</code>)</li>
+            </ul>
+
             <h2>1.6.2 — Conversation Context &amp; Inference Settings</h2>
 
             <h3>Agent Conversation History</h3>
