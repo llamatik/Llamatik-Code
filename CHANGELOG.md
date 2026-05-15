@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.6.3] - 2026-05-15
+
+### Fixed
+- **"Prompt too long" error with Batch Size 8192** — reviewing or attaching large files (e.g. via `@{path}`) produced a _Prompt too long for current Batch Size (8192 tokens)_ error even though the batch size was large enough. The file content budget was calculated by reserving only 2 000 characters for non-file overhead, when the actual overhead (system prompt, conversation history, user instruction, and wrappers) is ~9 000 characters. The budget now accounts for all fixed prompt sections so file content is correctly capped at the space that actually remains within the batch limit.
+
 ## [1.6.1] - 2026-05-13
 
 ### Fixed

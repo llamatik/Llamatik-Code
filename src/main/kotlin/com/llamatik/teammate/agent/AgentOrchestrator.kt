@@ -65,12 +65,16 @@ class AgentOrchestrator(private val project: Project) {
         val settings = service<LlamatikAppSettings>().data()
 
         // The backend rejects prompts whose rendered length exceeds batchSize * 3 chars.
-        // Allocate the majority of that budget to file content; reserve the rest for the
-        // system prompt (~1 500 chars) + user instruction + history + response headroom.
+        // Reserve space for every non-file section that always appears in the rendered prompt:
+        //   SYSTEM_PROMPT_BASE_CHARS  — identity, tools, format rules, skills, rules, memory
+        //   AGENT_HISTORY_BUDGET_CHARS — prior turn history
+        //   USER_INSTRUCTION_MAX_CHARS — current user turn text
+        //   1_200                      — context hint + file-section wrappers + safety margin
+        // The remainder is available for attached file content.
         // contextSize may be larger than batchSize, so take the minimum.
         val effectiveBatchChars = minOf(settings.contextSize, settings.batchSize) * 3
-        val systemAndOverheadChars = 2_000  // system prompt + instruction + history
-        val fileBudgetChars = (effectiveBatchChars - systemAndOverheadChars).coerceAtLeast(4_000)
+        val nonFileOverheadChars = SYSTEM_PROMPT_BASE_CHARS + AGENT_HISTORY_BUDGET_CHARS + USER_INSTRUCTION_MAX_CHARS + 1_200
+        val fileBudgetChars = (effectiveBatchChars - nonFileOverheadChars).coerceAtLeast(0)
         val fileAttachmentMax = fileBudgetChars
         val fileContextMax    = fileBudgetChars
         val toolResultContentMax = fileBudgetChars
@@ -1134,6 +1138,10 @@ class AgentOrchestrator(private val project: Project) {
         private const val HISTORY_BUDGET_CHARS = 1200        // chat mode
         private const val AGENT_HISTORY_BUDGET_CHARS = 4000  // agent mode — larger to retain file context across turns
         private const val USER_INSTRUCTION_MAX_CHARS = 800
+        // Conservative upper bound for the static system prompt (identity + tools + format rules +
+        // skills + codebase rules + memory).  Used in the file-budget calculation to ensure the
+        // total rendered prompt stays within batchSize * 3 chars.
+        private const val SYSTEM_PROMPT_BASE_CHARS = 3_000
         private const val OPEN_FILE_CONTENT_MAX_CHARS = 800
         private const val SELECTED_TEXT_MAX_CHARS = 300
         private const val PINNED_INSTRUCTIONS_MAX_CHARS = 200
