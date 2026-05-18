@@ -49,6 +49,16 @@ intellijPlatform {
             sinceBuild = "252"
         }
         changeNotes = """
+            <h2>1.6.4 — File Reading Fix</h2>
+
+            <h3>Bug Fixes</h3>
+            <ul>
+                <li><b>Large files were silently truncated when read by the agent</b> — when the agent used <code>read_file</code>, the result was cut off mid-file (e.g. stopping at line 299 of a 571-line file) before being forwarded to the model. Two separate causes were found and fixed:</li>
+                <li><b>Batch Size was incorrectly used to cap the file budget</b> — Batch Size is a KV-cache inference parameter, not the model context window. Using <code>min(contextSize, batchSize)</code> meant that the default Batch Size of 2 048 could collapse the entire file budget to zero. The budget is now derived from Context Size only, which is the true model context window. With the default Context Size of 16 384, the agent can now read files up to ~1 150 lines (35 chars/line) without truncation.</li>
+                <li><b>A hardcoded 4 000-character cap on tool results was overriding the per-file limit</b> — even when the per-result budget was large enough, a second hard cap on the total tool-results block cut off the content. Both caps now scale dynamically with Context Size.</li>
+                <li><b>Floor guarantee added</b> — even with a very small Context Size, <code>read_file</code> results are guaranteed at least 8 000 characters (~570 lines), preventing total content loss regardless of settings.</li>
+            </ul>
+
             <h2>1.6.3 — Prompt Budget Fix</h2>
 
             <h3>Bug Fixes</h3>
