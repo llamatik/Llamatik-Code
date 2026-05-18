@@ -77,7 +77,7 @@ class AgentOrchestrator(private val project: Project) {
         val fileBudgetChars = (effectiveBatchChars - nonFileOverheadChars).coerceAtLeast(0)
         val fileAttachmentMax = fileBudgetChars
         val fileContextMax    = fileBudgetChars
-        val toolResultContentMax = fileBudgetChars
+        val toolResultContentMax = fileBudgetChars.coerceAtLeast(TOOL_RESULT_CONTENT_MAX_CHARS)
 
         val cancelled = AtomicBoolean(false)
         // Tracks whichever backend call is currently active so cancel() always reaches the live handle.
@@ -1153,7 +1153,7 @@ class AgentOrchestrator(private val project: Project) {
         private const val SECOND_PASS_TASK_MAX_CHARS = 300
         private const val SKILLS_PROMPT_MAX_CHARS = 400
         private const val TOOL_RESULTS_MAX_CHARS = 4000
-        private const val TOOL_RESULT_CONTENT_MAX_CHARS = 2000
+        private const val TOOL_RESULT_CONTENT_MAX_CHARS = 8000
         private const val TOOL_ARG_DISPLAY_MAX_CHARS = 60
 
         // Sentinel prefixes used to route special tokens through the onToken callback
