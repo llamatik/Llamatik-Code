@@ -64,20 +64,24 @@ class AgentOrchestrator(private val project: Project) {
         }
         val settings = service<LlamatikAppSettings>().data()
 
-        // The backend rejects prompts whose rendered length exceeds batchSize * 3 chars.
-        // Reserve space for every non-file section that always appears in the rendered prompt:
+        // Budget for file content sent to the model.
+        // contextSize is the actual model context window in tokens; multiply by 3 for a char estimate
+        // (UTF-8 source code is ~3 chars per token on average).
+        // batchSize is a KV-cache batching parameter, not the context limit — it must NOT constrain
+        // how much file content we send, so it is excluded from this calculation.
         //   SYSTEM_PROMPT_BASE_CHARS  — identity, tools, format rules, skills, rules, memory
         //   AGENT_HISTORY_BUDGET_CHARS — prior turn history
         //   USER_INSTRUCTION_MAX_CHARS — current user turn text
         //   1_200                      — context hint + file-section wrappers + safety margin
-        // The remainder is available for attached file content.
-        // contextSize may be larger than batchSize, so take the minimum.
-        val effectiveBatchChars = minOf(settings.contextSize, settings.batchSize) * 3
+        val effectiveContextChars = settings.contextSize * 3
         val nonFileOverheadChars = SYSTEM_PROMPT_BASE_CHARS + AGENT_HISTORY_BUDGET_CHARS + USER_INSTRUCTION_MAX_CHARS + 1_200
-        val fileBudgetChars = (effectiveBatchChars - nonFileOverheadChars).coerceAtLeast(0)
-        val fileAttachmentMax = fileBudgetChars
-        val fileContextMax    = fileBudgetChars
+        val fileBudgetChars = (effectiveContextChars - nonFileOverheadChars).coerceAtLeast(0)
+        val fileAttachmentMax    = fileBudgetChars
+        val fileContextMax       = fileBudgetChars
+        // Per-result cap: the full file budget, floored so small contextSize settings never zero out.
+        // Total-summary cap: 2× budget lets two concurrent read_file results both fit in full.
         val toolResultContentMax = fileBudgetChars.coerceAtLeast(TOOL_RESULT_CONTENT_MAX_CHARS)
+        val toolResultsMax       = (fileBudgetChars * 2).coerceAtLeast(TOOL_RESULTS_MAX_CHARS)
 
         val cancelled = AtomicBoolean(false)
         // Tracks whichever backend call is currently active so cancel() always reaches the live handle.
@@ -402,7 +406,7 @@ class AgentOrchestrator(private val project: Project) {
                             }
                             appendLine()
                             appendLine("Tool results:")
-                            appendLine(toolResultsSummary.take(TOOL_RESULTS_MAX_CHARS))
+                            appendLine(toolResultsSummary.take(toolResultsMax))
                             appendLine()
                             append(directive)
                         }
@@ -1152,8 +1156,8 @@ class AgentOrchestrator(private val project: Project) {
         private const val VISION_DESCRIPTION_MAX_CHARS = 1200
         private const val SECOND_PASS_TASK_MAX_CHARS = 300
         private const val SKILLS_PROMPT_MAX_CHARS = 400
-        private const val TOOL_RESULTS_MAX_CHARS = 4000
-        private const val TOOL_RESULT_CONTENT_MAX_CHARS = 8000
+        private const val TOOL_RESULTS_MAX_CHARS = 8000          // floor; scales with contextSize at runtime
+        private const val TOOL_RESULT_CONTENT_MAX_CHARS = 8000   // floor; scales with contextSize at runtime
         private const val TOOL_ARG_DISPLAY_MAX_CHARS = 60
 
         // Sentinel prefixes used to route special tokens through the onToken callback
