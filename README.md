@@ -47,6 +47,7 @@ Reports are written to `build/llamatik-benchmark/` (`results.json`, `results.md`
 | `kotlin-add-function-006` | Add missing clamp function | `search_filenames`, `read_file`, `write_file` |
 | `kotlin-list-files-007` | Discover and fix unimplemented method | `list_files`, `replace_in_file` |
 | `kotlin-git-aware-008` | Complete uncommitted work using git tools | `git_status`, `git_diff`, `read_file`, `write_file` |
+| `real-keval-parser-009` | **[Real project]** Keval: parser silently ignores unbalanced `)` | `list_files`, `read_file`, `replace_in_file` |
 
 See [docs/benchmarking.md](docs/benchmarking.md) for the full guide including how to add tasks, report format, and pass/fail criteria.
 
