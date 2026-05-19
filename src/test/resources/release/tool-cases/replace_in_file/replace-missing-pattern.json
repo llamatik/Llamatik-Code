@@ -1,0 +1,10 @@
+{
+  "id": "replace-missing-pattern",
+  "tool": "replace_in_file",
+  "arguments": { "path": "src/main/kotlin/Calculator.kt", "old": "DOES_NOT_EXIST_12345", "new": "replacement" },
+  "fixtureProject": "kotlin-gradle-simple",
+  "expectSuccess": false,
+  "expectContentContains": [],
+  "expectContentNotContains": [],
+  "description": "returns an error when the old pattern is not found in the file"
+}

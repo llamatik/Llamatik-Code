@@ -1,0 +1,10 @@
+{
+  "id": "write-new-content",
+  "tool": "write_file",
+  "arguments": { "path": "src/main/kotlin/Calculator.kt", "content": "// replaced" },
+  "fixtureProject": "kotlin-gradle-simple",
+  "expectSuccess": true,
+  "expectContentContains": ["Prepared file replacement"],
+  "expectContentNotContains": [],
+  "description": "overwrites Calculator.kt with new content"
+}

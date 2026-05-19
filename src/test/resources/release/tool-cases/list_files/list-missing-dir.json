@@ -1,0 +1,10 @@
+{
+  "id": "list-missing-dir",
+  "tool": "list_files",
+  "arguments": { "path": "nonexistent-dir" },
+  "fixtureProject": "kotlin-gradle-simple",
+  "expectSuccess": false,
+  "expectContentContains": [],
+  "expectContentNotContains": [],
+  "description": "returns an error for a directory that does not exist"
+}

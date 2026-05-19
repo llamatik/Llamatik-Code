@@ -1,0 +1,10 @@
+{
+  "id": "search-by-name",
+  "tool": "search_filenames",
+  "arguments": { "query": "Calculator" },
+  "fixtureProject": "kotlin-gradle-simple",
+  "expectSuccess": true,
+  "expectContentContains": ["Calculator.kt"],
+  "expectContentNotContains": [],
+  "description": "finds files whose name contains Calculator"
+}

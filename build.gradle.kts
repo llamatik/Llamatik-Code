@@ -303,6 +303,108 @@ val runLlamatikBenchmark by tasks.registering(Test::class) {
     }
 }
 
+// ── Release validation tasks ──────────────────────────────────────────────────
+// ./gradlew releaseCheck                       (full gate: tool contracts + agent workflows + verifier)
+// ./gradlew toolContractTest                   (tool contract cases only)
+// ./gradlew agentWorkflowTest                  (headless agent workflow tests only)
+// ./gradlew releaseValidationReport            (generate build/release-validation/results.{json,md})
+// ./gradlew releaseCheck -PincludeModelSmoke=true   (also runs optional model smoke tests)
+
+val toolContractTest by tasks.registering(Test::class) {
+    description = "Runs tool contract cases from src/test/resources/release/tool-cases/."
+    group = "verification"
+
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+
+    include("**/ToolInventoryTest*", "**/ToolContractTest*")
+
+    reports {
+        junitXml.outputLocation.set(layout.buildDirectory.dir("release-validation/junit/tool-contract"))
+        html.outputLocation.set(layout.buildDirectory.dir("release-validation/html/tool-contract"))
+    }
+}
+
+val agentWorkflowTest by tasks.registering(Test::class) {
+    description = "Runs headless agent workflow integration tests."
+    group = "verification"
+
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+
+    include("**/AgentWorkflowTest*")
+
+    reports {
+        junitXml.outputLocation.set(layout.buildDirectory.dir("release-validation/junit/agent-workflow"))
+        html.outputLocation.set(layout.buildDirectory.dir("release-validation/html/agent-workflow"))
+    }
+}
+
+val releaseValidationReport by tasks.registering {
+    description = "Aggregates release validation results into build/release-validation/results.{json,md}."
+    group = "verification"
+    dependsOn(toolContractTest, agentWorkflowTest)
+
+    doLast {
+        val reportDir = layout.buildDirectory.dir("release-validation").get().asFile
+        reportDir.mkdirs()
+
+        // Collect JUnit XML results from both tasks and summarize them.
+        val junitRoot = File(reportDir, "junit")
+        val summary = StringBuilder()
+        summary.appendLine("# Release Validation Summary")
+        summary.appendLine()
+        summary.appendLine("Generated: ${System.currentTimeMillis()}")
+        summary.appendLine()
+        summary.appendLine("| Task | Tests | Failures | Skipped |")
+        summary.appendLine("|---|---|---|---|")
+
+        val jsonTasks = StringBuilder()
+        listOf("tool-contract", "agent-workflow").forEach { taskName ->
+            val xmlDir = File(junitRoot, taskName)
+            var tests = 0; var failures = 0; var skipped = 0
+            xmlDir.walkTopDown().filter { it.extension == "xml" }.forEach { xml ->
+                val content = xml.readText()
+                tests    += Regex("""tests="(\d+)"""").find(content)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+                failures += Regex("""failures="(\d+)"""").find(content)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+                skipped  += Regex("""skipped="(\d+)"""").find(content)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+            }
+            val status = if (failures == 0) "PASS" else "FAIL"
+            summary.appendLine("| $taskName | $tests | $failures | $skipped |")
+            jsonTasks.appendLine("""    {"task":"$taskName","passed":${failures==0},"total":$tests,"failed":$failures,"skipped":$skipped},""")
+        }
+
+        val pluginVersion = project.version.toString()
+        File(reportDir, "results.md").writeText(summary.toString())
+        File(reportDir, "results.json").writeText(
+            "{\n  \"pluginVersion\": \"$pluginVersion\",\n  \"timestamp\": \"${System.currentTimeMillis()}\",\n  \"tasks\": [\n${jsonTasks.toString().trimEnd().trimEnd(',')}\n  ]\n}\n"
+        )
+        logger.lifecycle("Release validation report written to ${reportDir.absolutePath}")
+    }
+}
+
+val releaseCheck by tasks.registering {
+    description = "Full pre-Marketplace release gate: tool contracts, agent workflows, and plugin verifier."
+    group = "verification"
+    dependsOn(toolContractTest, agentWorkflowTest, releaseValidationReport)
+
+    val includeModelSmoke = providers.gradleProperty("includeModelSmoke").orNull == "true"
+    if (includeModelSmoke) {
+        // Placeholder: model smoke task would be added here when implemented.
+        logger.lifecycle("Model smoke tests not yet implemented; skipping.")
+    }
+
+    // Wire plugin verifier if it's available (IntelliJ Platform plugin 2.x exposes it).
+    val verifierTaskName = "verifyPlugin"
+    if (tasks.names.contains(verifierTaskName)) {
+        dependsOn(verifierTaskName)
+    }
+
+    doLast {
+        logger.lifecycle("releaseCheck completed. See build/release-validation/ for the full report.")
+    }
+}
+
 // ── Debug config generation ───────────────────────────────────────────────────
 // Pass -PforceLicensed=true on the Gradle command line (or in a run config) to
 // enable Pro features locally. The generated file must have FORCE_LICENSED=false

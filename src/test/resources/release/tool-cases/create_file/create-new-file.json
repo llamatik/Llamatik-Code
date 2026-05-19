@@ -1,0 +1,10 @@
+{
+  "id": "create-new-file",
+  "tool": "create_file",
+  "arguments": { "path": "src/main/kotlin/NewUtil.kt", "content": "// new util" },
+  "fixtureProject": "kotlin-gradle-simple",
+  "expectSuccess": true,
+  "expectContentContains": ["Prepared new file"],
+  "expectContentNotContains": [],
+  "description": "creates a new file that did not previously exist"
+}
