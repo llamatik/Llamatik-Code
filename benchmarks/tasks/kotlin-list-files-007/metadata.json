@@ -1,0 +1,8 @@
+{
+  "id": "kotlin-list-files-007",
+  "name": "Discover and fix unimplemented method",
+  "language": "kotlin",
+  "timeoutMinutes": 15,
+  "maxSteps": 30,
+  "expectedFiles": ["src/main/kotlin/Circle.kt"]
+}

@@ -1,0 +1,1 @@
+git init && git config user.email "bench@llamatik" && git config user.name "Benchmark" && git add src && git commit -m "initial: add Counter stub and tests" && echo 'class Counter(private var count: Int = 0) {' > src/main/kotlin/Counter.kt && echo '    fun increment() { count++ }' >> src/main/kotlin/Counter.kt && echo '}' >> src/main/kotlin/Counter.kt

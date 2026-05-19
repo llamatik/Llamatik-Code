@@ -1,0 +1,8 @@
+{
+  "id": "kotlin-git-aware-008",
+  "name": "Complete uncommitted work using git tools",
+  "language": "kotlin",
+  "timeoutMinutes": 15,
+  "maxSteps": 30,
+  "expectedFiles": ["src/main/kotlin/Counter.kt"]
+}

@@ -182,7 +182,7 @@ class HeadlessAgent(
         val lines = mutableListOf<String>()
         base.walkTopDown().maxDepth(3).forEach { f ->
             if (f == base) return@forEach
-            if (IGNORED.any { f.path.contains("/$it/") || f.path.endsWith("/$it") }) return@forEach
+            if (f.relativeTo(projectRoot).path.split(File.separatorChar).any { it in IGNORED }) return@forEach
             lines += f.relativeTo(projectRoot).path + if (f.isDirectory) "/" else ""
         }
         return lines.sorted().take(200).joinToString("\n")
@@ -197,7 +197,7 @@ class HeadlessAgent(
         val hits = mutableListOf<String>()
         projectRoot.walkTopDown().forEach { f ->
             if (!f.isFile) return@forEach
-            if (IGNORED.any { f.path.contains("/$it/") }) return@forEach
+            if (f.relativeTo(projectRoot).path.split(File.separatorChar).any { it in IGNORED }) return@forEach
             if (f.readText().contains(query, ignoreCase = true)) hits += f.relativeTo(projectRoot).path
         }
         return hits.take(30).joinToString("\n").ifEmpty { "No matches for: $query" }
@@ -207,6 +207,7 @@ class HeadlessAgent(
         val hits = mutableListOf<String>()
         projectRoot.walkTopDown().forEach { f ->
             if (!f.isFile) return@forEach
+            if (f.relativeTo(projectRoot).path.split(File.separatorChar).any { it in IGNORED }) return@forEach
             if (f.name.contains(query, ignoreCase = true)) hits += f.relativeTo(projectRoot).path
         }
         return hits.take(30).joinToString("\n").ifEmpty { "No matches for: $query" }

@@ -275,7 +275,9 @@ kotlin {
 }
 
 // ── Benchmark task ───────────────────────────────────────────────────────────
-// ./gradlew runLlamatikBenchmark
+// ./gradlew runLlamatikBenchmark                             (skips — no model)
+// ./gradlew runLlamatikBenchmark -PbenchmarkModel=scripted   (scripted end-to-end smoke test)
+// ./gradlew runLlamatikBenchmark -PbenchmarkModel=/path/to/model.gguf
 // ./gradlew runLlamatikBenchmark -PbenchmarkTask=kotlin-simple-fix-001
 // ./gradlew runLlamatikBenchmark -PbenchmarkDir=benchmarks/tasks
 val runLlamatikBenchmark by tasks.registering(Test::class) {
@@ -287,10 +289,12 @@ val runLlamatikBenchmark by tasks.registering(Test::class) {
 
     include("**/LlamatikBenchmarkTest*")
 
-    val taskFilter = providers.gradleProperty("benchmarkTask").orNull
-    val taskDir    = providers.gradleProperty("benchmarkDir").orNull ?: "benchmarks/tasks"
+    val taskFilter  = providers.gradleProperty("benchmarkTask").orNull
+    val taskDir     = providers.gradleProperty("benchmarkDir").orNull ?: "benchmarks/tasks"
+    val modelPath   = providers.gradleProperty("benchmarkModel").orNull
 
     if (taskFilter != null) systemProperty("benchmarkTask", taskFilter)
+    if (modelPath  != null) systemProperty("benchmarkModel", modelPath)
     systemProperty("benchmarkDir", layout.projectDirectory.dir(taskDir).asFile.absolutePath)
 
     reports {

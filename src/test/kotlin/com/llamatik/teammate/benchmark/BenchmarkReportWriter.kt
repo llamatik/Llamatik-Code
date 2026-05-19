@@ -3,6 +3,7 @@ package com.llamatik.teammate.benchmark
 import java.io.File
 import java.time.Instant
 import java.time.ZoneOffset
+import java.util.Locale
 import java.time.format.DateTimeFormatter
 
 object BenchmarkReportWriter {
@@ -71,7 +72,7 @@ object BenchmarkReportWriter {
         results.forEach { r ->
             val status = r.agentStatus.name.replace('_', ' ').lowercase().replaceFirstChar { it.uppercaseChar() }
             val passed = if (r.passed) "✓" else "✗"
-            val duration = "%.1fs".format(r.durationMs / 1000.0)
+            val duration = "%.1fs".format(Locale.US,r.durationMs / 1000.0)
             val cmd = r.testCommand.take(40)
             sb.appendLine("| ${r.taskName} | ${r.language} | $status | $passed | $duration | `$cmd` |")
         }
@@ -80,7 +81,7 @@ object BenchmarkReportWriter {
         val passed = results.count { it.passed }
         val failed = total - passed
         val passRate = if (total > 0) "%.0f%%".format(passed * 100.0 / total) else "n/a"
-        val avgDuration = if (results.isNotEmpty()) "%.1fs".format(results.map { it.durationMs }.average() / 1000.0) else "n/a"
+        val avgDuration = if (results.isNotEmpty()) "%.1fs".format(Locale.US,results.map { it.durationMs }.average() / 1000.0) else "n/a"
         sb.appendLine("## Summary")
         sb.appendLine()
         sb.appendLine("- Total tasks: $total")

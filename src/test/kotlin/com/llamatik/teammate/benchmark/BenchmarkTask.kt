@@ -12,15 +12,17 @@ data class BenchmarkTask(
     val repoDir: File,
     val promptFile: File,
     val testCommandFile: File,
+    val setupCommandFile: File?,
     val taskDir: File,
 ) {
     val prompt: String get() = promptFile.readText().trim()
     val testCommand: String get() = testCommandFile.readText().trim()
+    val setupCommand: String? get() = setupCommandFile?.readText()?.trim()
 }
 
 object BenchmarkTaskLoader {
 
-    private val IGNORED_DIRS = setOf(".gradle", "build", "out", ".idea", "node_modules", "target")
+    private val IGNORED_DIRS = setOf(".gradle", "build", "out", ".idea", "node_modules", "target", ".git")
 
     fun loadAll(tasksRoot: File): List<BenchmarkTask> {
         require(tasksRoot.isDirectory) { "Tasks root does not exist: ${tasksRoot.absolutePath}" }
@@ -35,6 +37,7 @@ object BenchmarkTaskLoader {
         val repoDir = File(taskDir, "repo")
         val promptFile = File(taskDir, "prompt.md")
         val testCommandFile = File(taskDir, "test-command.txt")
+        val setupCommandFile = File(taskDir, "setup-command.txt").takeIf { it.isFile }
 
         require(repoDir.isDirectory) { "Missing repo/ directory in ${taskDir.name}" }
         require(promptFile.isFile) { "Missing prompt.md in ${taskDir.name}" }
@@ -52,6 +55,7 @@ object BenchmarkTaskLoader {
             repoDir = repoDir,
             promptFile = promptFile,
             testCommandFile = testCommandFile,
+            setupCommandFile = setupCommandFile,
             taskDir = taskDir,
         )
     }
@@ -110,7 +114,10 @@ object BenchmarkTaskLoader {
                 if (f.name !in IGNORED_DIRS) collectForSnapshot(root, f, out)
             } else {
                 val rel = f.relativeTo(root).path
-                out[rel] = f.lastModified()
+                // Combine size and mtime so a same-second write with different content is detected.
+                // On filesystems with coarse mtime granularity (e.g. HFS+ at 1 s), mtime alone
+                // would miss writes that happen within the same second as the copy.
+                out[rel] = f.length() xor f.lastModified()
             }
         }
     }
@@ -118,8 +125,8 @@ object BenchmarkTaskLoader {
     fun computeChangedFiles(before: Map<String, Long>, repoDir: File): List<String> {
         val after = snapshotFiles(repoDir)
         val changed = mutableListOf<String>()
-        after.forEach { (path, mtime) ->
-            if (before[path] == null || before[path] != mtime) changed += path
+        after.forEach { (path, fingerprint) ->
+            if (before[path] == null || before[path] != fingerprint) changed += path
         }
         return changed.sorted()
     }

@@ -35,6 +35,12 @@ class BenchmarkRunner(
 
         return try {
             copyTree(task.repoDir, tempDir)
+            injectGradleWrapper(tempDir)
+
+            task.setupCommand?.let { cmd ->
+                val result = runCommand(cmd, tempDir, task.timeoutMinutes)
+                if (result.exitCode != 0) error("Setup command failed (exit ${result.exitCode}): ${result.stderr.take(200)}")
+            }
 
             val snapshotBefore = BenchmarkTaskLoader.snapshotFiles(tempDir)
 
@@ -146,21 +152,29 @@ class BenchmarkRunner(
 
     private data class VerifyResult(val stdout: String, val stderr: String, val exitCode: Int)
 
-    private fun runVerification(task: BenchmarkTask, workDir: File): VerifyResult {
-        val rawCmd = task.testCommand.trim()
-        val command = buildCommand(rawCmd)
+    private fun runVerification(task: BenchmarkTask, workDir: File): VerifyResult =
+        runCommand(task.testCommand.trim(), workDir, task.timeoutMinutes)
 
+    private fun runCommand(rawCmd: String, workDir: File, timeoutMinutes: Int): VerifyResult {
         return try {
-            val proc = ProcessBuilder(command)
+            val proc = ProcessBuilder(buildCommand(rawCmd))
                 .directory(workDir)
                 .start()
 
-            val timeoutMs = TimeUnit.MINUTES.toMillis(task.timeoutMinutes.toLong())
+            // Read stdout and stderr concurrently to avoid blocking when either buffer fills.
+            val stdoutFuture = java.util.concurrent.Executors.newSingleThreadExecutor().submit<String> {
+                proc.inputStream.bufferedReader().readText()
+            }
+            val stderrFuture = java.util.concurrent.Executors.newSingleThreadExecutor().submit<String> {
+                proc.errorStream.bufferedReader().readText()
+            }
+
+            val timeoutMs = TimeUnit.MINUTES.toMillis(timeoutMinutes.toLong())
             val timedOut = !proc.waitFor(timeoutMs, TimeUnit.MILLISECONDS)
             if (timedOut) proc.destroyForcibly()
 
-            val stdout = proc.inputStream.bufferedReader().readText()
-            val stderr = proc.errorStream.bufferedReader().readText()
+            val stdout = runCatching { stdoutFuture.get(10, TimeUnit.SECONDS) }.getOrDefault("")
+            val stderr = runCatching { stderrFuture.get(10, TimeUnit.SECONDS) }.getOrDefault("")
             val exitCode = if (timedOut) -1 else proc.exitValue()
 
             VerifyResult(stdout, stderr, exitCode)
@@ -178,12 +192,43 @@ class BenchmarkRunner(
         }
     }
 
+    private fun injectGradleWrapper(dst: File) {
+        val projectRoot = File(System.getProperty("user.dir"))
+        val srcGradlew = File(projectRoot, "gradlew").takeIf { it.isFile } ?: return
+        val srcGradlewBat = File(projectRoot, "gradlew.bat")
+        val srcWrapperDir = File(projectRoot, "gradle/wrapper")
+
+        srcGradlew.copyTo(File(dst, "gradlew"), overwrite = true).also { it.setExecutable(true, false) }
+        if (srcGradlewBat.isFile) srcGradlewBat.copyTo(File(dst, "gradlew.bat"), overwrite = true)
+        if (srcWrapperDir.isDirectory) {
+            val dstWrapperDir = File(dst, "gradle/wrapper")
+            dstWrapperDir.mkdirs()
+            srcWrapperDir.listFiles()?.forEach { f ->
+                f.copyTo(File(dstWrapperDir, f.name), overwrite = true)
+            }
+        }
+
+        // Inject shared build files unless the task repo provides its own.
+        val sharedDir = File(projectRoot, "benchmarks/shared")
+        if (sharedDir.isDirectory) {
+            sharedDir.listFiles()?.forEach { f ->
+                val target = File(dst, f.name)
+                if (!target.exists()) f.copyTo(target)
+            }
+        }
+    }
+
     private fun copyTree(src: File, dst: File) {
         src.walkTopDown().forEach { file ->
             val rel = file.relativeTo(src)
             val target = File(dst, rel.path)
-            if (file.isDirectory) target.mkdirs()
-            else file.copyTo(target, overwrite = true)
+            if (file.isDirectory) {
+                target.mkdirs()
+            } else {
+                file.copyTo(target, overwrite = true)
+                // Restore executable bit — File.copyTo drops +x on POSIX systems.
+                if (file.canExecute()) target.setExecutable(true, false)
+            }
         }
     }
 }

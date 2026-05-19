@@ -1,0 +1,8 @@
+{
+  "id": "kotlin-replace-in-file-003",
+  "name": "Fix off-by-one error in Stack",
+  "language": "kotlin",
+  "timeoutMinutes": 15,
+  "maxSteps": 30,
+  "expectedFiles": ["src/main/kotlin/Stack.kt"]
+}

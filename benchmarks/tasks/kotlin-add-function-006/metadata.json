@@ -1,0 +1,8 @@
+{
+  "id": "kotlin-add-function-006",
+  "name": "Add missing clamp function to NumberUtils",
+  "language": "kotlin",
+  "timeoutMinutes": 15,
+  "maxSteps": 30,
+  "expectedFiles": ["src/main/kotlin/NumberUtils.kt"]
+}
