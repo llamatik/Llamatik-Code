@@ -33,6 +33,7 @@ data class Citation(
 fun classifySourceType(url: String): SourceType {
     val lower = url.lowercase()
     return when {
+        lower.contains("github.com") && (lower.contains("/releases/tag") || lower.contains("changelog")) -> SourceType.RELEASE_NOTES
         lower.contains("github.com") && (lower.contains("/issues") || lower.contains("/pull")) -> SourceType.GITHUB_ISSUES
         lower.contains("github.com") -> SourceType.GITHUB_MAINTAINER
         lower.contains("stackoverflow.com") -> SourceType.STACKOVERFLOW

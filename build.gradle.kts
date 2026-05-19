@@ -274,6 +274,31 @@ kotlin {
     }
 }
 
+// ── Benchmark task ───────────────────────────────────────────────────────────
+// ./gradlew runLlamatikBenchmark
+// ./gradlew runLlamatikBenchmark -PbenchmarkTask=kotlin-simple-fix-001
+// ./gradlew runLlamatikBenchmark -PbenchmarkDir=benchmarks/tasks
+val runLlamatikBenchmark by tasks.registering(Test::class) {
+    description = "Runs the Llamatik Code IDE benchmark suite and writes reports to build/llamatik-benchmark/."
+    group = "verification"
+
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+
+    include("**/LlamatikBenchmarkTest*")
+
+    val taskFilter = providers.gradleProperty("benchmarkTask").orNull
+    val taskDir    = providers.gradleProperty("benchmarkDir").orNull ?: "benchmarks/tasks"
+
+    if (taskFilter != null) systemProperty("benchmarkTask", taskFilter)
+    systemProperty("benchmarkDir", layout.projectDirectory.dir(taskDir).asFile.absolutePath)
+
+    reports {
+        junitXml.outputLocation.set(layout.buildDirectory.dir("llamatik-benchmark/junit"))
+        html.outputLocation.set(layout.buildDirectory.dir("llamatik-benchmark/html"))
+    }
+}
+
 // ── Debug config generation ───────────────────────────────────────────────────
 // Pass -PforceLicensed=true on the Gradle command line (or in a run config) to
 // enable Pro features locally. The generated file must have FORCE_LICENSED=false
