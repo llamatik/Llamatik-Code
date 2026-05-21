@@ -107,6 +107,13 @@ object LicenseChecker {
     )
 
     /**
+     * Returns the JetBrains-managed trial/subscription expiry date for this product, or null
+     * if the facade is not yet initialised or no expiry is recorded.
+     */
+    fun trialExpirationDate(): java.util.Date? =
+        runCatching { LicensingFacade.getInstance()?.getExpirationDate(PRODUCT_CODE) }.getOrNull()
+
+    /**
      * Returns true if a valid Marketplace licence exists, false if none, or null if the
      * LicensingFacade is not yet initialised (IDE startup — treat as "unknown").
      */

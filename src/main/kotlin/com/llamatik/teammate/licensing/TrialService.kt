@@ -8,8 +8,7 @@ import com.llamatik.teammate.settings.LlamatikAppSettings
 import com.llamatik.teammate.ui.Strings
 import java.time.Instant
 import java.time.temporal.ChronoUnit
-
-private const val TRIAL_DAYS = 30L
+import java.util.Date
 
 @Service(Service.Level.APP)
 class TrialService {
@@ -20,8 +19,8 @@ class TrialService {
      * Returns the current Marketplace licence status.
      *
      * LICENSED   – valid Marketplace licence found.
-     * TRIAL      – no licence, but local trial period is still active.
-     * EXPIRED    – no licence and trial has ended.
+     * TRIAL      – no licence, but IDE-managed trial is still active.
+     * EXPIRED    – no licence and trial has ended (or was never started).
      * UNKNOWN    – LicensingFacade not yet initialised (IDE startup); callers
      *              should treat this as "allow" and re-check later.
      */
@@ -52,7 +51,11 @@ class TrialService {
 
     // ── Trial helpers ─────────────────────────────────────────────────────────
 
-    fun isTrialActive(): Boolean = ChronoUnit.DAYS.between(trialStart, Instant.now()) < TRIAL_DAYS
+    /** True when the IDE-managed trial expiry is in the future. */
+    fun isTrialActive(): Boolean {
+        val expiry = LicenseChecker.trialExpirationDate() ?: return false
+        return expiry.after(Date())
+    }
 
     fun statusLabel(): String = when (licenseStatus()) {
         LicenseStatus.LICENSED -> Strings.Trial.STATUS_LICENSED
@@ -61,8 +64,10 @@ class TrialService {
         LicenseStatus.UNKNOWN  -> Strings.Trial.STATUS_ACTIVE
     }
 
-    fun daysRemaining(): Int =
-        maxOf(0, (TRIAL_DAYS - ChronoUnit.DAYS.between(trialStart, Instant.now())).toInt())
+    fun daysRemaining(): Int {
+        val expiry = LicenseChecker.trialExpirationDate() ?: return 0
+        return maxOf(0, ChronoUnit.DAYS.between(Instant.now(), expiry.toInstant()).toInt())
+    }
 
     fun isInWarningPeriod(): Boolean = daysRemaining() in 1..5
 
@@ -70,22 +75,10 @@ class TrialService {
         val settings = service<LlamatikAppSettings>().data()
         val remaining = daysRemaining()
         return TrialState(
-            trialStartMs = settings.trialStartedAtEpoch,
             daysRemaining = remaining,
             isExpired = licenseStatus() == LicenseStatus.EXPIRED,
             isInWarningPeriod = remaining in 1..5,
             warningDismissed = settings.trialWarningDismissed,
         )
     }
-
-    // ── Private ───────────────────────────────────────────────────────────────
-
-    private val trialStart: Instant
-        get() {
-            val settings = service<LlamatikAppSettings>().data()
-            if (settings.trialStartedAtEpoch == 0L) {
-                settings.trialStartedAtEpoch = System.currentTimeMillis()
-            }
-            return Instant.ofEpochMilli(settings.trialStartedAtEpoch)
-        }
 }

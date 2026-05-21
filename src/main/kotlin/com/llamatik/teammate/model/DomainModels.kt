@@ -73,7 +73,6 @@ enum class LicenseStatus {
 }
 
 data class TrialState(
-    val trialStartMs: Long,
     val daysRemaining: Int,
     val isExpired: Boolean,
     val isInWarningPeriod: Boolean, // within 5 days of expiry

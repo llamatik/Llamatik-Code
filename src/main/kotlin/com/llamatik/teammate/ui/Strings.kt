@@ -25,7 +25,7 @@ object Strings {
         const val TRIAL_EXPIRED_MSG = "Trial expired — Agent requires a subscription."
         const val BASE_MODEL_WARNING =
             "Base model detected. For best results, use an instruction-tuned model (e.g. Qwen3, Gemma-it, Phi3-instruct)."
-        fun trialDaysLeft(days: Int) = "$days days left in trial. Agent features will be disabled after expiry."
+        fun trialDaysLeft(days: Int) = "$days days left in trial. Upgrade to Pro to keep Agent features."
     }
 
     // ── Composer / tool window ────────────────────────────────────────────────

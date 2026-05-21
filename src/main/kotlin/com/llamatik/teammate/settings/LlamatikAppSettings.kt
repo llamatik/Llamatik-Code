@@ -30,8 +30,6 @@ class LlamatikAppSettings : PersistentStateComponent<LlamatikAppSettings.State> 
         var maxContextChars: Int = 40000,
         var maxChangedFiles: Int = 10,
         var downloadedModels: MutableList<String> = mutableListOf(),
-        /** Epoch ms when the trial was first started. 0 means not yet initialised. */
-        var trialStartedAtEpoch: Long = 0L,
         var onboardingCompleted: Boolean = false,
         var unloadModelOnIdle: Boolean = false,
         var trialWarningDismissed: Boolean = false,

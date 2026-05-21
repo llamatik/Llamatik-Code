@@ -10,13 +10,11 @@ import org.junit.Assert.*
 class TrialStateTest {
 
     private fun makeTrialState(
-        trialStartMs: Long = System.currentTimeMillis(),
         daysRemaining: Int = 30,
         isExpired: Boolean = false,
         isInWarningPeriod: Boolean = false,
         warningDismissed: Boolean = false,
     ) = TrialState(
-        trialStartMs = trialStartMs,
         daysRemaining = daysRemaining,
         isExpired = isExpired,
         isInWarningPeriod = isInWarningPeriod,
