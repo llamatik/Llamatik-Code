@@ -107,9 +107,15 @@ class DiagnosticsService(private val project: Project) {
             Class.forName("com.llamatik.library.platform.LlamaBridge")
             DiagnosticCheck("Native library", CheckStatus.PASS, "LlamaBridge available")
         } catch (e: Exception) {
-            DiagnosticCheck("Native library", CheckStatus.FAIL,
-                "LlamaBridge not available: ${e.message?.take(100)}",
-                "Reinstall the plugin — the native library bundle may be missing or incompatible")
+            val root = generateSequence(e as Throwable) { it.cause }
+                .firstOrNull { it is UnsatisfiedLinkError || it is LinkageError }
+            val detail = root?.message ?: e.message ?: e.javaClass.simpleName
+            val suggestion = when {
+                detail.contains("opt/homebrew") && (detail.contains("libssl") || detail.contains("libcrypto")) ->
+                    "Install OpenSSL via Homebrew: brew install openssl@3"
+                else -> "Reinstall the plugin — the native library bundle may be missing or incompatible"
+            }
+            DiagnosticCheck("Native library", CheckStatus.FAIL, "LlamaBridge not available: $detail", suggestion)
         }
     }
 

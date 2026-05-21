@@ -29,7 +29,9 @@ class ErrorBannerPanel : JPanel(BorderLayout(8, 0)) {
     }
 
     fun showError(message: String, retry: (() -> Unit)? = null) {
-        messageLabel.text = message
+        val firstLine = message.lines().first().take(120)
+        messageLabel.text = if (message.length > 120 || message.contains('\n')) "$firstLine…" else message
+        messageLabel.toolTipText = message
         onRetry = retry
         isVisible = true
         revalidate()
