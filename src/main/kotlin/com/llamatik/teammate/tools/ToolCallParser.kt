@@ -66,7 +66,11 @@ object ToolCallParser {
         if (plainCalls.isNotEmpty()) return plainCalls
 
         // Python-style fallback: toolname("arg") or toolname("path", "content")
-        return parsePythonStyle(text)
+        val pythonCalls = parsePythonStyle(text)
+        if (pythonCalls.isNotEmpty()) return pythonCalls
+
+        // Space-separated fallback: "toolname arg" on a single line (no colon, no parens)
+        return parseSpaceSeparated(text)
     }
 
     private fun parsePlainText(text: String): List<ToolCall> {
@@ -95,6 +99,27 @@ object ToolCallParser {
                 mapOf(argName to body)
             }
             results += ToolCall(name, args)
+        }
+        return results
+    }
+
+    private fun parseSpaceSeparated(text: String): List<ToolCall> {
+        val results = mutableListOf<ToolCall>()
+        // Match "toolname arg" at start of line — no colon, no parens, single space-separated arg.
+        // Stops at end of line to avoid consuming multi-line content.
+        val spacePattern = Regex("""^([\w_]+)\s+(\S.*)$""", RegexOption.MULTILINE)
+        for (match in spacePattern.findAll(text)) {
+            val name = match.groupValues[1].trim()
+            if (name !in knownTools) continue
+            val argValue = match.groupValues[2].trim()
+            val argName = when (name) {
+                "list_files", "read_file", "create_file", "write_file",
+                "show_diff", "apply_patch" -> "path"
+                "search_code", "search_filenames" -> "query"
+                "replace_in_file" -> "path"
+                else -> "path"
+            }
+            results += ToolCall(name, mapOf(argName to argValue))
         }
         return results
     }
