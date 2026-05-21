@@ -423,10 +423,4 @@ private fun tryLoadNative(): String? = runCatching {
     link?.message ?: t.message ?: t.javaClass.simpleName
 }
 
-/** Converts a raw native load error string into an actionable user message. */
-private fun nativeErrorMessage(err: String): String {
-    if (err.contains("opt/homebrew") && (err.contains("libssl") || err.contains("libcrypto"))) {
-        return Strings.Backend.errorNativeLibHomebrew()
-    }
-    return Strings.Backend.errorNativeLib(err)
-}
+private fun nativeErrorMessage(err: String): String = Strings.Backend.errorNativeLib(err)

@@ -337,15 +337,7 @@ object Strings {
         const val LABEL_NATIVE_UNAVAILABLE = "Native lib unavailable"
         const val LABEL_NO_MODEL = "No model loaded"
         fun errorNativeLib(err: String) =
-            "Llamatik native library could not be loaded: $err\n\nEnsure the bundled native libraries are present and compatible with your platform."
-        fun errorNativeLibCause(msg: String?) =
-            "Llamatik native library could not be loaded.\n$msg\n\nEnsure the bundled native libraries are available for your current platform."
-        fun errorNativeLibHomebrew() =
-            "Llamatik native library could not be loaded: a required OpenSSL library is missing.\n\n" +
-                "The native library depends on Homebrew OpenSSL 3. Install it with:\n" +
-                "  brew install openssl@3\n\n" +
-                "If you do not use Homebrew, this indicates the plugin was built against a Homebrew dependency. " +
-                "Please report this issue so a redistributable build can be provided."
+            "Llamatik native library could not be loaded: $err\n\nTry reinstalling the plugin. If the problem persists, please report it at github.com/ferranpons/Llamatik-Code-Issue-Tracker"
     }
 
     // ── Download / model setup ────────────────────────────────────────────────
