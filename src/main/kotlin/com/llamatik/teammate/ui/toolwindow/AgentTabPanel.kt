@@ -26,6 +26,8 @@ import com.llamatik.teammate.models.BuiltInModelCatalog
 import com.llamatik.teammate.skills.SkillService
 import com.llamatik.teammate.ui.LlamatikTheme
 import com.llamatik.teammate.ui.Strings
+import com.llamatik.teammate.ui.chat.AnimatedStatusPill
+import com.llamatik.teammate.ui.chat.MarkdownRenderer
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Dimension
@@ -216,16 +218,14 @@ class AgentTabPanel(
     }
 
     // ── Status pill ───────────────────────────────────────────────────────────
-    private val statusPill = JBLabel("").apply {
+    private val statusPill = AnimatedStatusPill().apply {
         isVisible = false
-        foreground = mutedText
-        border = JBUI.Borders.empty(0, 0, 6, 0)
         alignmentX = LEFT_ALIGNMENT
     }
-    private val statusRow = JPanel(FlowLayout(FlowLayout.LEFT, 0, 0)).apply {
+    private val statusRow = JPanel(FlowLayout(FlowLayout.LEFT, 0, 6)).apply {
         isOpaque = false
         alignmentX = LEFT_ALIGNMENT
-        maximumSize = Dimension(Int.MAX_VALUE, 32)
+        maximumSize = Dimension(Int.MAX_VALUE, 40)
         add(statusPill)
     }
 
@@ -348,11 +348,16 @@ class AgentTabPanel(
             override fun mouseReleased(e: MouseEvent) { if (e.isPopupTrigger) showTextContextMenu(e, this@apply) }
         })
     }
+    private val responseMarkdown = MarkdownRenderer().apply {
+        isVisible = false
+        alignmentX = LEFT_ALIGNMENT
+    }
     private val responseContent = JPanel(BorderLayout()).apply {
         isOpaque = false
         alignmentX = LEFT_ALIGNMENT
         maximumSize = Dimension(Int.MAX_VALUE, Int.MAX_VALUE)
         add(responseTextArea, BorderLayout.CENTER)
+        add(responseMarkdown, BorderLayout.SOUTH)
     }
 
     // ── Response action buttons ("Fix it automatically", etc.) ──────────────
@@ -791,7 +796,15 @@ class AgentTabPanel(
         promptLabel.text = snapshot.prompt
         promptBubble.isVisible = snapshot.prompt.isNotEmpty()
         responseTextArea.text = snapshot.responseText
-        responseTextArea.caretPosition = 0
+        if (snapshot.responseText.isNotBlank()) {
+            responseMarkdown.setContent(snapshot.responseText)
+            responseTextArea.isVisible = false
+            responseMarkdown.isVisible = true
+        } else {
+            responseTextArea.isVisible = true
+            responseMarkdown.isVisible = false
+            responseTextArea.caretPosition = 0
+        }
         thinkingSection.isVisible = false
         toolCallsPanel.isVisible = false
         statusPill.isVisible = false
@@ -843,8 +856,9 @@ class AgentTabPanel(
 
         thinkingSection.isVisible = false
         toolCallsPanel.isVisible = false
-        statusPill.isVisible = true
         statusPill.text = Strings.Agent.STATUS_ANALYZING
+        statusPill.isAnimating = true
+        statusPill.isVisible = true
         proposalsPanel.isVisible = false
         traceSection.isVisible = false
         responseActionsPanel.isVisible = false
@@ -868,6 +882,7 @@ class AgentTabPanel(
         loadingSpinner.suspend()
         loadingSpinner.isVisible = false
         spinnerPanel.isVisible = false
+        statusPill.isAnimating = false
         statusPill.isVisible = false
     }
 
@@ -915,6 +930,8 @@ class AgentTabPanel(
         promptLabel.text = ""
         promptBubble.isVisible = false
         responseTextArea.text = ""
+        responseTextArea.isVisible = true
+        responseMarkdown.isVisible = false
         thinkTextArea.text = ""
         thinkContent.isVisible = false
         thinkingSection.isVisible = false
@@ -978,15 +995,9 @@ class AgentTabPanel(
             }, BorderLayout.WEST)
             add(userLabel, BorderLayout.CENTER)
         }
-        val frozenResponse = JBTextArea(response).apply {
-            isEditable = false
-            isOpaque = false
-            lineWrap = true
-            wrapStyleWord = true
-            background = LlamatikTheme.surface
-            foreground = LlamatikTheme.onSurface
+        val frozenResponse = MarkdownRenderer().apply {
             border = JBUI.Borders.empty(6, 0, 0, 0)
-            font = font.deriveFont(Font.PLAIN, font.size2D + 1f)
+            if (response.isNotBlank()) setContent(response)
         }
         val separator = JSeparator().apply {
             maximumSize = Dimension(Int.MAX_VALUE, 1)
@@ -1037,6 +1048,8 @@ class AgentTabPanel(
         toolCallsPanel.isVisible = false
 
         responseTextArea.text = ""
+        responseTextArea.isVisible = true
+        responseMarkdown.isVisible = false
 
         traceTextArea.text = ""
         traceContent.isVisible = false
@@ -1056,6 +1069,7 @@ class AgentTabPanel(
         thinkingBlocked = false
 
         statusPill.text = Strings.Agent.STATUS_ANALYZING
+        statusPill.isAnimating = true
         statusPill.isVisible = true
         loadingSpinner.resume()
         loadingSpinner.isVisible = true
@@ -1161,7 +1175,9 @@ class AgentTabPanel(
 
         if (text.isNotBlank()) {
             responseTextArea.text = text
-            responseTextArea.caretPosition = 0
+            responseMarkdown.setContent(text)
+            responseTextArea.isVisible = false
+            responseMarkdown.isVisible = true
         }
 
         proposalsPanel.removeAll()

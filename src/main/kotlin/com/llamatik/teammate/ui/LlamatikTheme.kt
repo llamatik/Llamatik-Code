@@ -79,6 +79,17 @@ object LlamatikTheme {
     val statusGreen = JBColor(Color(0x34C759), Color(0x30D158))
     val statusOrange = JBColor(Color(0xFF9500), Color(0xFFAA00))
 
+    // ── Code block colors ─────────────────────────────────────────────────────
+
+    /** Code block body background. darkCode = #1A1A1D, lightCode = #F5F0E8 */
+    val codeBackground = JBColor(Color(0xF5F0E8), Color(0x1A1A1D))
+
+    /** Code block header bar. darkCodeHeader = #252528, lightCodeHeader = #EDE8E0 */
+    val codeHeaderBackground = JBColor(Color(0xEDE8E0), Color(0x252528))
+
+    /** Inline code chip background. darkInlineCode = #2A2A2E, lightInlineCode = #EDE8E0 */
+    val inlineCodeBackground = JBColor(Color(0xEDE8E0), Color(0x2A2A2E))
+
     // ── HTML color strings (for use inside <span style='color:...'>) ──────────
     // Derived from the JBColor instances so they always match the resolved theme color,
     // regardless of which light/dark theme the user has active.
@@ -94,6 +105,15 @@ object LlamatikTheme {
 
     /** On-primary (dark text on orange) hex string for HTML. */
     val htmlOnPrimary get() = toHex(onPrimary)
+
+    /** Code block background hex string for HTML. */
+    val htmlCodeBackground get() = toHex(codeBackground)
+
+    /** Code block header background hex string for HTML. */
+    val htmlCodeHeaderBackground get() = toHex(codeHeaderBackground)
+
+    /** Inline code background hex string for HTML. */
+    val htmlInlineCodeBackground get() = toHex(inlineCodeBackground)
 
     private fun toHex(c: java.awt.Color) = "#%02X%02X%02X".format(c.red, c.green, c.blue)
 }
