@@ -170,12 +170,15 @@ class LlamatikBackendService : AssistantBackend {
                 }
 
                 // Guard against n_tokens_all > n_batch assert in llama_decode.
-                // ~3 chars/token on average; keep a safety margin below batchSize.
-                val maxPromptChars = request.config.batchSize * 3
+                // Context Size is the true model context window; Batch Size is a KV-cache
+                // inference parameter and must not be used to gate prompt length.
+                // ~3 chars/token on average; keep a 10% safety margin.
+                val effectiveContextTokens = request.config.contextLength
+                val maxPromptChars = (effectiveContextTokens * 3 * 0.9).toInt()
                 if (prompt.length > maxPromptChars) {
                     callbacks.onError(
-                        "Prompt too long for current Batch Size (${request.config.batchSize} tokens). " +
-                        "Reduce context or increase Batch Size in Inference Settings.",
+                        "Prompt too long for current Context Size ($effectiveContextTokens tokens). " +
+                        "Reduce context or increase Context Size in Inference Settings (requires Pro).",
                     )
                     return@submit
                 }
