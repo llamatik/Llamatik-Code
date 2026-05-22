@@ -67,14 +67,13 @@ enum class PluginReadinessState { NO_MODEL, LOADING_MODEL, MODEL_LOADED, INDEXIN
 
 enum class LicenseStatus {
     LICENSED,  // valid JetBrains Marketplace licence
-    TRIAL,     // no licence, local trial still active
-    EXPIRED,   // no licence and trial has ended
+    TRIAL,     // licence active, IDE-managed trial in progress
+    FREE,      // no licence — free tier, all free features available
     UNKNOWN,   // LicensingFacade not yet initialised
 }
 
 data class TrialState(
     val daysRemaining: Int,
-    val isExpired: Boolean,
-    val isInWarningPeriod: Boolean, // within 5 days of expiry
+    val isInWarningPeriod: Boolean, // within 5 days of Pro trial expiry
     val warningDismissed: Boolean,
 )

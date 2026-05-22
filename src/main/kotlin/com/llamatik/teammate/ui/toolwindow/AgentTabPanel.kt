@@ -1231,11 +1231,10 @@ class AgentTabPanel(
         responseActionsPanel.repaint()
     }
 
-    fun showReadinessOverlay(state: PluginReadinessState, trialExpired: Boolean) {
-        val message = when {
-            trialExpired -> Strings.Agent.OVERLAY_TRIAL_EXPIRED
-            state == PluginReadinessState.NO_MODEL -> Strings.Agent.OVERLAY_NO_MODEL
-            state == PluginReadinessState.LOADING_MODEL -> Strings.Agent.OVERLAY_LOADING_MODEL
+    fun showReadinessOverlay(state: PluginReadinessState) {
+        val message = when (state) {
+            PluginReadinessState.NO_MODEL -> Strings.Agent.OVERLAY_NO_MODEL
+            PluginReadinessState.LOADING_MODEL -> Strings.Agent.OVERLAY_LOADING_MODEL
             else -> return
         }
         cardPanel.add(buildOverlayCard(message), CARD_OVERLAY)

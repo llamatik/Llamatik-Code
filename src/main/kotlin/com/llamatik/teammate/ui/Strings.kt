@@ -22,7 +22,7 @@ object Strings {
         const val NO_MODEL_CONFIGURED_MSG =
             "No model is configured. Go to Settings → Llamatik Code and set a model path."
         const val NO_MODEL_CONFIGURED_TITLE = "No model loaded"
-        const val TRIAL_EXPIRED_MSG = "Trial expired — Agent requires a subscription."
+        const val TRIAL_EXPIRED_MSG = "Upgrade to Pro to unlock advanced Agent features."
         const val BASE_MODEL_WARNING =
             "Base model detected. For best results, use an instruction-tuned model (e.g. Qwen3, Gemma-it, Phi3-instruct)."
         fun trialDaysLeft(days: Int) = "$days days left in trial. Upgrade to Pro to keep Agent features."
@@ -65,7 +65,7 @@ object Strings {
         const val BACK = "← Back"
         const val STATUS_ANALYZING = "Analyzing…"
         const val TASK_HEADER = "Agent task"
-        const val OVERLAY_TRIAL_EXPIRED = "Trial expired — Agent requires a subscription."
+        const val OVERLAY_TRIAL_EXPIRED = "Upgrade to Pro to unlock advanced Agent features."
         const val OVERLAY_NO_MODEL = "Configure a model to use Agent mode."
         const val OVERLAY_LOADING_MODEL = "Loading model…"
         const val OVERLAY_DOWNLOADING_TITLE = "Downloading model"
@@ -473,8 +473,8 @@ object Strings {
     object Trial {
         const val STATUS_LICENSED = "Licensed"
         const val STATUS_ACTIVE = "Trial active"
-        const val STATUS_EXPIRED = "Trial expired"
-        const val REQUEST_LICENSE_MESSAGE = "Upgrade to Llamatik Code Pro to unlock Agent mode and advanced features."
+        const val STATUS_FREE = "Free"
+        const val REQUEST_LICENSE_MESSAGE = "Upgrade to Llamatik Code Pro to unlock advanced features."
     }
 
     // ── External Knowledge ────────────────────────────────────────────────
