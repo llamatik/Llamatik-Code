@@ -37,9 +37,10 @@ class InferenceSettingsPanel(private val onUpgrade: (() -> Unit)? = null) {
     val contextSizeSpinner = JSpinner(SpinnerNumberModel(16384, 512, 131072, 512))
     val batchSizeSpinner   = JSpinner(SpinnerNumberModel(2048, 64, 65536, 64))
     val flashAttentionCheck = JBCheckBox(Strings.Inference.FLASH_ATTENTION)
+    val gpuOffloadCheck     = JBCheckBox(Strings.Inference.GPU_LAYERS)
 
     private val freeControls: List<java.awt.Component> get() = listOf(
-        temperatureSpinner, maxTokensSpinner, numThreadsSpinner, useMmapCheck, batchSizeSpinner, flashAttentionCheck,
+        temperatureSpinner, maxTokensSpinner, numThreadsSpinner, useMmapCheck, batchSizeSpinner, flashAttentionCheck, gpuOffloadCheck,
     )
     private val proControls: List<java.awt.Component> get() = listOf(
         contextSizeSpinner,
@@ -81,6 +82,8 @@ class InferenceSettingsPanel(private val onUpgrade: (() -> Unit)? = null) {
             .addTooltip(Strings.Inference.BATCH_SIZE_TOOLTIP)
             .addComponent(flashAttentionCheck)
             .addTooltip(Strings.Inference.FLASH_ATTENTION_TOOLTIP)
+            .addComponent(gpuOffloadCheck)
+            .addTooltip(Strings.Inference.GPU_LAYERS_TOOLTIP)
             .addSeparator()
             .addComponent(resetButton)
             .addComponentFillVertically(JPanel(), 0)
@@ -123,13 +126,14 @@ class InferenceSettingsPanel(private val onUpgrade: (() -> Unit)? = null) {
     }
 
     fun loadFrom(s: LlamatikAppSettings.State) {
-        temperatureSpinner.value   = s.temperature
-        maxTokensSpinner.value     = minOf(s.maxTokens, maxTokensMax)
-        contextSizeSpinner.value   = s.contextSize
-        batchSizeSpinner.value     = s.batchSize
-        numThreadsSpinner.value    = s.numThreads
-        useMmapCheck.isSelected    = s.useMmap
+        temperatureSpinner.value       = s.temperature
+        maxTokensSpinner.value         = minOf(s.maxTokens, maxTokensMax)
+        contextSizeSpinner.value       = s.contextSize
+        batchSizeSpinner.value         = s.batchSize
+        numThreadsSpinner.value        = s.numThreads
+        useMmapCheck.isSelected        = s.useMmap
         flashAttentionCheck.isSelected = s.flashAttention
+        gpuOffloadCheck.isSelected     = s.gpuLayers != 0
     }
 
     fun applyTo(s: LlamatikAppSettings.State) {
@@ -137,8 +141,9 @@ class InferenceSettingsPanel(private val onUpgrade: (() -> Unit)? = null) {
         s.maxTokens      = (maxTokensSpinner.value as Number).toInt()
         s.batchSize      = (batchSizeSpinner.value as Number).toInt()
         s.flashAttention = flashAttentionCheck.isSelected
+        s.gpuLayers      = if (gpuOffloadCheck.isSelected) -1 else 0
         if (licensed) {
-            s.contextSize    = (contextSizeSpinner.value as Number).toInt()
+            s.contextSize = (contextSizeSpinner.value as Number).toInt()
         }
         s.numThreads     = (numThreadsSpinner.value as Number).toInt()
         s.useMmap        = useMmapCheck.isSelected
@@ -151,16 +156,18 @@ class InferenceSettingsPanel(private val onUpgrade: (() -> Unit)? = null) {
         useMmapCheck.isSelected                         != s.useMmap     ||
         (batchSizeSpinner.value as Number).toInt()      != s.batchSize   ||
         flashAttentionCheck.isSelected                  != s.flashAttention ||
+        gpuOffloadCheck.isSelected                      != (s.gpuLayers != 0) ||
         (licensed && (contextSizeSpinner.value as Number).toInt() != s.contextSize)
 
     private fun resetToDefaults() {
         val d = LlamatikAppSettings.State()
-        temperatureSpinner.value    = d.temperature
-        maxTokensSpinner.value      = minOf(d.maxTokens, maxTokensMax)
-        numThreadsSpinner.value     = d.numThreads
-        useMmapCheck.isSelected     = d.useMmap
+        temperatureSpinner.value       = d.temperature
+        maxTokensSpinner.value         = minOf(d.maxTokens, maxTokensMax)
+        numThreadsSpinner.value        = d.numThreads
+        useMmapCheck.isSelected        = d.useMmap
         batchSizeSpinner.value         = d.batchSize
         flashAttentionCheck.isSelected = d.flashAttention
+        gpuOffloadCheck.isSelected     = d.gpuLayers != 0
         if (licensed) {
             contextSizeSpinner.value = d.contextSize
         }

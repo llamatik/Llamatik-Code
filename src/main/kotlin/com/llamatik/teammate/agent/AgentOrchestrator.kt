@@ -237,6 +237,7 @@ class AgentOrchestrator(private val project: Project) {
             useMmap = settings.useMmap,
             flashAttention = settings.flashAttention,
             batchSize = settings.batchSize,
+            gpuLayers = settings.gpuLayers,
             localOnly = settings.localOnly,
         )
 
@@ -814,6 +815,7 @@ class AgentOrchestrator(private val project: Project) {
             useMmap = settings.useMmap,
             flashAttention = settings.flashAttention,
             batchSize = settings.batchSize,
+            gpuLayers = settings.gpuLayers,
             localOnly = settings.localOnly,
         )
 
@@ -914,6 +916,7 @@ class AgentOrchestrator(private val project: Project) {
             useMmap = settings.useMmap,
             flashAttention = settings.flashAttention,
             batchSize = settings.batchSize,
+            gpuLayers = settings.gpuLayers,
             localOnly = settings.localOnly,
         )
 

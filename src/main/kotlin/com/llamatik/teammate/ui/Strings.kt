@@ -292,6 +292,8 @@ object Strings {
         const val USE_MMAP_TOOLTIP     = "Load model weights via mmap — faster startup, shares memory across processes"
         const val FLASH_ATTENTION      = "Enable Flash Attention"
         const val FLASH_ATTENTION_TOOLTIP = "Use Flash Attention kernel — reduces VRAM usage on supported hardware"
+        const val GPU_LAYERS           = "GPU offload (all layers)"
+        const val GPU_LAYERS_TOOLTIP   = "Offload all model layers to the GPU (sets n_gpu_layers = -1). Faster inference but requires enough VRAM to fit the model. Leave off to run on CPU only."
         const val RESET_DEFAULTS       = "Reset to defaults"
         const val UPGRADE_REQUIRED     = "Context size requires a Pro licence. Upgrade to unlock advanced settings."
         const val UPGRADE_BUTTON       = "Upgrade"

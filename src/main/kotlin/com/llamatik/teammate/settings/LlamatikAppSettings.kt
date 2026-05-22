@@ -21,6 +21,8 @@ class LlamatikAppSettings : PersistentStateComponent<LlamatikAppSettings.State> 
         var useMmap: Boolean = true,
         var flashAttention: Boolean = false,
         var batchSize: Int = 2048,
+        /** Number of model layers to offload to the GPU. 0 = CPU only, -1 = all layers. */
+        var gpuLayers: Int = 0,
         var localOnly: Boolean = true,
         var backendId: String = "llamatik",
         var ignoredDirectories: String = ".git,node_modules,build,out,target,.idea,.gradle,.gradle-cache,__pycache__,.tox,dist,.kotlin,.cxx,.cache,generated,intermediates",

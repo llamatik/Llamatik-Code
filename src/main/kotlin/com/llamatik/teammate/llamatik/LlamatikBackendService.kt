@@ -36,6 +36,7 @@ class LlamatikBackendService : AssistantBackend {
     @Volatile private var lastBatchSize: Int = -1
     @Volatile private var lastNumThreads: Int = -1
     @Volatile private var lastFlashAttention: Boolean = false
+    @Volatile private var lastGpuLayers: Int = -1
 
     // One session per surface — each owns an isolated KV cache.
     @Volatile private var agentSession:     LlamaSession? = null
@@ -110,6 +111,7 @@ class LlamatikBackendService : AssistantBackend {
                     useMmap = request.config.useMmap,
                     flashAttention = request.config.flashAttention,
                     batchSize = request.config.batchSize,
+                    gpuLayers = request.config.gpuLayers,
                 )
                 ensureModel(request.config.modelIdOrPath)
 
@@ -331,10 +333,11 @@ class LlamatikBackendService : AssistantBackend {
         if (config.contextLength != lastContextLength ||
             config.batchSize != lastBatchSize ||
             config.numThreads != lastNumThreads ||
-            config.flashAttention != lastFlashAttention
+            config.flashAttention != lastFlashAttention ||
+            config.gpuLayers != lastGpuLayers
         ) {
             synchronized(modelLock) {
-                // Close sessions so they are recreated with the new context params.
+                // Close sessions so they are recreated with the new context/GPU params.
                 closeSessionsLocked()
                 initializedModel = null
                 loadedFinetuneType = null
@@ -342,6 +345,7 @@ class LlamatikBackendService : AssistantBackend {
                 lastBatchSize = config.batchSize
                 lastNumThreads = config.numThreads
                 lastFlashAttention = config.flashAttention
+                lastGpuLayers = config.gpuLayers
             }
         }
     }

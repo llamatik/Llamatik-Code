@@ -26,6 +26,7 @@ group = "com.llamatik.teammate"
 version = "1.6.4"
 
 repositories {
+    mavenLocal()
     mavenCentral()
     intellijPlatform {
         defaultRepositories()
@@ -39,7 +40,7 @@ dependencies {
         bundledPlugin("org.jetbrains.kotlin")
     }
 
-    implementation("com.llamatik:library:1.5.1")
+    implementation("com.llamatik:library-jvm:1.6.0")
     testImplementation("junit:junit:4.13.2")
 }
 
