@@ -27,13 +27,27 @@ class CitationModelsExtendedTest {
     // ── Release notes patterns ────────────────────────────────────────────
 
     @Test
-    fun `classifySourceType returns RELEASE_NOTES for URL with releases path`() {
+    fun `classifySourceType returns RELEASE_NOTES for github releases tag URL`() {
         assertEquals(SourceType.RELEASE_NOTES, classifySourceType("https://github.com/user/repo/releases/tag/v1.2.0"))
     }
 
     @Test
-    fun `classifySourceType returns RELEASE_NOTES for URL with changelog path`() {
+    fun `classifySourceType returns RELEASE_NOTES for github changelog URL`() {
         assertEquals(SourceType.RELEASE_NOTES, classifySourceType("https://github.com/user/repo/blob/main/CHANGELOG.md"))
+    }
+
+    @Test
+    fun `classifySourceType returns RELEASE_NOTES for github releases tag URL not GITHUB_ISSUES`() {
+        // /releases/tag must take priority over the plain github.com fallback
+        val result = classifySourceType("https://github.com/JetBrains/kotlin/releases/tag/v2.1.0")
+        assertEquals(SourceType.RELEASE_NOTES, result)
+    }
+
+    @Test
+    fun `classifySourceType returns GITHUB_MAINTAINER for github releases list without tag`() {
+        // /releases without /tag falls through to the plain github.com rule
+        val result = classifySourceType("https://github.com/user/repo/releases")
+        assertEquals(SourceType.GITHUB_MAINTAINER, result)
     }
 
     @Test
@@ -67,18 +81,6 @@ class CitationModelsExtendedTest {
 
     // ── Priority order (github /releases beats plain github) ─────────────
 
-    @Test
-    fun `classifySourceType returns RELEASE_NOTES for github releases URL not GITHUB_MAINTAINER`() {
-        // github.com/user/repo/releases matches /releases path — RELEASE_NOTES wins
-        // Implementation: /releases check is after github.com check so GITHUB_MAINTAINER wins for plain repos
-        // but /releases path should be caught by the RELEASE_NOTES rule
-        val url = "https://github.com/user/repo/releases"
-        val result = classifySourceType(url)
-        // github.com without /issues or /pull → GITHUB_MAINTAINER per impl, BUT /releases rule also matches
-        // Current impl: github rules are checked before /releases rule
-        // github.com without /issues/pull → GITHUB_MAINTAINER
-        assertEquals(SourceType.GITHUB_MAINTAINER, result)
-    }
 
     @Test
     fun `classifySourceType returns GITHUB_ISSUES for pull URL`() {

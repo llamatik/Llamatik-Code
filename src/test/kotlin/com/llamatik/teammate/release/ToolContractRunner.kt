@@ -1,10 +1,15 @@
 package com.llamatik.teammate.release
 
 import java.io.File
+import java.nio.file.Files
 
 /**
  * Executes [ToolContractCase] instances against a filesystem-backed tool stub.
  * Does not require an IntelliJ [Project].
+ *
+ * Each run copies the requested fixture into a fresh temp directory so that
+ * mutating tools (write_file, create_file, replace_in_file) never modify the
+ * committed fixture sources.
  */
 class ToolContractRunner(private val fixturesRoot: File) {
 
@@ -16,43 +21,53 @@ class ToolContractRunner(private val fixturesRoot: File) {
     )
 
     fun run(case: ToolContractCase): ContractResult {
-        val projectRoot = resolveProjectRoot(case.fixtureProject)
+        val sourceRoot = resolveProjectRoot(case.fixtureProject)
+        val workRoot = copyToTemp(sourceRoot)
+        return try {
+            val result = runCatching { executeTool(case.tool, case.arguments, workRoot) }
+                .getOrElse { "ERROR: ${it.message}" }
 
-        val result = runCatching { executeTool(case.tool, case.arguments, projectRoot) }
-            .getOrElse { "ERROR: ${it.message}" }
+            val succeeded = !result.startsWith("ERROR:") && !result.startsWith("File not found") &&
+                !result.startsWith("Unknown tool") && !result.startsWith("Missing ") &&
+                !result.startsWith("Pattern not found") && !result.startsWith("No such directory") &&
+                !result.startsWith("File already exists")
 
-        val succeeded = !result.startsWith("ERROR:") && !result.startsWith("File not found") &&
-            !result.startsWith("Unknown tool") && !result.startsWith("Missing ") &&
-            !result.startsWith("Pattern not found") && !result.startsWith("No such directory") &&
-            !result.startsWith("File already exists")
-
-        if (case.expectSuccess != succeeded) {
-            val reason = if (case.expectSuccess)
-                "Expected success but got: ${result.take(200)}"
-            else
-                "Expected failure but got: ${result.take(200)}"
-            return ContractResult(case, false, result, reason)
-        }
-
-        for (expected in case.expectContentContains) {
-            if (!result.contains(expected)) {
-                return ContractResult(case, false, result, "Expected content not found: \"$expected\"")
+            if (case.expectSuccess != succeeded) {
+                val reason = if (case.expectSuccess)
+                    "Expected success but got: ${result.take(200)}"
+                else
+                    "Expected failure but got: ${result.take(200)}"
+                return ContractResult(case, false, result, reason)
             }
-        }
 
-        for (forbidden in case.expectContentNotContains) {
-            if (result.contains(forbidden)) {
-                return ContractResult(case, false, result, "Forbidden content found: \"$forbidden\"")
+            for (expected in case.expectContentContains) {
+                if (!result.contains(expected)) {
+                    return ContractResult(case, false, result, "Expected content not found: \"$expected\"")
+                }
             }
-        }
 
-        return ContractResult(case, true, result, null)
+            for (forbidden in case.expectContentNotContains) {
+                if (result.contains(forbidden)) {
+                    return ContractResult(case, false, result, "Forbidden content found: \"$forbidden\"")
+                }
+            }
+
+            ContractResult(case, true, result, null)
+        } finally {
+            workRoot.deleteRecursively()
+        }
     }
 
     private fun resolveProjectRoot(fixtureProject: String?): File {
         if (fixtureProject.isNullOrBlank()) return fixturesRoot
         val dir = File(fixturesRoot, "projects/$fixtureProject")
         return if (dir.isDirectory) dir else fixturesRoot
+    }
+
+    private fun copyToTemp(source: File): File {
+        val tmp = Files.createTempDirectory("llamatik-contract-").toFile()
+        source.copyRecursively(tmp, overwrite = true)
+        return tmp
     }
 
     private fun executeTool(toolName: String, args: Map<String, String>, root: File): String {
