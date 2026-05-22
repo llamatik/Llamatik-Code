@@ -1,0 +1,10 @@
+{
+  "id": "list-project-root",
+  "tool": "list_files",
+  "arguments": { "path": "." },
+  "fixtureProject": "kotlin-gradle-simple",
+  "expectSuccess": true,
+  "expectContentContains": ["src"],
+  "expectContentNotContains": [],
+  "description": "lists the root of the kotlin-gradle-simple fixture"
+}

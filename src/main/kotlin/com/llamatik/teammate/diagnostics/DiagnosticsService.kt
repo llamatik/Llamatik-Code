@@ -107,9 +107,14 @@ class DiagnosticsService(private val project: Project) {
             Class.forName("com.llamatik.library.platform.LlamaBridge")
             DiagnosticCheck("Native library", CheckStatus.PASS, "LlamaBridge available")
         } catch (e: Exception) {
-            DiagnosticCheck("Native library", CheckStatus.FAIL,
-                "LlamaBridge not available: ${e.message?.take(100)}",
-                "Reinstall the plugin — the native library bundle may be missing or incompatible")
+            val root = generateSequence(e as Throwable) { it.cause }
+                .firstOrNull { it is UnsatisfiedLinkError || it is LinkageError }
+            val detail = root?.message ?: e.message ?: e.javaClass.simpleName
+            DiagnosticCheck(
+                "Native library", CheckStatus.FAIL,
+                "LlamaBridge not available: $detail",
+                "Reinstall the plugin. If the problem persists, report it at github.com/ferranpons/Llamatik-Code-Issue-Tracker",
+            )
         }
     }
 

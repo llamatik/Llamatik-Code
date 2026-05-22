@@ -113,6 +113,33 @@ class ToolCallParserTest {
     }
 
     @Test
+    fun `parseIncludingIncomplete handles space-separated single arg`() {
+        val input = "search_filenames src/"
+        val calls = ToolCallParser.parseIncludingIncomplete(input)
+        assertEquals(1, calls.size)
+        assertEquals("search_filenames", calls[0].name)
+        assertEquals("src/", calls[0].arguments["query"])
+    }
+
+    @Test
+    fun `parseIncludingIncomplete handles space-separated glob pattern`() {
+        val input = "search_filenames *.kt"
+        val calls = ToolCallParser.parseIncludingIncomplete(input)
+        assertEquals(1, calls.size)
+        assertEquals("search_filenames", calls[0].name)
+        assertEquals("*.kt", calls[0].arguments["query"])
+    }
+
+    @Test
+    fun `parseIncludingIncomplete handles space-separated list_files`() {
+        val input = "list_files src/main"
+        val calls = ToolCallParser.parseIncludingIncomplete(input)
+        assertEquals(1, calls.size)
+        assertEquals("list_files", calls[0].name)
+        assertEquals("src/main", calls[0].arguments["path"])
+    }
+
+    @Test
     fun `parseIncludingIncomplete ignores hallucinated tool names`() {
         val input = """<tool_call name="diff_tool"><arg name="path">src/A.kt</arg></tool_call>"""
         // diff_tool is not in knownTools; after KNOWN_TOOL_NAMES filter in orchestrator it gets dropped,

@@ -1,0 +1,10 @@
+{
+  "id": "search-missing-pattern",
+  "tool": "search_code",
+  "arguments": { "query": "XYZZY_NOTFOUND_12345" },
+  "fixtureProject": "kotlin-gradle-simple",
+  "expectSuccess": true,
+  "expectContentContains": ["No matches"],
+  "expectContentNotContains": [],
+  "description": "returns no matches for a pattern that does not exist"
+}

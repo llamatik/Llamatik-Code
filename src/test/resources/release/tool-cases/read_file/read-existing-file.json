@@ -1,0 +1,10 @@
+{
+  "id": "read-existing-file",
+  "tool": "read_file",
+  "arguments": { "path": "src/main/kotlin/Calculator.kt" },
+  "fixtureProject": "kotlin-gradle-simple",
+  "expectSuccess": true,
+  "expectContentContains": ["class Calculator", "fun add"],
+  "expectContentNotContains": [],
+  "description": "reads Calculator.kt and returns its content"
+}

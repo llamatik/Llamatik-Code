@@ -1,0 +1,10 @@
+{
+  "id": "search-existing-pattern",
+  "tool": "search_code",
+  "arguments": { "query": "Calculator" },
+  "fixtureProject": "kotlin-gradle-simple",
+  "expectSuccess": true,
+  "expectContentContains": ["Calculator.kt"],
+  "expectContentNotContains": [],
+  "description": "finds files containing the word Calculator"
+}

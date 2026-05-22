@@ -1,0 +1,10 @@
+{
+  "id": "read-missing-file",
+  "tool": "read_file",
+  "arguments": { "path": "src/main/kotlin/DoesNotExist.kt" },
+  "fixtureProject": "kotlin-gradle-simple",
+  "expectSuccess": false,
+  "expectContentContains": [],
+  "expectContentNotContains": [],
+  "description": "returns an error message for a file that does not exist"
+}

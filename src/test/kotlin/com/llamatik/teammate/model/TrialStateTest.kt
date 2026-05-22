@@ -3,38 +3,28 @@ package com.llamatik.teammate.model
 import org.junit.Test
 import org.junit.Assert.*
 
-/**
- * Unit tests for TrialState logic. These test the data class directly
- * without requiring the IntelliJ platform or TrialService instantiation.
- */
 class TrialStateTest {
 
     private fun makeTrialState(
-        trialStartMs: Long = System.currentTimeMillis(),
         daysRemaining: Int = 30,
-        isExpired: Boolean = false,
         isInWarningPeriod: Boolean = false,
         warningDismissed: Boolean = false,
     ) = TrialState(
-        trialStartMs = trialStartMs,
         daysRemaining = daysRemaining,
-        isExpired = isExpired,
         isInWarningPeriod = isInWarningPeriod,
         warningDismissed = warningDismissed,
     )
 
     @Test
     fun `active trial has daysRemaining greater than zero`() {
-        val state = makeTrialState(daysRemaining = 30, isExpired = false)
+        val state = makeTrialState(daysRemaining = 30)
         assertTrue("Days remaining should be > 0", state.daysRemaining > 0)
-        assertFalse("Should not be expired", state.isExpired)
     }
 
     @Test
-    fun `expired trial has daysRemaining of zero`() {
-        val state = makeTrialState(daysRemaining = 0, isExpired = true)
+    fun `no trial has daysRemaining of zero`() {
+        val state = makeTrialState(daysRemaining = 0)
         assertEquals(0, state.daysRemaining)
-        assertTrue("Should be expired", state.isExpired)
     }
 
     @Test
@@ -52,9 +42,9 @@ class TrialStateTest {
     }
 
     @Test
-    fun `no warning period when expired`() {
-        val state = makeTrialState(daysRemaining = 0, isExpired = true, isInWarningPeriod = false)
-        assertFalse("Expired trial should not have warning period", state.isInWarningPeriod)
+    fun `no warning period when daysRemaining is zero`() {
+        val state = makeTrialState(daysRemaining = 0, isInWarningPeriod = false)
+        assertFalse("No warning when no trial active", state.isInWarningPeriod)
     }
 
     @Test
@@ -64,19 +54,6 @@ class TrialStateTest {
 
         val notDismissed = makeTrialState(daysRemaining = 3, isInWarningPeriod = true, warningDismissed = false)
         assertFalse(notDismissed.warningDismissed)
-    }
-
-    @Test
-    fun `isExpired and isInWarningPeriod are mutually exclusive in normal flow`() {
-        // When expired, isInWarningPeriod should be false
-        val expired = makeTrialState(daysRemaining = 0, isExpired = true, isInWarningPeriod = false)
-        assertTrue(expired.isExpired)
-        assertFalse(expired.isInWarningPeriod)
-
-        // When in warning period, should not be expired
-        val warning = makeTrialState(daysRemaining = 2, isExpired = false, isInWarningPeriod = true)
-        assertFalse(warning.isExpired)
-        assertTrue(warning.isInWarningPeriod)
     }
 
     @Test

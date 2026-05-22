@@ -3,6 +3,7 @@ package com.llamatik.teammate.llamatik
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.thisLogger
+import com.llamatik.teammate.ui.Strings
 import com.llamatik.library.platform.GenStream
 import com.llamatik.library.platform.MultimodalBridge
 import com.llamatik.teammate.backend.GenerationCallbacks
@@ -26,7 +27,7 @@ class MultimodalBackendService {
 
     @Volatile private var loadedModelPath: String? = null
     @Volatile private var loadedMmprojPath: String? = null
-    @Volatile private var nativeLoadError: String? = tryLoadNative()
+    @Volatile private var nativeLoadError: String? = tryLoadNative()?.also { logger.warn("Multimodal native library failed to load: $it") }
 
     fun isAvailable(): Boolean = nativeLoadError == null
 
@@ -63,7 +64,7 @@ class MultimodalBackendService {
 
         val nativeErr = nativeLoadError
         if (nativeErr != null) {
-            executor.submit { callbacks.onError("Multimodal native library unavailable: $nativeErr", null) }
+            executor.submit { callbacks.onError(nativeErrorMessage(nativeErr), null) }
             return NoOpHandle(cancelled)
         }
 
@@ -304,3 +305,5 @@ private fun tryLoadNative(): String? = runCatching {
     val link = generateSequence(t) { it.cause }.firstOrNull { it is UnsatisfiedLinkError || it is LinkageError }
     link?.message ?: t.message ?: t.javaClass.simpleName
 }
+
+private fun nativeErrorMessage(err: String): String = Strings.Backend.errorNativeLib(err)

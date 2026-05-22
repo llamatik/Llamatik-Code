@@ -1,0 +1,10 @@
+{
+  "id": "replace-existing-pattern",
+  "tool": "replace_in_file",
+  "arguments": { "path": "src/main/kotlin/Calculator.kt", "old": "fun add(a: Int, b: Int): Int = a + b", "new": "fun add(a: Int, b: Int): Int = a.plus(b)" },
+  "fixtureProject": "kotlin-gradle-simple",
+  "expectSuccess": true,
+  "expectContentContains": ["Prepared file replacement"],
+  "expectContentNotContains": [],
+  "description": "replaces a known pattern in Calculator.kt"
+}

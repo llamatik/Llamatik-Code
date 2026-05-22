@@ -518,15 +518,6 @@ class LlamatikToolWindowPanel(
             return
         }
 
-        if (isAgent && !trialService.isAgentAllowed()) {
-            Messages.showErrorDialog(
-                project,
-                Strings.App.TRIAL_EXPIRED_MSG,
-                Strings.App.NAME,
-            )
-            return
-        }
-
         val licensed = runCatching { com.llamatik.teammate.licensing.LicenseChecker.isLicensed() == true }.getOrElse { false }
         if (isAgent && !licensed && selectedTaskId == null && taskHistory.isNotEmpty()) {
             Messages.showInfoMessage(
@@ -758,9 +749,7 @@ class LlamatikToolWindowPanel(
         val backend = service<LlamatikBackendService>()
         baseModelBannerPanel.isVisible = backend.isModelLoaded() && backend.isBaseModel()
 
-        if (!trialService.isTrialActive()) {
-            agentTabPanel.showReadinessOverlay(state, trialExpired = true)
-        } else if (state == PluginReadinessState.NO_MODEL || state == PluginReadinessState.LOADING_MODEL) {
+        if (state == PluginReadinessState.NO_MODEL || state == PluginReadinessState.LOADING_MODEL) {
             val downloadManager = service<ModelDownloadManager>()
             val downloading = BuiltInModelCatalog.models.firstOrNull {
                 downloadManager.getProgress(it.id)?.status == ModelStatus.DOWNLOADING
@@ -772,7 +761,7 @@ class LlamatikToolWindowPanel(
                     diskSizeGb = downloading.diskSizeGb,
                 )
             } else {
-                agentTabPanel.showReadinessOverlay(state, trialExpired = false)
+                agentTabPanel.showReadinessOverlay(state)
             }
         } else {
             agentTabPanel.hideReadinessOverlay()

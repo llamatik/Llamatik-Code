@@ -2,6 +2,7 @@ package com.llamatik.teammate.llamatik
 
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.thisLogger
+import com.llamatik.teammate.ui.Strings
 import com.llamatik.library.platform.GenStream
 import com.llamatik.library.platform.LlamaSession
 import com.llamatik.teammate.backend.AssistantBackend
@@ -45,7 +46,7 @@ class LlamatikBackendService : AssistantBackend {
      * Captured once on first use. If the native library fails to load (e.g. missing @rpath dylib),
      * we surface this as a clear error rather than crashing silently on every generate() call.
      */
-    @Volatile private var nativeLoadError: String? = tryLoadNative()
+    @Volatile private var nativeLoadError: String? = tryLoadNative()?.also { logger.warn("Native library failed to load: $it") }
 
     override fun isModelLoaded(): Boolean = nativeLoadError == null && initializedModel != null
 
@@ -79,11 +80,7 @@ class LlamatikBackendService : AssistantBackend {
         val loadErr = nativeLoadError
         if (loadErr != null) {
             executorFor(request.sessionTag).submit {
-                callbacks.onError(
-                    "Llamatik native library could not be loaded: $loadErr\n\n" +
-                        "Ensure the bundled native libraries are present and that macOS can load their dependencies.",
-                    null,
-                )
+                callbacks.onError(nativeErrorMessage(loadErr), null)
             }
             return NoOpHandle(cancelled)
         }
@@ -388,9 +385,10 @@ class LlamatikBackendService : AssistantBackend {
     private fun friendlyError(t: Throwable): String {
         val cause = generateSequence(t) { it.cause }.firstOrNull { it is UnsatisfiedLinkError }
         if (cause != null) {
-            nativeLoadError = cause.message ?: "UnsatisfiedLinkError"
-            return "Llamatik native library could not be loaded.\n${cause.message}\n\n" +
-                "Ensure the bundled native libraries are available for your current platform."
+            val msg = cause.message ?: "UnsatisfiedLinkError"
+            nativeLoadError = msg
+            logger.warn("Native library link error during generation: $msg")
+            return nativeErrorMessage(msg)
         }
         return t.message ?: "Generation failed"
     }
@@ -424,3 +422,5 @@ private fun tryLoadNative(): String? = runCatching {
     val link = generateSequence(t) { it.cause }.firstOrNull { it is UnsatisfiedLinkError || it is LinkageError }
     link?.message ?: t.message ?: t.javaClass.simpleName
 }
+
+private fun nativeErrorMessage(err: String): String = Strings.Backend.errorNativeLib(err)

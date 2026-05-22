@@ -39,7 +39,7 @@ dependencies {
         bundledPlugin("org.jetbrains.kotlin")
     }
 
-    implementation("com.llamatik:library:1.3.0")
+    implementation("com.llamatik:library:1.5.1")
     testImplementation("junit:junit:4.13.2")
 }
 
@@ -49,7 +49,14 @@ intellijPlatform {
             sinceBuild = "252"
         }
         changeNotes = """
-            <h2>1.6.4 — File Reading Fix</h2>
+            <h2>1.6.4 — Trial, Agent &amp; Tooling Improvements</h2>
+
+            <h3>Trial &amp; Licensing</h3>
+            <ul>
+                <li><b>Trial management delegated to the IDE</b> — the plugin no longer maintains its own 30-day counter. Trial period and expiry are now read directly from the JetBrains IDE licensing API (<code>LicensingFacade</code>), making the IDE the single source of truth.</li>
+                <li><b>Agent is always available on the free tier</b> — the "Trial expired — Agent requires a subscription" overlay has been removed. Agent features are free; Pro unlocks advanced capabilities within the agent (multi-file edits, higher context, parallel tasks).</li>
+                <li><b>Cleaner trial status labels</b> — the status badge now shows <b>Licensed</b>, <b>Trial active</b>, or <b>Free</b> instead of "Expired". The trial warning banner wording has been updated to "Upgrade to Pro to keep Agent features." to make the call to action clear.</li>
+            </ul>
 
             <h3>Bug Fixes</h3>
             <ul>
@@ -57,6 +64,12 @@ intellijPlatform {
                 <li><b>Batch Size was incorrectly used to cap the file budget</b> — Batch Size is a KV-cache inference parameter, not the model context window. Using <code>min(contextSize, batchSize)</code> meant that the default Batch Size of 2 048 could collapse the entire file budget to zero. The budget is now derived from Context Size only, which is the true model context window. With the default Context Size of 16 384, the agent can now read files up to ~1 150 lines (35 chars/line) without truncation.</li>
                 <li><b>A hardcoded 4 000-character cap on tool results was overriding the per-file limit</b> — even when the per-result budget was large enough, a second hard cap on the total tool-results block cut off the content. Both caps now scale dynamically with Context Size.</li>
                 <li><b>Floor guarantee added</b> — even with a very small Context Size, <code>read_file</code> results are guaranteed at least 8 000 characters (~570 lines), preventing total content loss regardless of settings.</li>
+                <li><b><code>search_filenames src/</code> returned "Missing query"</b> — the tool call parser did not recognise the space-separated format (<code>search_filenames src/</code>) that some models emit. A new space-separated fallback parser handles this format for all single-argument tools.</li>
+            </ul>
+
+            <h3>Diagnostics</h3>
+            <ul>
+                <li><b>Richer native library error messages</b> — when the native Llamatik library fails to load, the error now walks the full exception cause chain to surface the root <code>UnsatisfiedLinkError</code> or <code>LinkageError</code> with a direct link to the issue tracker. Previously only the top-level exception message was shown.</li>
             </ul>
 
             <h2>1.6.3 — Prompt Budget Fix</h2>
@@ -271,6 +284,137 @@ tasks {
 kotlin {
     compilerOptions {
         jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
+    }
+}
+
+// ── Benchmark task ───────────────────────────────────────────────────────────
+// ./gradlew runLlamatikBenchmark                             (skips — no model)
+// ./gradlew runLlamatikBenchmark -PbenchmarkModel=scripted   (scripted end-to-end smoke test)
+// ./gradlew runLlamatikBenchmark -PbenchmarkModel=/path/to/model.gguf
+// ./gradlew runLlamatikBenchmark -PbenchmarkTask=kotlin-simple-fix-001
+// ./gradlew runLlamatikBenchmark -PbenchmarkDir=benchmarks/tasks
+val runLlamatikBenchmark by tasks.registering(Test::class) {
+    description = "Runs the Llamatik Code IDE benchmark suite and writes reports to build/llamatik-benchmark/."
+    group = "verification"
+
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+
+    include("**/LlamatikBenchmarkTest*")
+
+    val taskFilter  = providers.gradleProperty("benchmarkTask").orNull
+    val taskDir     = providers.gradleProperty("benchmarkDir").orNull ?: "benchmarks/tasks"
+    val modelPath   = providers.gradleProperty("benchmarkModel").orNull
+
+    if (taskFilter != null) systemProperty("benchmarkTask", taskFilter)
+    if (modelPath  != null) systemProperty("benchmarkModel", modelPath)
+    systemProperty("benchmarkDir", layout.projectDirectory.dir(taskDir).asFile.absolutePath)
+
+    reports {
+        junitXml.outputLocation.set(layout.buildDirectory.dir("llamatik-benchmark/junit"))
+        html.outputLocation.set(layout.buildDirectory.dir("llamatik-benchmark/html"))
+    }
+}
+
+// ── Release validation tasks ──────────────────────────────────────────────────
+// ./gradlew releaseCheck                       (full gate: tool contracts + agent workflows + verifier)
+// ./gradlew toolContractTest                   (tool contract cases only)
+// ./gradlew agentWorkflowTest                  (headless agent workflow tests only)
+// ./gradlew releaseValidationReport            (generate build/release-validation/results.{json,md})
+// ./gradlew releaseCheck -PincludeModelSmoke=true   (also runs optional model smoke tests)
+
+val toolContractTest by tasks.registering(Test::class) {
+    description = "Runs tool contract cases from src/test/resources/release/tool-cases/."
+    group = "verification"
+
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+
+    include("**/ToolInventoryTest*", "**/ToolContractTest*")
+
+    reports {
+        junitXml.outputLocation.set(layout.buildDirectory.dir("release-validation/junit/tool-contract"))
+        html.outputLocation.set(layout.buildDirectory.dir("release-validation/html/tool-contract"))
+    }
+}
+
+val agentWorkflowTest by tasks.registering(Test::class) {
+    description = "Runs headless agent workflow integration tests."
+    group = "verification"
+
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+
+    include("**/AgentWorkflowTest*")
+
+    reports {
+        junitXml.outputLocation.set(layout.buildDirectory.dir("release-validation/junit/agent-workflow"))
+        html.outputLocation.set(layout.buildDirectory.dir("release-validation/html/agent-workflow"))
+    }
+}
+
+val releaseValidationReport by tasks.registering {
+    description = "Aggregates release validation results into build/release-validation/results.{json,md}."
+    group = "verification"
+    dependsOn(toolContractTest, agentWorkflowTest)
+
+    doLast {
+        val reportDir = layout.buildDirectory.dir("release-validation").get().asFile
+        reportDir.mkdirs()
+
+        // Collect JUnit XML results from both tasks and summarize them.
+        val junitRoot = File(reportDir, "junit")
+        val summary = StringBuilder()
+        summary.appendLine("# Release Validation Summary")
+        summary.appendLine()
+        summary.appendLine("Generated: ${System.currentTimeMillis()}")
+        summary.appendLine()
+        summary.appendLine("| Task | Tests | Failures | Skipped |")
+        summary.appendLine("|---|---|---|---|")
+
+        val jsonTasks = StringBuilder()
+        listOf("tool-contract", "agent-workflow").forEach { taskName ->
+            val xmlDir = File(junitRoot, taskName)
+            var tests = 0; var failures = 0; var skipped = 0
+            xmlDir.walkTopDown().filter { it.extension == "xml" }.forEach { xml ->
+                val content = xml.readText()
+                tests    += Regex("""tests="(\d+)"""").find(content)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+                failures += Regex("""failures="(\d+)"""").find(content)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+                skipped  += Regex("""skipped="(\d+)"""").find(content)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+            }
+            val status = if (failures == 0) "PASS" else "FAIL"
+            summary.appendLine("| $taskName | $tests | $failures | $skipped |")
+            jsonTasks.appendLine("""    {"task":"$taskName","passed":${failures==0},"total":$tests,"failed":$failures,"skipped":$skipped},""")
+        }
+
+        val pluginVersion = project.version.toString()
+        File(reportDir, "results.md").writeText(summary.toString())
+        File(reportDir, "results.json").writeText(
+            "{\n  \"pluginVersion\": \"$pluginVersion\",\n  \"timestamp\": \"${System.currentTimeMillis()}\",\n  \"tasks\": [\n${jsonTasks.toString().trimEnd().trimEnd(',')}\n  ]\n}\n"
+        )
+        logger.lifecycle("Release validation report written to ${reportDir.absolutePath}")
+    }
+}
+
+val releaseCheck by tasks.registering {
+    description = "Full pre-Marketplace release gate: tool contracts, agent workflows, and plugin verifier."
+    group = "verification"
+    dependsOn(toolContractTest, agentWorkflowTest, releaseValidationReport)
+
+    val includeModelSmoke = providers.gradleProperty("includeModelSmoke").orNull == "true"
+    if (includeModelSmoke) {
+        // Placeholder: model smoke task would be added here when implemented.
+        logger.lifecycle("Model smoke tests not yet implemented; skipping.")
+    }
+
+    // Wire plugin verifier if it's available (IntelliJ Platform plugin 2.x exposes it).
+    val verifierTaskName = "verifyPlugin"
+    if (tasks.names.contains(verifierTaskName)) {
+        dependsOn(verifierTaskName)
+    }
+
+    doLast {
+        logger.lifecycle("releaseCheck completed. See build/release-validation/ for the full report.")
     }
 }
 
