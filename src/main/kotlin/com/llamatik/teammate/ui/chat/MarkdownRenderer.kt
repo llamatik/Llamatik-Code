@@ -4,10 +4,9 @@ import com.intellij.icons.AllIcons
 import com.intellij.openapi.editor.EditorFactory
 import com.intellij.openapi.editor.colors.EditorColorsManager
 import com.intellij.openapi.editor.ex.EditorEx
-import com.intellij.openapi.editor.ex.util.LexerEditorHighlighter
+import com.intellij.openapi.editor.highlighter.EditorHighlighterFactory
 import com.intellij.openapi.fileTypes.FileTypeManager
 import com.intellij.openapi.fileTypes.PlainTextFileType
-import com.intellij.openapi.fileTypes.SyntaxHighlighterFactory
 import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.openapi.project.Project
 import com.intellij.ui.components.JBLabel
@@ -277,11 +276,9 @@ class MarkdownRenderer(private val project: Project? = null) : JPanel() {
                     isRightMarginShown = false
                     isCaretRowShown = false
                 }
-                val syntaxHighlighter = SyntaxHighlighterFactory
-                    .getSyntaxHighlighter(fileType, project, null)
-                    ?: SyntaxHighlighterFactory.getSyntaxHighlighter(PlainTextFileType.INSTANCE, project, null)!!
-                val lexerHighlighter = LexerEditorHighlighter(syntaxHighlighter, scheme)
-                setHighlighter(lexerHighlighter)
+                val highlighter = EditorHighlighterFactory.getInstance()
+                    .createEditorHighlighter(project, fileType)
+                setHighlighter(highlighter)
             }
             // Wrap the editor component so we can add padding and dispose on removal
             return object : JPanel(BorderLayout()) {
