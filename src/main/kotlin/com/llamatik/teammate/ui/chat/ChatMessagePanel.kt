@@ -35,6 +35,8 @@ class ChatMessagePanel(
     private val onViewDiff: (() -> Unit)? = null,
 ) : JPanel(BorderLayout()) {
 
+    override fun getMaximumSize(): Dimension = Dimension(Int.MAX_VALUE, preferredSize.height)
+
     private val assistantBubble = LlamatikTheme.surface
     private val userBubble = LlamatikTheme.primaryContainer
     private val bubbleStroke = LlamatikTheme.outline
@@ -60,7 +62,7 @@ class ChatMessagePanel(
     }
 
     // Markdown renderer swapped in for assistant messages once streaming finishes.
-    private val markdownRenderer = MarkdownRenderer().apply {
+    private val markdownRenderer = MarkdownRenderer(project).apply {
         border = JBUI.Borders.empty(10, 12, 4, 12)
         isVisible = false
     }
@@ -170,6 +172,11 @@ class ChatMessagePanel(
         }
 
         add(stack, BorderLayout.CENTER)
+
+        // For persisted assistant messages, activate markdown rendering immediately.
+        if (!isUser && initialContent.isNotBlank()) {
+            setContent(initialContent)
+        }
     }
 
     fun appendToken(token: String) {

@@ -1,13 +1,20 @@
 package com.llamatik.teammate.ui.chat
 
 import com.intellij.icons.AllIcons
+import com.intellij.openapi.editor.EditorFactory
+import com.intellij.openapi.editor.colors.EditorColorsManager
+import com.intellij.openapi.editor.ex.EditorEx
+import com.intellij.openapi.editor.ex.util.LexerEditorHighlighter
+import com.intellij.openapi.fileTypes.FileTypeManager
+import com.intellij.openapi.fileTypes.PlainTextFileType
+import com.intellij.openapi.fileTypes.SyntaxHighlighterFactory
 import com.intellij.openapi.ide.CopyPasteManager
+import com.intellij.openapi.project.Project
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBTextArea
 import com.intellij.util.ui.JBUI
 import com.llamatik.teammate.ui.LlamatikTheme
 import java.awt.BorderLayout
-import java.awt.Color
 import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.Font
@@ -18,6 +25,7 @@ import java.awt.datatransfer.StringSelection
 import javax.swing.BorderFactory
 import javax.swing.BoxLayout
 import javax.swing.JButton
+import javax.swing.JComponent
 import javax.swing.JPanel
 import javax.swing.text.DefaultCaret
 
@@ -33,7 +41,7 @@ import javax.swing.text.DefaultCaret
  * All colours are pulled from [LlamatikTheme] so they update with IDE theme switches.
  * Call [setContent] to replace the rendered content at any time.
  */
-class MarkdownRenderer : JPanel() {
+class MarkdownRenderer(private val project: Project? = null) : JPanel() {
 
     private val contentPanel = JPanel().apply {
         layout = BoxLayout(this, BoxLayout.Y_AXIS)
@@ -187,7 +195,6 @@ class MarkdownRenderer : JPanel() {
         val lang = block.language.ifBlank { "Code" }
             .replaceFirstChar { it.uppercase() }
 
-        // Header bar: language label + action buttons
         val langLabel = JBLabel(lang).apply {
             foreground = LlamatikTheme.onSurfaceVariant
             font = font.deriveFont(Font.BOLD, font.size2D - 1f)
@@ -217,10 +224,81 @@ class MarkdownRenderer : JPanel() {
             }, BorderLayout.EAST)
         }
 
-        // Code body — fixed-width text, no line wrap
-        val codeArea = object : JBTextArea(block.code) {
+        val codeBody: JComponent = buildCodeBody(block)
+
+        val scrollWrapper = JPanel(BorderLayout()).apply {
+            isOpaque = true
+            background = LlamatikTheme.codeBackground
+            add(codeBody, BorderLayout.CENTER)
+        }
+
+        return object : JPanel(BorderLayout()) {
+            override fun paintComponent(g: Graphics) {
+                val g2 = g.create() as Graphics2D
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+                g2.color = LlamatikTheme.codeBackground
+                g2.fillRoundRect(0, 0, width, height, 10, 10)
+                g2.dispose()
+            }
+            override fun getMaximumSize(): Dimension = Dimension(Int.MAX_VALUE, preferredSize.height)
+        }.apply {
+            isOpaque = false
+            alignmentX = LEFT_ALIGNMENT
+            val outerBorder = JBUI.Borders.empty(4, 0, 8, 0)
+            border = BorderFactory.createCompoundBorder(
+                outerBorder,
+                BorderFactory.createLineBorder(LlamatikTheme.outline, 1, true)
+            )
+            add(header, BorderLayout.NORTH)
+            add(scrollWrapper, BorderLayout.CENTER)
+        }
+    }
+
+    private fun buildCodeBody(block: Block.CodeBlock): JComponent {
+        if (project != null) {
+            val ext = block.language.lowercase()
+            val fileType = FileTypeManager.getInstance().getFileTypeByExtension(ext)
+                .takeIf { it !is PlainTextFileType || ext == "txt" }
+                ?: PlainTextFileType.INSTANCE
+            val document = EditorFactory.getInstance().createDocument(block.code)
+            val editor = EditorFactory.getInstance().createViewer(document, project) as EditorEx
+            editor.apply {
+                isViewer = true
+                val scheme = EditorColorsManager.getInstance().globalScheme
+                colorsScheme = scheme
+                settings.apply {
+                    isLineNumbersShown = false
+                    isLineMarkerAreaShown = false
+                    isFoldingOutlineShown = false
+                    isIndentGuidesShown = false
+                    isUseSoftWraps = false
+                    additionalLinesCount = 0
+                    additionalColumnsCount = 0
+                    isRightMarginShown = false
+                    isCaretRowShown = false
+                }
+                val syntaxHighlighter = SyntaxHighlighterFactory
+                    .getSyntaxHighlighter(fileType, project, null)
+                    ?: SyntaxHighlighterFactory.getSyntaxHighlighter(PlainTextFileType.INSTANCE, project, null)!!
+                val lexerHighlighter = LexerEditorHighlighter(syntaxHighlighter, scheme)
+                setHighlighter(lexerHighlighter)
+            }
+            // Wrap the editor component so we can add padding and dispose on removal
+            return object : JPanel(BorderLayout()) {
+                init {
+                    isOpaque = false
+                    border = JBUI.Borders.empty(6, 8)
+                    add(editor.component, BorderLayout.CENTER)
+                }
+                override fun removeNotify() {
+                    super.removeNotify()
+                    if (!editor.isDisposed) EditorFactory.getInstance().releaseEditor(editor)
+                }
+            }
+        }
+        // Fallback: plain monospaced text area
+        return object : JBTextArea(block.code) {
             override fun getPreferredSize(): Dimension {
-                // Width tracks container; height expands to fit content
                 val ps = super.getPreferredSize()
                 return Dimension(0, ps.height)
             }
@@ -236,34 +314,6 @@ class MarkdownRenderer : JPanel() {
             caret = object : DefaultCaret() {
                 override fun setSelectionVisible(visible: Boolean) = super.setSelectionVisible(true)
             }
-        }
-
-        val scrollWrapper = JPanel(BorderLayout()).apply {
-            isOpaque = true
-            background = LlamatikTheme.codeBackground
-            add(codeArea, BorderLayout.CENTER)
-        }
-
-        return object : JPanel(BorderLayout()) {
-            override fun paintComponent(g: Graphics) {
-                val g2 = g.create() as Graphics2D
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
-                g2.color = LlamatikTheme.codeBackground
-                g2.fillRoundRect(0, 0, width, height, 10, 10)
-                g2.dispose()
-            }
-        }.apply {
-            isOpaque = false
-            border = JBUI.Borders.compound(
-                BorderFactory.createLineBorder(LlamatikTheme.outline, 1, true),
-                JBUI.Borders.empty(0),
-            )
-            maximumSize = Dimension(Int.MAX_VALUE, Int.MAX_VALUE)
-            add(header, BorderLayout.NORTH)
-            add(scrollWrapper, BorderLayout.CENTER)
-            val outerBorder = JBUI.Borders.empty(4, 0, 8, 0)
-            border = BorderFactory.createCompoundBorder(outerBorder,
-                BorderFactory.createLineBorder(LlamatikTheme.outline, 1, true))
         }
     }
 
