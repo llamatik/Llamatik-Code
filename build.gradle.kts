@@ -23,7 +23,7 @@ plugins {
 }
 
 group = "com.llamatik.teammate"
-version = "1.6.4"
+version = "1.7.0"
 
 repositories {
     //mavenLocal()
