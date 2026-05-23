@@ -255,7 +255,7 @@ class MarkdownRenderer(private val project: Project? = null) : JPanel() {
 
     private fun buildCodeBody(block: Block.CodeBlock): JComponent {
         if (project != null) {
-            val ext = block.language.lowercase()
+            val ext = LANGUAGE_TO_EXTENSION[block.language.lowercase()] ?: block.language.lowercase()
             val fileType = FileTypeManager.getInstance().getFileTypeByExtension(ext)
                 .takeIf { it !is PlainTextFileType || ext == "txt" }
                 ?: PlainTextFileType.INSTANCE
@@ -312,6 +312,38 @@ class MarkdownRenderer(private val project: Project? = null) : JPanel() {
                 override fun setSelectionVisible(visible: Boolean) = super.setSelectionVisible(true)
             }
         }
+    }
+
+    companion object {
+        private val LANGUAGE_TO_EXTENSION = mapOf(
+            "kotlin" to "kt",
+            "java" to "java",
+            "javascript" to "js",
+            "typescript" to "ts",
+            "python" to "py",
+            "ruby" to "rb",
+            "csharp" to "cs",
+            "c#" to "cs",
+            "cpp" to "cpp",
+            "c++" to "cpp",
+            "c" to "c",
+            "go" to "go",
+            "rust" to "rs",
+            "swift" to "swift",
+            "shell" to "sh",
+            "bash" to "sh",
+            "xml" to "xml",
+            "html" to "html",
+            "css" to "css",
+            "json" to "json",
+            "yaml" to "yaml",
+            "yml" to "yaml",
+            "sql" to "sql",
+            "groovy" to "groovy",
+            "scala" to "scala",
+            "php" to "php",
+            "dart" to "dart",
+        )
     }
 
     // ── Inline markdown → HTML ────────────────────────────────────────────────
