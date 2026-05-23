@@ -453,6 +453,10 @@ object Strings {
         const val DEVELOPED_BY = "Developed by Llamatik AI"
         const val POWERED_BY = "Powered by Llamatik and llama.cpp"
         const val COPYRIGHT = "Copyright 2026"
+        const val DISCORD = "Join Discord"
+        const val DISCORD_URL = "https://discord.gg/bNpzawZqq"
+        const val X_TWITTER = "Follow on X"
+        const val X_TWITTER_URL = "https://twitter.com/LlamatikAI"
     }
 
     // ── Multimodal / image attachment ─────────────────────────────────────────

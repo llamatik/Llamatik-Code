@@ -7,6 +7,7 @@ import com.intellij.openapi.options.Configurable
 import com.intellij.openapi.project.ProjectManager
 import com.llamatik.teammate.licensing.LicenseChecker
 import com.llamatik.teammate.licensing.TrialService
+import com.intellij.ide.BrowserUtil
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.wm.ToolWindowManager
@@ -469,6 +470,25 @@ class LlamatikSettingsConfigurable : Configurable {
                     for (line in listOf(Strings.About.DEVELOPED_BY, Strings.About.POWERED_BY, Strings.About.COPYRIGHT)) {
                         panel.add(JLabel(line), gbc)
                     }
+                    val linksPanel = JPanel().apply {
+                        isOpaque = false
+                        val discordButton = JButton(Strings.About.DISCORD).apply {
+                            isBorderPainted = false
+                            isContentAreaFilled = false
+                            cursor = java.awt.Cursor(java.awt.Cursor.HAND_CURSOR)
+                            foreground = java.awt.Color(0x5865F2)
+                            addActionListener { BrowserUtil.browse(Strings.About.DISCORD_URL) }
+                        }
+                        val xButton = JButton(Strings.About.X_TWITTER).apply {
+                            isBorderPainted = false
+                            isContentAreaFilled = false
+                            cursor = java.awt.Cursor(java.awt.Cursor.HAND_CURSOR)
+                            addActionListener { BrowserUtil.browse(Strings.About.X_TWITTER_URL) }
+                        }
+                        add(discordButton)
+                        add(xButton)
+                    }
+                    panel.add(linksPanel, gbc)
                     return panel
                 }
                 override fun createActions() = arrayOf(okAction)
