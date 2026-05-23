@@ -234,11 +234,14 @@ class ImageAttachmentBar(
         return chip
     }
 
-    // Returns true if both licensed and configured; shows the appropriate prompt otherwise.
+    // Returns true if the user can attach an image; shows appropriate prompt otherwise.
     private fun checkAccess(): Boolean {
-        if (!isLicensed()) {
-            com.intellij.openapi.components.service<TrialService>()
-                .requestLicense(Strings.Multimodal.UPGRADE_MESSAGE)
+        if (!isLicensed() && attachments.size >= FREE_DAILY_IMAGE_LIMIT) {
+            com.intellij.openapi.ui.Messages.showInfoMessage(
+                project,
+                "Free plan allows up to $FREE_DAILY_IMAGE_LIMIT image attachments per session. Upgrade to Pro for unlimited attachments.",
+                Strings.App.NAME,
+            )
             return false
         }
         if (!isMultimodalEnabled()) {
@@ -250,5 +253,9 @@ class ImageAttachmentBar(
             return false
         }
         return true
+    }
+
+    companion object {
+        private const val FREE_DAILY_IMAGE_LIMIT = 5
     }
 }

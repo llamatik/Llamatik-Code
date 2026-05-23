@@ -22,8 +22,7 @@ class InferenceSettingsPanel(private val onUpgrade: (() -> Unit)? = null) {
 
     // ── Free tier controls ────────────────────────────────────────────────────
     val temperatureSpinner = JSpinner(SpinnerNumberModel(0.7, 0.0, 2.0, 0.05))
-    // Free tier: max tokens capped at 4096; Pro: up to 65536
-    private val maxTokensMax = if (licensed) 65536 else 4096
+    private val maxTokensMax = 65536
     val maxTokensSpinner = JSpinner(SpinnerNumberModel(
         /* value */ minOf(8192, maxTokensMax),
         /* min   */ 64,
@@ -57,7 +56,7 @@ class InferenceSettingsPanel(private val onUpgrade: (() -> Unit)? = null) {
             .addLabeledComponent(JBLabel(Strings.Inference.TEMPERATURE), temperatureSpinner)
             .addTooltip(Strings.Inference.TEMPERATURE_TOOLTIP)
             .addLabeledComponent(JBLabel(Strings.Inference.MAX_TOKENS), maxTokensSpinner)
-            .addTooltip(if (licensed) Strings.Inference.MAX_TOKENS_TOOLTIP else Strings.Inference.MAX_TOKENS_FREE_TOOLTIP)
+            .addTooltip(Strings.Inference.MAX_TOKENS_TOOLTIP)
             .addSeparator()
             .addLabeledComponent(JBLabel(Strings.Inference.SECTION_RUNTIME), JBLabel(""))
             .addLabeledComponent(JBLabel(Strings.Inference.NUM_THREADS), numThreadsSpinner)
@@ -66,13 +65,7 @@ class InferenceSettingsPanel(private val onUpgrade: (() -> Unit)? = null) {
             .addTooltip(Strings.Inference.USE_MMAP_TOOLTIP)
             .addSeparator()
 
-        // Pro section header — shows "Requires Pro" label when not licensed
-        val proSectionRight = if (!licensed) {
-            JBLabel(Strings.Inference.PRO_REQUIRED).apply {
-                foreground = LlamatikTheme.onSurfaceVariant
-                font = font.deriveFont(Font.ITALIC, font.size2D - 1f)
-            }
-        } else JBLabel("")
+        val proSectionRight = JBLabel("")
 
         formBuilder
             .addLabeledComponent(JBLabel(Strings.Inference.SECTION_CONTEXT), proSectionRight)
@@ -90,39 +83,7 @@ class InferenceSettingsPanel(private val onUpgrade: (() -> Unit)? = null) {
 
         val formPanel = formBuilder.panel
 
-        if (!licensed) {
-            proControls.forEach { it.isEnabled = false }
-            resetButton.isEnabled = false
-
-            val messageLabel = JBLabel(Strings.Inference.UPGRADE_REQUIRED).apply {
-                font = font.deriveFont(Font.PLAIN)
-            }
-            val upgradeButton = JButton(Strings.Inference.UPGRADE_BUTTON).apply {
-                addActionListener {
-                    if (onUpgrade != null) {
-                        onUpgrade.invoke()
-                    } else {
-                        service<TrialService>().requestLicense(Strings.Inference.UPGRADE_REQUIRED)
-                    }
-                }
-            }
-            val bannerPanel = JPanel(BorderLayout(8, 0)).apply {
-                border = JBUI.Borders.compound(
-                    JBUI.Borders.customLine(LlamatikTheme.primary, 0, 0, 1, 0),
-                    JBUI.Borders.empty(8),
-                )
-                add(messageLabel, BorderLayout.CENTER)
-                add(upgradeButton, BorderLayout.EAST)
-            }
-
-            JPanel(BorderLayout()).apply {
-                add(bannerPanel, BorderLayout.NORTH)
-                add(formPanel, BorderLayout.CENTER)
-                border = JBUI.Borders.empty(8)
-            }
-        } else {
-            formPanel.also { it.border = JBUI.Borders.empty(8) }
-        }
+        formPanel.also { it.border = JBUI.Borders.empty(8) }
     }
 
     fun loadFrom(s: LlamatikAppSettings.State) {
@@ -142,9 +103,7 @@ class InferenceSettingsPanel(private val onUpgrade: (() -> Unit)? = null) {
         s.batchSize      = (batchSizeSpinner.value as Number).toInt()
         s.flashAttention = flashAttentionCheck.isSelected
         s.gpuLayers      = if (gpuOffloadCheck.isSelected) -1 else 0
-        if (licensed) {
-            s.contextSize = (contextSizeSpinner.value as Number).toInt()
-        }
+        s.contextSize = (contextSizeSpinner.value as Number).toInt()
         s.numThreads     = (numThreadsSpinner.value as Number).toInt()
         s.useMmap        = useMmapCheck.isSelected
     }
@@ -157,7 +116,7 @@ class InferenceSettingsPanel(private val onUpgrade: (() -> Unit)? = null) {
         (batchSizeSpinner.value as Number).toInt()      != s.batchSize   ||
         flashAttentionCheck.isSelected                  != s.flashAttention ||
         gpuOffloadCheck.isSelected                      != (s.gpuLayers != 0) ||
-        (licensed && (contextSizeSpinner.value as Number).toInt() != s.contextSize)
+        (contextSizeSpinner.value as Number).toInt() != s.contextSize
 
     private fun resetToDefaults() {
         val d = LlamatikAppSettings.State()
@@ -168,8 +127,6 @@ class InferenceSettingsPanel(private val onUpgrade: (() -> Unit)? = null) {
         batchSizeSpinner.value         = d.batchSize
         flashAttentionCheck.isSelected = d.flashAttention
         gpuOffloadCheck.isSelected     = d.gpuLayers != 0
-        if (licensed) {
-            contextSizeSpinner.value = d.contextSize
-        }
+        contextSizeSpinner.value = d.contextSize
     }
 }

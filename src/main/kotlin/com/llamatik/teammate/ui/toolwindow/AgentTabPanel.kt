@@ -407,7 +407,6 @@ class AgentTabPanel(
             add(proLabel)
             addSeparator()
             autoApproveItem.isEnabled = false
-            autoBuildItem.isEnabled = false
             autoFixItem.isEnabled = false
             aggressiveItem.isEnabled = false
         }
@@ -1189,16 +1188,8 @@ class AgentTabPanel(
                 alignmentX = LEFT_ALIGNMENT
             }
             proposalsPanel.add(header)
-            val licensed = runCatching { LicenseChecker.isLicensed() == true }.getOrElse { false }
-            val freeTierPaywall = !licensed && proposals.size > 1
-            val lockFunctions = mutableListOf<() -> Unit>()
-            proposals.forEachIndexed { index, proposal ->
-                val onApplyWrapped: (EditProposal) -> Unit = { p ->
-                    onApply(p)
-                    if (freeTierPaywall) lockFunctions.filterIndexed { i, _ -> i != index }.forEach { it() }
-                }
-                val (card, lockAccept) = buildProposalCard(proposal, onViewDiff, onApplyWrapped, onRejectProposal)
-                lockFunctions.add(lockAccept)
+            proposals.forEach { proposal ->
+                val (card, _) = buildProposalCard(proposal, onViewDiff, { p -> onApply(p) }, onRejectProposal)
                 proposalsPanel.add(card)
                 proposalsPanel.add(vStrut(6))
             }
@@ -1232,7 +1223,7 @@ class AgentTabPanel(
         responseActionsPanel.removeAll()
         if (showFixIt) {
             val fixBtn = actionButton(Strings.Agent.RESPONSE_ACTION_FIX_IT) {
-                if (isLicensed) onFixIt() else onCreatePlan()
+                onFixIt()
             }
             val planBtn = actionButton(Strings.Agent.RESPONSE_ACTION_CREATE_PLAN) { onCreatePlan() }
             val explainBtn = actionButton(Strings.Agent.RESPONSE_ACTION_EXPLAIN_MORE) { onExplainMore() }

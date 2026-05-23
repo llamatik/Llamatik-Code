@@ -374,7 +374,7 @@ object Strings {
         const val ACTION_DELETE = "Delete"
         const val SECTION_SETTINGS = "<html><b>Skills</b></html>"
         fun activeCount(n: Int) = if (n == 0) "No skills active" else "$n skill${if (n == 1) "" else "s"} active"
-        const val FREE_PLAN_SKILL_LIMIT = "Free plan supports 1 active skill. Upgrade to activate all."
+        const val FREE_PLAN_SKILL_LIMIT = "Free plan supports 3 active skills. Upgrade to activate all."
         const val ADD_SKILL_BUTTON = "+ Add Skill"
         const val ADD_SKILL_DIALOG_TITLE = "Add Custom Skill"
         const val ADD_SKILL_TAB_PASTE = "Paste Markdown"
