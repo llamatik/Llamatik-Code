@@ -50,6 +50,38 @@ intellijPlatform {
             sinceBuild = "252"
         }
         changeNotes = """
+            <h2>1.7.0 — UI Polish, Syntax Highlighting &amp; Free Tier Improvements</h2>
+
+            <h3>Free Tier Improvements</h3>
+            <ul>
+                <li><b>Multi-file edits unlocked on Free</b> — the agent can now apply changes across multiple files without requiring a Pro subscription. All edit proposals are fully actionable on the Free plan.</li>
+                <li><b>Auto-build unlocked on Free</b> — the agent can now automatically trigger a build after applying changes on the Free plan. Auto-approve, auto-fix, and aggressive mode remain Pro-only.</li>
+                <li><b>"Fix it automatically" unlocked on Free</b> — the Fix It button now always triggers the full fix flow instead of silently downgrading to "Create plan" on the Free tier.</li>
+                <li><b>Max tokens uncapped on Free</b> — the 4,096 token response cap has been removed. Free and Pro users both have access to the full 65,536 token limit.</li>
+                <li><b>Context size setting unlocked on Free</b> — free users can now configure context size in Inference Settings. The setting is no longer locked behind Pro.</li>
+                <li><b>Skills: 3 active on Free</b> — free users can now activate up to 3 skills simultaneously, up from 1.</li>
+                <li><b>External search: 15 searches/day on Free</b> — daily search limit raised from 5 to 15. Pages per task raised from 3 to 5. Docs sources raised from 1 to 3. Results per query raised from 5 to 8.</li>
+                <li><b>Image attachments on Free</b> — free users can now attach up to 5 images per session. Previously image attachment was fully blocked on the Free plan.</li>
+            </ul>
+
+            <h3>Chat UI Improvements</h3>
+            <ul>
+                <li><b>Syntax highlighting in code blocks</b> — code blocks in assistant responses now render with full IDE-quality syntax highlighting using IntelliJ's own editor viewer and the active colour scheme. Kotlin, Java, Python, JavaScript, TypeScript, and all other common languages are supported.</li>
+                <li><b>Markdown renders on conversation load</b> — persisted assistant messages now correctly render markdown formatting (bold, italic, lists, code blocks) when a conversation is reopened. Previously raw markdown was shown on load.</li>
+                <li><b>User message bubble no longer expands to fill the screen</b> — the user prompt bubble now sizes to fit its text content instead of expanding to fill all available vertical space until a response arrives.</li>
+                <li><b>Code block height fixed</b> — code blocks in responses no longer expand to fill the remaining panel height; they now size to fit their content.</li>
+            </ul>
+
+            <h3>About Dialog</h3>
+            <ul>
+                <li><b>Discord and X links added</b> — the About dialog now includes a "Join Discord" button and a "Follow on X" button, both opening in the system browser.</li>
+            </ul>
+
+            <h3>Inference Settings</h3>
+            <ul>
+                <li><b>GPU layers default to all layers on macOS</b> — on Apple Silicon, GPU offload now defaults to enabled (all layers) on fresh installs. llama.cpp uses Metal on macOS, making full GPU offload safe and significantly faster. Other platforms still default to CPU-only.</li>
+            </ul>
+
             <h2>1.6.4 — Trial, Agent &amp; Tooling Improvements</h2>
 
             <h3>Trial &amp; Licensing</h3>
