@@ -115,7 +115,7 @@ class SkillLibraryDialog(
             val lockFunctions = mutableListOf<() -> Unit>()
             filtered.forEach { skill ->
                 val status = skillService.skillStatus(skill.id)
-                val locked = freeTierPaywall && status != SkillStatus.ACTIVE && activeCount >= 1
+                val locked = freeTierPaywall && status != SkillStatus.ACTIVE && activeCount >= 3
                 val (card, lockActivate) = buildSkillCard(skill, locked)
                 lockFunctions.add(lockActivate)
                 listPanel.add(card)

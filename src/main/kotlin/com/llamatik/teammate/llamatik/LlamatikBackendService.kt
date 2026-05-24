@@ -36,6 +36,7 @@ class LlamatikBackendService : AssistantBackend {
     @Volatile private var lastBatchSize: Int = -1
     @Volatile private var lastNumThreads: Int = -1
     @Volatile private var lastFlashAttention: Boolean = false
+    @Volatile private var lastGpuLayers: Int = -1
 
     // One session per surface — each owns an isolated KV cache.
     @Volatile private var agentSession:     LlamaSession? = null
@@ -110,6 +111,7 @@ class LlamatikBackendService : AssistantBackend {
                     useMmap = request.config.useMmap,
                     flashAttention = request.config.flashAttention,
                     batchSize = request.config.batchSize,
+                    gpuLayers = request.config.gpuLayers,
                 )
                 ensureModel(request.config.modelIdOrPath)
 
@@ -170,12 +172,15 @@ class LlamatikBackendService : AssistantBackend {
                 }
 
                 // Guard against n_tokens_all > n_batch assert in llama_decode.
-                // ~3 chars/token on average; keep a safety margin below batchSize.
-                val maxPromptChars = request.config.batchSize * 3
+                // Context Size is the true model context window; Batch Size is a KV-cache
+                // inference parameter and must not be used to gate prompt length.
+                // ~3 chars/token on average; keep a 10% safety margin.
+                val effectiveContextTokens = request.config.contextLength
+                val maxPromptChars = (effectiveContextTokens * 3 * 0.9).toInt()
                 if (prompt.length > maxPromptChars) {
                     callbacks.onError(
-                        "Prompt too long for current Batch Size (${request.config.batchSize} tokens). " +
-                        "Reduce context or increase Batch Size in Inference Settings.",
+                        "Prompt too long for current Context Size ($effectiveContextTokens tokens). " +
+                        "Reduce context or increase Context Size in Inference Settings (requires Pro).",
                     )
                     return@submit
                 }
@@ -328,10 +333,11 @@ class LlamatikBackendService : AssistantBackend {
         if (config.contextLength != lastContextLength ||
             config.batchSize != lastBatchSize ||
             config.numThreads != lastNumThreads ||
-            config.flashAttention != lastFlashAttention
+            config.flashAttention != lastFlashAttention ||
+            config.gpuLayers != lastGpuLayers
         ) {
             synchronized(modelLock) {
-                // Close sessions so they are recreated with the new context params.
+                // Close sessions so they are recreated with the new context/GPU params.
                 closeSessionsLocked()
                 initializedModel = null
                 loadedFinetuneType = null
@@ -339,6 +345,7 @@ class LlamatikBackendService : AssistantBackend {
                 lastBatchSize = config.batchSize
                 lastNumThreads = config.numThreads
                 lastFlashAttention = config.flashAttention
+                lastGpuLayers = config.gpuLayers
             }
         }
     }

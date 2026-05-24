@@ -74,6 +74,7 @@ class ModelBenchmarkService : PersistentStateComponent<ModelBenchmarkService.Sta
             useMmap = settings.useMmap,
             flashAttention = settings.flashAttention,
             batchSize = settings.batchSize,
+            gpuLayers = settings.gpuLayers,
             localOnly = true,
         )
         ApplicationManager.getApplication().executeOnPooledThread {

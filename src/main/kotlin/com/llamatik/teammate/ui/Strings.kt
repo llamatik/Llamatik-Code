@@ -292,6 +292,8 @@ object Strings {
         const val USE_MMAP_TOOLTIP     = "Load model weights via mmap — faster startup, shares memory across processes"
         const val FLASH_ATTENTION      = "Enable Flash Attention"
         const val FLASH_ATTENTION_TOOLTIP = "Use Flash Attention kernel — reduces VRAM usage on supported hardware"
+        const val GPU_LAYERS           = "GPU offload (all layers)"
+        const val GPU_LAYERS_TOOLTIP   = "Offload all model layers to the GPU (sets n_gpu_layers = -1). Faster inference but requires enough VRAM to fit the model. Leave off to run on CPU only."
         const val RESET_DEFAULTS       = "Reset to defaults"
         const val UPGRADE_REQUIRED     = "Context size requires a Pro licence. Upgrade to unlock advanced settings."
         const val UPGRADE_BUTTON       = "Upgrade"
@@ -372,7 +374,7 @@ object Strings {
         const val ACTION_DELETE = "Delete"
         const val SECTION_SETTINGS = "<html><b>Skills</b></html>"
         fun activeCount(n: Int) = if (n == 0) "No skills active" else "$n skill${if (n == 1) "" else "s"} active"
-        const val FREE_PLAN_SKILL_LIMIT = "Free plan supports 1 active skill. Upgrade to activate all."
+        const val FREE_PLAN_SKILL_LIMIT = "Free plan supports 3 active skills. Upgrade to activate all."
         const val ADD_SKILL_BUTTON = "+ Add Skill"
         const val ADD_SKILL_DIALOG_TITLE = "Add Custom Skill"
         const val ADD_SKILL_TAB_PASTE = "Paste Markdown"
@@ -451,6 +453,10 @@ object Strings {
         const val DEVELOPED_BY = "Developed by Llamatik AI"
         const val POWERED_BY = "Powered by Llamatik and llama.cpp"
         const val COPYRIGHT = "Copyright 2026"
+        const val DISCORD = "Join Discord"
+        const val DISCORD_URL = "https://discord.gg/bNpzawZqq"
+        const val X_TWITTER = "Follow on X"
+        const val X_TWITTER_URL = "https://twitter.com/LlamatikAI"
     }
 
     // ── Multimodal / image attachment ─────────────────────────────────────────

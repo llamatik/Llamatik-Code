@@ -35,12 +35,15 @@ class ChatMessagePanel(
     private val onViewDiff: (() -> Unit)? = null,
 ) : JPanel(BorderLayout()) {
 
+    override fun getMaximumSize(): Dimension = Dimension(Int.MAX_VALUE, preferredSize.height)
+
     private val assistantBubble = LlamatikTheme.surface
     private val userBubble = LlamatikTheme.primaryContainer
     private val bubbleStroke = LlamatikTheme.outline
     private val userStroke = LlamatikTheme.primary
     private val isUser = role == ChatRole.USER
 
+    // Plain text area used for user bubbles and for streaming accumulation on assistant bubbles.
     private val textArea = JBTextArea(initialContent).apply {
         isEditable = false
         isOpaque = false
@@ -49,7 +52,6 @@ class ChatMessagePanel(
         foreground = LlamatikTheme.onSurface
         border = JBUI.Borders.empty(10, 12, 4, 12)
         font = font.deriveFont(font.size2D + 1f)
-        // Keep selection highlight visible even when focus moves to the composer.
         caret = object : DefaultCaret() {
             override fun setSelectionVisible(visible: Boolean) = super.setSelectionVisible(true)
         }
@@ -57,6 +59,19 @@ class ChatMessagePanel(
             override fun mousePressed(e: MouseEvent) { if (e.isPopupTrigger) showContextMenu(e) }
             override fun mouseReleased(e: MouseEvent) { if (e.isPopupTrigger) showContextMenu(e) }
         })
+    }
+
+    // Markdown renderer swapped in for assistant messages once streaming finishes.
+    private val markdownRenderer = MarkdownRenderer(project).apply {
+        border = JBUI.Borders.empty(10, 12, 4, 12)
+        isVisible = false
+    }
+
+    // Container that holds either textArea (streaming) or markdownRenderer (done)
+    private val contentHost = JPanel(BorderLayout()).apply {
+        isOpaque = false
+        add(textArea, BorderLayout.CENTER)
+        add(markdownRenderer, BorderLayout.SOUTH)
     }
 
     private val editActions = JPanel(FlowLayout(FlowLayout.RIGHT, 4, 0)).apply {
@@ -82,7 +97,8 @@ class ChatMessagePanel(
         }
 
         val copyButton = iconButton(AllIcons.Actions.Copy, Strings.App.COPY) {
-            CopyPasteManager.getInstance().setContents(StringSelection(textArea.text))
+            val text = if (markdownRenderer.isVisible) textArea.text else textArea.text
+            CopyPasteManager.getInstance().setContents(StringSelection(text))
         }
 
         if (onViewDiff != null) editActions.add(actionButton(Strings.App.VIEW_DIFF) { onViewDiff.invoke() })
@@ -118,12 +134,10 @@ class ChatMessagePanel(
         }.apply {
             isOpaque = false
             border = JBUI.Borders.empty(1)
-            add(textArea, BorderLayout.CENTER)
+            add(contentHost, BorderLayout.CENTER)
             add(bubbleFooter, BorderLayout.SOUTH)
         }
 
-        // Indent: user bubbles pushed right (spacer on left), assistant pushed left (spacer on right).
-        // Bubble sits in CENTER so it fills the available width after the spacer.
         val indent = Dimension(100, 0)
         val spacer = JPanel().apply {
             isOpaque = false
@@ -158,6 +172,11 @@ class ChatMessagePanel(
         }
 
         add(stack, BorderLayout.CENTER)
+
+        // For persisted assistant messages, activate markdown rendering immediately.
+        if (!isUser && initialContent.isNotBlank()) {
+            setContent(initialContent)
+        }
     }
 
     fun appendToken(token: String) {
@@ -173,7 +192,17 @@ class ChatMessagePanel(
         spinner.isVisible = false
         spinner.suspend()
         textArea.text = value
-        textArea.caretPosition = 0
+
+        // For assistant messages, switch to the markdown renderer now that streaming is done.
+        if (!isUser && value.isNotBlank()) {
+            markdownRenderer.setContent(value)
+            textArea.isVisible = false
+            markdownRenderer.isVisible = true
+            contentHost.revalidate()
+            contentHost.repaint()
+        } else {
+            textArea.caretPosition = 0
+        }
     }
 
     fun stopSpinner() {
@@ -190,6 +219,7 @@ class ChatMessagePanel(
 
     private fun showContextMenu(e: MouseEvent) {
         val menu = JPopupMenu()
+        val fullText = textArea.text
         val hasSelection = textArea.selectedText?.isNotEmpty() == true
 
         val copyItem = JMenuItem(Strings.App.COPY).apply {
@@ -200,7 +230,7 @@ class ChatMessagePanel(
         }
         val copyAllItem = JMenuItem(Strings.App.COPY_ALL).apply {
             addActionListener {
-                CopyPasteManager.getInstance().setContents(StringSelection(textArea.text))
+                CopyPasteManager.getInstance().setContents(StringSelection(fullText))
             }
         }
         val selectAllItem = JMenuItem(Strings.App.SELECT_ALL).apply {

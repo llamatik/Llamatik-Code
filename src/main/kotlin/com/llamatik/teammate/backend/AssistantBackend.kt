@@ -11,6 +11,8 @@ data class BackendConfig(
     val useMmap: Boolean,
     val flashAttention: Boolean,
     val batchSize: Int,
+    /** Number of model layers to offload to GPU. 0 = CPU only, -1 = all layers. */
+    val gpuLayers: Int = 0,
     val localOnly: Boolean,
 )
 
