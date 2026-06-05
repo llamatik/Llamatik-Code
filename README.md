@@ -1,18 +1,40 @@
 # Llamatik Code
 
-Llamatik Code is a local-first IntelliJ coding assistant for the Llamatik Teammate project.
+**Build, refactor, review, and verify code locally — without sending your source code to the cloud.**
 
-## Implemented MVP
+Llamatik Code is a local-first autonomous development environment for IntelliJ-based IDEs. It runs a local GGUF model on your machine and wraps every task in a structured, auditable workflow: gather context → plan → patch → verify → audit.
+
+## Features
+
+### Autonomous Local Development (1.7.0+)
+
+- **Offline Enterprise Pair Programmer** — mission-driven workflow with risk detection, plan approval, diff preview, verification, and audit report
+- **Local coding missions** — describe a task in plain language; the agent plans and executes it entirely on your machine
+- **Context menu actions** — right-click any file or selection → **Llamatik Code → Autonomous Local Development**
+- **Inline completions** — passive FIM-based code suggestions as you type (disabled by default, opt-in)
+- **Trust UX** — plan-before-write enforcement, diff gates, audit trail with no raw source code stored
+
+### Core features
 
 - Docked **Llamatik Code** tool window
 - Multi-tab project chat sessions with persistence
-- Llamatik backend abstraction with local model selection
-- Tool-driven agent loop with tool-call parsing
+- Tool-driven agent loop (70+ built-in tools)
 - Project context tools: list/read/search/current file/selection
-- Safe one-file edit proposals with diff preview and approval
-- Settings page for local model path, model presets, safety limits, and project rules
-- Stub-ready model download registry for future Hugging Face integration
+- Safe diff preview and approval for all file writes
+- Settings page for model management and inference parameters
 - IntelliJ editor/project actions for explain/refactor/fix/document/test/edit flows
+
+### Agent capabilities
+
+- Git awareness (status, diff, changed files, branch, commit suggestions)
+- PSI-based symbol search and usage analysis
+- Project index search and relevance ranking
+- Run configuration detection and last-output analysis
+- Static analysis integration
+- Dependency inspection and upgrade planning
+- MCP server integration (1.4.0+)
+- External knowledge: web search, docs sources, error research (1.5.0+)
+- Code Health Monitor: background analysis, regression detection, watched areas (1.5.0+)
 
 ## Benchmark harness
 

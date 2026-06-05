@@ -131,6 +131,11 @@ class ToolRegistry(private val project: Project) {
         // Error research tools
         ErrorResearchAnalyzeTool(project),
         ErrorResearchFixTool(project),
+        // Enterprise Pair Programmer tools
+        EnterpriseMissionCreateTool(project),
+        EnterpriseMissionContextTool(project),
+        EnterpriseMissionAuditTool(project),
+        EnterpriseMissionReportTool(project),
         // Code Health Monitor tools
         CodeHealthStatusTool(project),
         CodeHealthRefreshTool(project),

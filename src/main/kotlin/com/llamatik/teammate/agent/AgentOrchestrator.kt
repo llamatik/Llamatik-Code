@@ -183,6 +183,9 @@ class AgentOrchestrator(private val project: Project) {
 
         val systemPrompt = buildString {
             append(buildSystemPrompt())
+            if (isEnterpriseMission(userPrompt)) {
+                append(buildEnterpriseMissionSystemPromptAddition())
+            }
             if (effectiveFileContext.isNotBlank()) {
                 appendLine()
                 appendLine()
@@ -566,6 +569,27 @@ class AgentOrchestrator(private val project: Project) {
             appendLine()
             append(AgentFallbackPolicy.aggressiveModeSystemPromptAddition().take(600))
         }
+    }
+
+    private fun isEnterpriseMission(prompt: String): Boolean {
+        val lower = prompt.lowercase()
+        return ENTERPRISE_MODE_TRIGGERS.any { lower.contains(it) }
+    }
+
+    private fun buildEnterpriseMissionSystemPromptAddition(): String = buildString {
+        appendLine()
+        appendLine("=== Offline Enterprise Pair Programmer Mode ===")
+        appendLine("Enforce this workflow on EVERY response:")
+        appendLine("1. Inspect before editing: use read_file, git_status, diagnostics_run first.")
+        appendLine("2. Call enterprise_mission_create at the start of any new mission.")
+        appendLine("3. Create a plan and explain risks BEFORE any file changes.")
+        appendLine("4. Use small, reviewable patches (replace_in_file over write_file when possible).")
+        appendLine("5. Show diff using show_diff after every file change.")
+        appendLine("6. Verify using run_config_last_output, terminal_run, or diagnostics_run.")
+        appendLine("7. Call enterprise_mission_report as the final step — include rollback instructions.")
+        appendLine("8. External knowledge is DISABLED unless explicitly allowed.")
+        appendLine("9. Preserve ALL existing behavior unless the mission explicitly requires a change.")
+        appendLine("10. Never skip the plan step. Never mutate without prior context gathering.")
     }
 
     /**
@@ -1103,7 +1127,16 @@ class AgentOrchestrator(private val project: Project) {
 
     companion object {
         // Agent identity
-        private const val AGENT_IDENTITY = "You are Llamatik Code, a local IntelliJ coding agent."
+        private const val AGENT_IDENTITY = "You are Llamatik Code, an autonomous local development agent for IntelliJ. You plan, patch, review, and verify code locally — all source code stays on the user's machine."
+
+        // Enterprise / mission mode trigger phrases
+        private val ENTERPRISE_MODE_TRIGGERS = setOf(
+            "offline enterprise pair programmer",
+            "autonomous local development",
+            "enterprise_mission_create",
+            "enterprise mission",
+            "local coding mission",
+        )
 
         // XML tag constants
         private const val THINK_OPEN = "<think>"
@@ -1229,6 +1262,9 @@ class AgentOrchestrator(private val project: Project) {
             "docs_sources_list", "docs_source_add", "docs_index_refresh", "docs_search",
             // Error research
             "error_research_analyze", "error_research_fix",
+            // Enterprise Pair Programmer
+            "enterprise_mission_create", "enterprise_mission_context",
+            "enterprise_mission_audit", "enterprise_mission_report",
             // Code Health Monitor
             "code_health_status", "code_health_refresh", "code_health_list_insights",
             "code_health_explain_insight", "code_health_create_fix_plan", "code_health_ignore_insight",
@@ -1275,6 +1311,9 @@ class AgentOrchestrator(private val project: Project) {
             "code_health_status", "code_health_list_insights", "code_health_explain_insight",
             "code_health_create_fix_plan", "watch_area_list", "session_context_get",
             "before_commit_review", "regression_risk_analyze", "refactor_analyze_file",
+            // Enterprise Pair Programmer (context/audit/report are read-only; create is planning only)
+            "enterprise_mission_create", "enterprise_mission_context",
+            "enterprise_mission_audit", "enterprise_mission_report",
         )
         private val EDIT_TOOL_NAMES = setOf(TOOL_WRITE_FILE, TOOL_REPLACE_IN_FILE, TOOL_CREATE_FILE)
 

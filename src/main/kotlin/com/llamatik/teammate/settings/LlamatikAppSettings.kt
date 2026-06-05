@@ -72,6 +72,19 @@ class LlamatikAppSettings : PersistentStateComponent<LlamatikAppSettings.State> 
         var codeHealthRegressionDetection: Boolean = false,
         var codeHealthDashboard: Boolean = true,
         var codeHealthBeforeCommit: Boolean = false,
+        // Autonomous Local Development
+        var autonomousLocalDevelopmentEnabled: Boolean = true,
+        var enterpriseModeEnabled: Boolean = true,
+        var enterpriseDefaultSafetyLevel: String = "APPROVAL_REQUIRED",
+        var enterpriseAllowExternalKnowledge: Boolean = false,
+        var enterpriseRequirePlanBeforeWrite: Boolean = true,
+        var enterpriseRequireDiffBeforeWrite: Boolean = true,
+        var enterpriseRequireAuditReport: Boolean = true,
+        // Inline completions
+        var enableInlineCompletion: Boolean = false,
+        var inlineCompletionDebounceMs: Int = 600,
+        var inlineCompletionMaxContextChars: Int = 1200,
+        var inlineCompletionMaxTokens: Int = 64,
     )
 
     private var myState = State()

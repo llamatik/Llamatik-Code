@@ -1,5 +1,41 @@
 # Changelog
 
+## 1.7.0 (2026-05-27)
+
+### Autonomous Local Development
+
+Llamatik Code is now a mission-driven autonomous development environment. Your source code never leaves your machine.
+
+**Offline Enterprise Pair Programmer**
+- Structured mission workflow: gather context → classify risks → plan → patch → verify → audit report
+- 11 mission types auto-detected from plain-language requests
+- Four safety levels: APPROVAL_REQUIRED (default), PLAN_ONLY, AUTO_APPLY, FULL_AUTO
+- Risk detection (LOW / MEDIUM / HIGH / CRITICAL) surfaced in the plan before any file is written
+- Plan-before-write and diff-before-write enforcement (both on by default)
+- Audit trail per mission — metadata only, no raw source code stored
+- Rollback instructions included in every final report
+- 4 new agent tools: `enterprise_mission_create`, `enterprise_mission_context`, `enterprise_mission_audit`, `enterprise_mission_report`
+
+**Context menu actions (7 new)**
+Right-click any file or selection → **Llamatik Code → Autonomous Local Development**:
+Enterprise Pair Programmer, Review Current Changes, Fix Build Failure, Generate Tests, Explain Architecture, Safe Refactor, Implement Feature
+
+**Inline completions (opt-in MVP)**
+- Local FIM completions using the same on-device model as the agent
+- Debounced (600 ms default), stale requests auto-cancelled
+- Current-file only; configurable context window (default 1200 chars)
+- Disabled by default — enable at **Settings → Llamatik Code → Autonomous Local Development**
+
+**New settings page**
+Settings → Llamatik Code → Autonomous Local Development (enterprise + inline completion settings)
+
+**Other changes**
+- Welcome screen and onboarding updated with mission-based language and "I just want it to work" fast path
+- External knowledge disabled by default during enterprise missions (new opt-in setting)
+- Free tier: daily search limit raised from 5 → 15; docs sources raised from 1 → 3
+
+---
+
 ## 1.5.0 (2026-05-08)
 
 ### Code Health Monitor

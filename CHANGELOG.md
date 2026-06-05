@@ -1,5 +1,52 @@
 # Changelog
 
+## [1.7.0] - 2026-05-27
+
+### Added
+
+#### Autonomous Local Development
+- **Offline Enterprise Pair Programmer** — new flagship mode that wraps every agent task in a structured, auditable workflow: gather context → classify risks → plan → patch → verify → audit report
+- **Mission classification** — the agent automatically classifies requests into 11 mission types (CODE_REVIEW, REFACTOR, BUG_FIX, FEATURE_IMPLEMENTATION, TEST_GENERATION, DOCUMENTATION, BUILD_FAILURE_REPAIR, ARCHITECTURE_EXPLANATION, DEPENDENCY_UPDATE, SECURITY_AUDIT, PERFORMANCE_ANALYSIS)
+- **Safety levels** — configurable per-project: APPROVAL_REQUIRED (default), PLAN_ONLY, AUTO_APPLY, FULL_AUTO
+- **Risk detection** — four risk levels (LOW / MEDIUM / HIGH / CRITICAL) surfaced in the mission plan before any file is written
+- **Plan-before-write enforcement** — agent must produce a mission plan before calling any write tool (configurable, default on)
+- **Diff-before-write enforcement** — unified diff shown before every patch is applied (configurable, default on)
+- **Audit trail** — per-mission metadata log (no raw source code stored), accessible via `enterprise_mission_audit`
+- **Rollback instructions** — every mission plan includes plain-language rollback steps in the audit report
+
+#### Enterprise tools (4 new)
+- `enterprise_mission_create` — classify request, detect risks, build the mission plan
+- `enterprise_mission_context` — gather git state, code health, diagnostics, and project snapshot
+- `enterprise_mission_audit` — return audit trail metadata (never raw source code)
+- `enterprise_mission_report` — produce final report and close the mission
+
+#### Context menu actions (7 new)
+All under **Llamatik Code → Autonomous Local Development** in editor and project view right-click menus:
+- Enterprise Pair Programmer
+- Review Current Changes
+- Fix Build Failure
+- Generate Tests
+- Explain Architecture
+- Safe Refactor
+- Implement Feature
+
+#### Inline completions (MVP)
+- Local FIM (fill-in-the-middle) completions using the same model as the agent
+- Debounced requests (default 600 ms) — stale requests cancelled automatically
+- Current-file only, configurable context window (default 1200 chars)
+- Disabled by default — enable at **Settings → Llamatik Code → Autonomous Local Development → Enable inline completions**
+
+#### Settings
+- New **Autonomous Local Development** settings page (child of Llamatik Code settings)
+- 7 enterprise settings + 4 inline completion settings (see [settings-reference.md](Documentation/settings-reference.md))
+
+### Changed
+- Agent identity updated: now introduces itself as "an autonomous local development agent that plans, patches, reviews, and verifies code locally"
+- Welcome screen copy updated to mission-based language ("Start a local coding mission", "Describe a mission…")
+- Onboarding updated with "I just want it to work" fast path and hardware presets
+- External knowledge remains disabled during enterprise missions by default (new setting to opt in)
+- Free tier daily search limit raised from 5 to 15; docs sources raised from 1 to 3
+
 ## [1.6.3] - 2026-05-15
 
 ### Fixed

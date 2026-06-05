@@ -266,10 +266,74 @@
                 id="llamatik.code.settings.codehealth"
                 parentId="llamatik.code.settings"
                 instance="com.llamatik.teammate.settings.CodeHealthSettingsConfigurable"/>
+        <applicationConfigurable
+                displayName="Autonomous Local Development"
+                id="llamatik.code.settings.autonomous"
+                parentId="llamatik.code.settings"
+                instance="com.llamatik.teammate.settings.AutonomousDevSettingsConfigurable"/>
+
+        <!-- Enterprise Pair Programmer project service -->
+        <projectService
+                serviceImplementation="com.llamatik.teammate.workflows.enterprise.EnterprisePairProgrammerService"/>
+
+        <!-- Inline completion service -->
+        <applicationService
+                serviceImplementation="com.llamatik.teammate.completion.LlamatikInlineCompletionService"/>
 
     </extensions>
 
     <actions>
+        <!-- Autonomous Local Development action group -->
+        <group id="LlamatikCode.AutonomousLocalDevelopment"
+               text="Autonomous Local Development"
+               description="Run local coding missions with Llamatik Code"
+               popup="true">
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+        </group>
+        <action id="LlamatikCode.EnterprisePairProgrammer"
+                class="com.llamatik.teammate.actions.EnterprisePairProgrammerAction"
+                text="Offline Enterprise Pair Programmer"
+                description="Start an Offline Enterprise Pair Programmer session">
+            <add-to-group group-id="LlamatikCode.AutonomousLocalDevelopment" anchor="first"/>
+        </action>
+        <action id="LlamatikCode.EnterpriseReviewCurrentChanges"
+                class="com.llamatik.teammate.actions.EnterpriseReviewCurrentChangesAction"
+                text="Review Current Changes Before Commit"
+                description="Review current git changes before committing">
+            <add-to-group group-id="LlamatikCode.AutonomousLocalDevelopment" anchor="last"/>
+        </action>
+        <action id="LlamatikCode.EnterpriseFixBuildFailure"
+                class="com.llamatik.teammate.actions.EnterpriseFixBuildFailureAction"
+                text="Repair Build Failure"
+                description="Repair the current build failure with enterprise mission mode">
+            <add-to-group group-id="LlamatikCode.AutonomousLocalDevelopment" anchor="last"/>
+        </action>
+        <action id="LlamatikCode.EnterpriseGenerateTests"
+                class="com.llamatik.teammate.actions.EnterpriseGenerateTestsAction"
+                text="Generate Tests for This File"
+                description="Generate tests using enterprise mission mode">
+            <add-to-group group-id="LlamatikCode.AutonomousLocalDevelopment" anchor="last"/>
+        </action>
+        <action id="LlamatikCode.EnterpriseExplainArchitecture"
+                class="com.llamatik.teammate.actions.EnterpriseExplainArchitectureAction"
+                text="Explain Module Architecture"
+                description="Explain the architecture of this module">
+            <add-to-group group-id="LlamatikCode.AutonomousLocalDevelopment" anchor="last"/>
+        </action>
+        <action id="LlamatikCode.EnterpriseSafeRefactor"
+                class="com.llamatik.teammate.actions.EnterpriseSafeRefactorAction"
+                text="Safely Refactor Current File"
+                description="Safely refactor with enterprise mission mode">
+            <add-to-group group-id="LlamatikCode.AutonomousLocalDevelopment" anchor="last"/>
+        </action>
+        <action id="LlamatikCode.EnterpriseImplementFeature"
+                class="com.llamatik.teammate.actions.EnterpriseImplementFeatureAction"
+                text="Implement a Feature Locally"
+                description="Implement a feature using enterprise mission mode">
+            <add-to-group group-id="LlamatikCode.AutonomousLocalDevelopment" anchor="last"/>
+        </action>
+
         <action id="LlamatikCode.AskAboutSelection"
                 class="com.llamatik.teammate.actions.AskAboutSelectionAction"
                 text="Ask Llamatik About Selection"
@@ -344,3 +408,4 @@
         </action>
     </actions>
 </idea-plugin>
+
