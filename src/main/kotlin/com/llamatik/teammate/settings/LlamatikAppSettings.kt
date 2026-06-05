@@ -85,6 +85,10 @@ class LlamatikAppSettings : PersistentStateComponent<LlamatikAppSettings.State> 
         var inlineCompletionDebounceMs: Int = 600,
         var inlineCompletionMaxContextChars: Int = 1200,
         var inlineCompletionMaxTokens: Int = 64,
+        // Review / feedback
+        var completedTasksWithChanges: Int = 0,
+        var reviewPromptLastShownMs: Long = 0L,
+        var reviewPromptDismissedPermanently: Boolean = false,
     )
 
     private var myState = State()

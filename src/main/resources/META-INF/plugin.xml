@@ -280,6 +280,10 @@
         <applicationService
                 serviceImplementation="com.llamatik.teammate.completion.LlamatikInlineCompletionService"/>
 
+        <!-- Review / feedback -->
+        <applicationService
+                serviceImplementation="com.llamatik.teammate.review.ReviewPromptService"/>
+
     </extensions>
 
     <actions>

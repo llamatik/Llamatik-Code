@@ -485,8 +485,15 @@ class LlamatikSettingsConfigurable : Configurable {
                             cursor = java.awt.Cursor(java.awt.Cursor.HAND_CURSOR)
                             addActionListener { BrowserUtil.browse(Strings.About.X_TWITTER_URL) }
                         }
+                        val feedbackButton = JButton(Strings.ReviewFeedback.FEEDBACK_BUTTON).apply {
+                            isBorderPainted = false
+                            isContentAreaFilled = false
+                            cursor = java.awt.Cursor(java.awt.Cursor.HAND_CURSOR)
+                            addActionListener { BrowserUtil.browse(Strings.ReviewFeedback.FEEDBACK_URL) }
+                        }
                         add(discordButton)
                         add(xButton)
+                        add(feedbackButton)
                     }
                     panel.add(linksPanel, gbc)
                     return panel

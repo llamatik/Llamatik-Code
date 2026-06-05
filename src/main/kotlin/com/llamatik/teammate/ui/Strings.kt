@@ -611,6 +611,18 @@ object Strings {
         const val APPROVAL_PRO_HINT = "Auto-approval requires Pro."
     }
 
+    // ── Review / Feedback ─────────────────────────────────────────────────────
+    object ReviewFeedback {
+        const val REVIEW_DIALOG_TITLE = "Enjoying Llamatik Code?"
+        const val REVIEW_MESSAGE = "Are you enjoying the plugin? Help us by making a review!"
+        const val REVIEW_BUTTON = "Leave a Review ⭐"
+        const val REVIEW_URL = "https://plugins.jetbrains.com/plugin/31304-llamatik-code/reviews"
+        const val REVIEW_LATER = "Maybe Later"
+        const val REVIEW_NO_THANKS = "No, Thanks"
+        const val FEEDBACK_BUTTON = "Give Feedback"
+        const val FEEDBACK_URL = "https://github.com/Llamatik-AI/Llamatik-Code-Issue-Tracker/issues"
+    }
+
     // ── Code Health Monitor ───────────────────────────────────────────────────
     object CodeHealth {
         const val FEATURE_NAME = "Code Health Monitor"
