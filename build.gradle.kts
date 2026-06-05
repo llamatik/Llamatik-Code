@@ -487,7 +487,7 @@ val obfuscate by tasks.registering(ProGuardTask::class) {
 
     // Input: the assembled plugin JAR
     injars(tasks.named("composedJar").flatMap { task ->
-        (task as org.gradle.api.tasks.bundling.AbstractArchiveTask).archiveFile
+        (task as AbstractArchiveTask).archiveFile
     })
 
     // Output: obfuscated JAR
@@ -606,7 +606,7 @@ val recomputeFrames by tasks.registering {
 // Gradle's build cache (mutating composedJar's declared output breaks cache correctness).
 // Resolve composedJar archive name at configuration time (outside doLast) so no
 // Gradle script object reference is captured, satisfying the configuration cache.
-val composedJarArchiveName = tasks.named("composedJar", org.gradle.api.tasks.bundling.AbstractArchiveTask::class)
+val composedJarArchiveName = tasks.named("composedJar", AbstractArchiveTask::class)
     .flatMap { it.archiveFileName }
 
 tasks.named("buildPlugin") {
@@ -619,7 +619,7 @@ tasks.named("buildPlugin") {
         val obfuscatedFile = obfuscatedJarProvider.get().asFile
         if (!obfuscatedFile.exists()) return@doLast
 
-        val zipTask = this as org.gradle.api.tasks.bundling.Zip
+        val zipTask = this as Zip
         val zipFile = zipTask.archiveFile.get().asFile
         if (!zipFile.exists()) return@doLast
 
