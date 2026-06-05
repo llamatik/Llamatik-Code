@@ -3,6 +3,8 @@ package com.llamatik.teammate.settings
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.components.service
+import com.intellij.openapi.fileChooser.FileChooser
+import com.intellij.openapi.fileChooser.FileChooserDescriptor
 import com.intellij.openapi.options.Configurable
 import com.intellij.openapi.project.ProjectManager
 import com.llamatik.teammate.licensing.LicenseChecker
@@ -35,7 +37,6 @@ import javax.swing.DefaultListModel
 import javax.swing.ImageIcon
 import javax.swing.JButton
 import javax.swing.JComponent
-import javax.swing.JFileChooser
 import javax.swing.JLabel
 import javax.swing.JPanel
 
@@ -106,13 +107,13 @@ class LlamatikSettingsConfigurable : Configurable {
         // ── Model section ─────────────────────────────────────────────────────
         val browseModelButton = JButton(Strings.Settings.BROWSE).apply {
             addActionListener {
-                val chooser = JFileChooser().apply {
-                    fileSelectionMode = JFileChooser.FILES_ONLY
-                    dialogTitle = Strings.Settings.FILE_CHOOSER_TITLE
-                    fileFilter = javax.swing.filechooser.FileNameExtensionFilter("GGUF model files (*.gguf)", "gguf")
+                val descriptor = FileChooserDescriptor(true, false, false, false, false, false).apply {
+                    title = Strings.Settings.FILE_CHOOSER_TITLE
+                    withFileFilter { vf -> vf.name.endsWith(".gguf", ignoreCase = true) }
                 }
-                if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
-                    modelPathField.text = chooser.selectedFile.absolutePath
+                val project = ProjectManager.getInstance().openProjects.firstOrNull()
+                FileChooser.chooseFile(descriptor, project, null) { vf ->
+                    modelPathField.text = vf.path
                 }
             }
         }
@@ -209,13 +210,13 @@ class LlamatikSettingsConfigurable : Configurable {
         // ── Mmproj section ────────────────────────────────────────────────────
         val browseMmprojButton = JButton(Strings.Settings.BROWSE).apply {
             addActionListener {
-                val chooser = JFileChooser().apply {
-                    fileSelectionMode = JFileChooser.FILES_ONLY
-                    dialogTitle = Strings.Multimodal.MMPROJ_PATH_LABEL
-                    fileFilter = javax.swing.filechooser.FileNameExtensionFilter("GGUF mmproj files (*.gguf)", "gguf")
+                val descriptor = FileChooserDescriptor(true, false, false, false, false, false).apply {
+                    title = Strings.Multimodal.MMPROJ_PATH_LABEL
+                    withFileFilter { vf -> vf.name.endsWith(".gguf", ignoreCase = true) }
                 }
-                if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
-                    mmprojPathField.text = chooser.selectedFile.absolutePath
+                val project = ProjectManager.getInstance().openProjects.firstOrNull()
+                FileChooser.chooseFile(descriptor, project, null) { vf ->
+                    mmprojPathField.text = vf.path
                 }
             }
         }
