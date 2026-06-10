@@ -166,7 +166,7 @@ class LlamatikBackendService : AssistantBackend {
                 if (prompt.length > maxPromptChars) {
                     callbacks.onError(
                         "Prompt too long for current Context Size ($effectiveContextTokens tokens). " +
-                        "Reduce context or increase Context Size in Inference Settings (requires Pro).",
+                        "Reduce context or increase Context Size in Inference Settings.",
                     )
                     return@submit
                 }
