@@ -40,7 +40,7 @@ dependencies {
         bundledPlugin("org.jetbrains.kotlin")
     }
 
-    implementation("com.llamatik:library:1.6.0")
+    implementation("com.llamatik:library:1.8.0")
     testImplementation("junit:junit:4.13.2")
 }
 
