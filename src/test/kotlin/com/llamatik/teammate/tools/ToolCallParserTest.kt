@@ -216,4 +216,49 @@ class ToolCallParserTest {
         val clean = ToolCallParser.cleanForDisplay(input, allowThinkFallback = true)
         assertTrue("Should fall back to think content when no proposals", clean.isNotBlank())
     }
+
+    // ── cleanForDisplay: orphan closing tag stripping (1.8.0) ───────────────
+
+    @Test
+    fun `cleanForDisplay strips orphan closing think tag`() {
+        // Happens when stripThinking removes the opening tag via echo-strip but the closing
+        // tag was generated after the context window for echo detection.
+        val input = "The answer is 42.</think>"
+        val clean = ToolCallParser.cleanForDisplay(input)
+        assertFalse("Orphan </think> must not appear in output", clean.contains("</think>"))
+        assertTrue("Actual answer text must be preserved", clean.contains("The answer is 42."))
+    }
+
+    @Test
+    fun `cleanForDisplay strips orphan closing arg tag`() {
+        val input = "Here is my review of the code.</arg>"
+        val clean = ToolCallParser.cleanForDisplay(input)
+        assertFalse("Orphan </arg> must not appear in output", clean.contains("</arg>"))
+        assertTrue("Answer text must be preserved", clean.contains("Here is my review"))
+    }
+
+    @Test
+    fun `cleanForDisplay strips orphan closing tool_call tag`() {
+        val input = "I have applied the fix.</tool_call>"
+        val clean = ToolCallParser.cleanForDisplay(input)
+        assertFalse("Orphan </tool_call> must not appear in output", clean.contains("</tool_call>"))
+        assertTrue("Answer text must be preserved", clean.contains("I have applied the fix"))
+    }
+
+    @Test
+    fun `cleanForDisplay strips orphan closing edit_proposal tag`() {
+        val input = "Changes proposed successfully.</edit_proposal>"
+        val clean = ToolCallParser.cleanForDisplay(input)
+        assertFalse("Orphan </edit_proposal> must not appear in output", clean.contains("</edit_proposal>"))
+        assertTrue("Answer text must be preserved", clean.contains("Changes proposed successfully"))
+    }
+
+    @Test
+    fun `cleanForDisplay strips multiple orphan closing tags in one response`() {
+        val input = "Done.</think> All files updated.</arg> Check the diff.</tool_call>"
+        val clean = ToolCallParser.cleanForDisplay(input)
+        assertFalse(clean.contains("</think>"))
+        assertFalse(clean.contains("</arg>"))
+        assertFalse(clean.contains("</tool_call>"))
+    }
 }

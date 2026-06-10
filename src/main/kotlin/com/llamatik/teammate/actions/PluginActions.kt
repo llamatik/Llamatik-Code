@@ -59,3 +59,59 @@ class ExplainCurrentChangesAction : BasePromptAction({ project, _ ->
         "Explain the current git changes in plain language and suggest what the commit message should be.\n\n$ctx"
     }
 })
+
+private fun enterpriseMissionPrompt(mission: String, missionType: String, targetPath: String? = null): String {
+    val pathNote = if (targetPath != null) "\nTarget path: $targetPath" else ""
+    return """You are running Offline Enterprise Pair Programmer mode.
+
+Mission:
+$mission$pathNote
+
+Required workflow:
+1. Call enterprise_mission_create with user_request="$mission"${if (targetPath != null) ", target_path=\"$targetPath\"" else ""}, mission_type="$missionType".
+2. Gather project context before editing.
+3. Explain risks.
+4. Create a plan.
+5. Apply small, reviewable patches.
+6. Show diff.
+7. Verify when possible.
+8. Produce enterprise_mission_report.
+9. Include rollback instructions.
+10. Do not use external knowledge unless explicitly allowed."""
+}
+
+class EnterprisePairProgrammerAction : BasePromptAction({ project, _ ->
+    val file = com.intellij.openapi.fileEditor.FileEditorManager.getInstance(project).selectedFiles.firstOrNull()?.path
+    enterpriseMissionPrompt("Run an Offline Enterprise Pair Programmer session on this project.", "UNKNOWN", file)
+})
+
+class EnterpriseReviewCurrentChangesAction : BasePromptAction({ project, _ ->
+    enterpriseMissionPrompt("Review current git changes before committing. Check quality, security, and correctness.", "CODE_REVIEW")
+})
+
+class EnterpriseFixBuildFailureAction : BasePromptAction({ project, _ ->
+    val lastOut = project.service<TerminalService>().lastOutputAny()
+    val extra = if (lastOut != null) "\n\nBuild output:\n${lastOut.stdout.take(1500)}\n${lastOut.stderr.take(1500)}" else ""
+    enterpriseMissionPrompt("Repair the current build failure.$extra", "BUILD_FAILURE_REPAIR")
+})
+
+class EnterpriseGenerateTestsAction : BasePromptAction({ project, _ ->
+    val file = com.intellij.openapi.fileEditor.FileEditorManager.getInstance(project).selectedFiles.firstOrNull()?.path
+    enterpriseMissionPrompt("Generate comprehensive tests for the current file.", "TEST_GENERATION", file)
+})
+
+class EnterpriseExplainArchitectureAction : BasePromptAction({ project, _ ->
+    val file = com.intellij.openapi.fileEditor.FileEditorManager.getInstance(project).selectedFiles.firstOrNull()?.path
+    enterpriseMissionPrompt("Explain the architecture and responsibilities of this module.", "ARCHITECTURE_EXPLANATION", file)
+})
+
+class EnterpriseSafeRefactorAction : BasePromptAction({ _, e ->
+    val selected = e.getData(com.intellij.openapi.actionSystem.CommonDataKeys.EDITOR)?.selectionModel?.selectedText
+    val desc = if (!selected.isNullOrBlank()) "Safely refactor the selected code:\n\n$selected" else "Safely refactor the current file without changing behavior."
+    enterpriseMissionPrompt(desc, "SAFE_REFACTOR")
+})
+
+class EnterpriseImplementFeatureAction : BasePromptAction({ project, _ ->
+    val file = com.intellij.openapi.fileEditor.FileEditorManager.getInstance(project).selectedFiles.firstOrNull()?.path
+    enterpriseMissionPrompt("Implement a new feature in this project.", "FEATURE_IMPLEMENTATION", file)
+})

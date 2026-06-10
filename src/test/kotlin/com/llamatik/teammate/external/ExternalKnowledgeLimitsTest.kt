@@ -7,8 +7,8 @@ import org.junit.Test
 class ExternalKnowledgeLimitsTest {
 
     @Test
-    fun `free daily search limit is 5`() {
-        assertEquals(5, ExternalKnowledgeLimits.dailySearchLimit(isPro = false))
+    fun `free daily search limit is 15`() {
+        assertEquals(15, ExternalKnowledgeLimits.dailySearchLimit(isPro = false))
     }
 
     @Test
@@ -17,8 +17,8 @@ class ExternalKnowledgeLimitsTest {
     }
 
     @Test
-    fun `free pages per task is 3`() {
-        assertEquals(3, ExternalKnowledgeLimits.pagesPerTask(isPro = false))
+    fun `free pages per task is 5`() {
+        assertEquals(5, ExternalKnowledgeLimits.pagesPerTask(isPro = false))
     }
 
     @Test
@@ -27,8 +27,8 @@ class ExternalKnowledgeLimitsTest {
     }
 
     @Test
-    fun `free docs source limit is 1`() {
-        assertEquals(1, ExternalKnowledgeLimits.docsSourceLimit(isPro = false))
+    fun `free docs source limit is 3`() {
+        assertEquals(3, ExternalKnowledgeLimits.docsSourceLimit(isPro = false))
     }
 
     @Test
@@ -37,8 +37,8 @@ class ExternalKnowledgeLimitsTest {
     }
 
     @Test
-    fun `free max result count is 5`() {
-        assertEquals(5, ExternalKnowledgeLimits.maxResultCount(isPro = false))
+    fun `free max result count is 8`() {
+        assertEquals(8, ExternalKnowledgeLimits.maxResultCount(isPro = false))
     }
 
     @Test

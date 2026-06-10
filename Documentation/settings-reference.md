@@ -66,3 +66,28 @@ Per-server fields: name, command, arguments, environment variables, working dire
 | LIGHT (Free + Pro) | 5 | 8 s | 3 | 3 |
 | BALANCED (Pro) | 30 | 30 s | 20 | 10 |
 | AGGRESSIVE (Pro) | 150 | 120 s | 50 | 20 |
+
+## Autonomous Local Development
+
+Settings for the enterprise pair programmer and inline completion features. Requires Llamatik Code 1.8.0+.
+
+### Enterprise Pair Programmer
+
+| Setting | Description | Default |
+|---|---|---|
+| Enable Autonomous Local Development | Master toggle for the entire mode | on |
+| Enable Offline Enterprise Pair Programmer | Enable the enterprise mission workflow | on |
+| Default safety level | APPROVAL_REQUIRED / PLAN_ONLY / AUTO_APPLY / FULL_AUTO | APPROVAL_REQUIRED |
+| Allow external knowledge during missions | Let the agent search the web during enterprise missions | off |
+| Require plan before writing files | Block file writes until a mission plan exists | on |
+| Require diff preview before applying patches | Show unified diff before every write | on |
+| Require audit report on mission completion | Produce an audit report when the mission closes | on |
+
+### Inline Completions
+
+| Setting | Description | Default |
+|---|---|---|
+| Enable inline completions | Show AI suggestions as you type | off |
+| Debounce delay (ms) | Idle time before a completion request is sent | 600 ms |
+| Max context chars | Characters of prefix + suffix sent to the model | 1200 |
+| Max completion tokens | Maximum tokens in the generated completion | 64 |

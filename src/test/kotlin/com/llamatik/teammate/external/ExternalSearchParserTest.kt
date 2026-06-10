@@ -245,10 +245,10 @@ class ExternalSearchParserTest {
     }
 
     @Test
-    fun `parseResults free tier limited to 5 results`() {
+    fun `parseResults free tier limited to 8 results`() {
         val topics = (1..10).map { i -> "Result $i - description" to "https://example$i.com/page" }
         val json = ddgJson(*topics.toTypedArray())
         val results = parseResults(json, SearchQuery("test", maxResults = 20), isPro = false)
-        assertTrue("Free tier should be limited to 5 results", results.size <= 5)
+        assertTrue("Free tier should be limited to 8 results", results.size <= 8)
     }
 }

@@ -1,5 +1,6 @@
 package com.llamatik.teammate.ui.toolwindow
 
+import com.intellij.ide.BrowserUtil
 import com.intellij.ui.JBColor
 import com.intellij.util.ui.JBUI
 import com.llamatik.teammate.ui.Strings
@@ -21,7 +22,15 @@ class ErrorBannerPanel : JPanel(BorderLayout(8, 0)) {
         val actions = JPanel().apply { isOpaque = false }
         val retryButton = JButton(Strings.App.RETRY)
         retryButton.addActionListener { onRetry?.invoke() }
+        val feedbackButton = JButton(Strings.ReviewFeedback.FEEDBACK_BUTTON).apply {
+            isFocusPainted = false
+            isContentAreaFilled = false
+            isBorderPainted = false
+            cursor = java.awt.Cursor(java.awt.Cursor.HAND_CURSOR)
+            addActionListener { BrowserUtil.browse(Strings.ReviewFeedback.FEEDBACK_URL) }
+        }
         actions.add(retryButton)
+        actions.add(feedbackButton)
         actions.add(dismissButton)
         add(actions, BorderLayout.EAST)
         isVisible = false

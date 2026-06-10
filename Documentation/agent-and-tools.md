@@ -1,6 +1,6 @@
 # Agent & Tools
 
-The Llamatik Code agent is a tool-driven loop that takes a natural-language instruction, plans steps, calls built-in tools, and applies changes to your project with a safe diff preview.
+The Llamatik Code agent is an autonomous local development engine. It takes a natural-language mission, plans steps, calls built-in tools, and applies changes to your project with a safe diff preview — entirely on your machine.
 
 ## How the agent works
 
@@ -81,6 +81,33 @@ Every tool call is recorded in the **What I tried** trace sidebar:
 
 The trace is visible during and after each agent run. Click any entry to expand the full result.
 
+## Enterprise Pair Programmer tools (1.7.0+)
+
+| Tool | Description |
+|---|---|
+| `enterprise_mission_create` | Classify the request, detect risks, build the mission plan |
+| `enterprise_mission_context` | Gather git state, code health, diagnostics, and project snapshot |
+| `enterprise_mission_audit` | Return the current audit trail (metadata only — no raw source code) |
+| `enterprise_mission_report` | Produce the final mission report and close the mission |
+
+These tools are called automatically when you use mission phrasing (e.g. "fix the build failure", "refactor the auth module") or when you use an action from **Llamatik Code → Autonomous Local Development**.
+
+See [offline-enterprise-pair-programmer.md](offline-enterprise-pair-programmer.md) for a full description of the mission workflow.
+
 ## Read-only vs write tools
 
-The agent enforces a distinction between read-only tools (safe to call autonomously) and write tools (require a diff preview or explicit approval in Aggressive mode). The read-only set includes all `git_*`, `index_*`, `psi_*`, `rules_get`, `run_config_list`, and all Code Health and Research tools that only read data.
+The agent enforces a distinction between read-only tools (safe to call autonomously) and write tools (require a diff preview or explicit approval in Aggressive mode). The read-only set includes all `git_*`, `index_*`, `psi_*`, `rules_get`, `run_config_list`, `enterprise_mission_*`, and all Code Health and Research tools that only read data.
+
+## Agent loop reliability (1.8.0+)
+
+The multi-round agent loop has several guards to ensure it produces file changes rather than stalling on repeated reads or prose responses:
+
+| Guard | Trigger | Effect |
+|---|---|---|
+| Attached-file dedup | Model requests `read_file` / `search_code` / `list_files` on a path already in the attached context | Synthetic result returned; round not consumed |
+| Cross-round dedup | Model repeats an identical read call it made in a previous round | Synthetic result returned; round not consumed |
+| All-duplicate escalation | Every tool call in a round is synthetic (dedup) | Agent skips to a final write-only pass with thinking suppressed |
+| Mid-loop prose escalation | Model returns plain text instead of a tool call after having read content | Agent escalates to a final write-only pass |
+| Final-round noThink | The last round before round limit | `<think>` suppressed so the full token budget goes to `write_file` output |
+
+The mid-loop prose escalation fires only when `round > 1` (not the initial Q&A turn) and `round < MAX_ROUNDS - 1` (not already the escalated write pass itself), preventing re-entry.

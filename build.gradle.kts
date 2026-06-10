@@ -23,7 +23,7 @@ plugins {
 }
 
 group = "com.llamatik.teammate"
-version = "1.7.0"
+version = "1.8.0"
 
 repositories {
     //mavenLocal()
@@ -40,7 +40,7 @@ dependencies {
         bundledPlugin("org.jetbrains.kotlin")
     }
 
-    implementation("com.llamatik:library:1.6.0")
+    implementation("com.llamatik:library:1.8.0")
     testImplementation("junit:junit:4.13.2")
 }
 
@@ -50,6 +50,80 @@ intellijPlatform {
             sinceBuild = "252"
         }
         changeNotes = """
+            <h2>1.8.0 — Autonomous Local Development, Agent Reliability &amp; Library Upgrade</h2>
+
+            <h3>Autonomous Local Development</h3>
+            <ul>
+                <li><b>Offline Enterprise Pair Programmer</b> — new flagship mode that wraps every agent task in a structured, auditable workflow: gather context → classify risks → plan → patch → verify → audit report. Your source code never leaves the device.</li>
+                <li><b>Mission classification</b> — 11 mission types auto-detected from plain-language requests (CODE_REVIEW, REFACTOR, BUG_FIX, FEATURE_IMPLEMENTATION, TEST_GENERATION, DOCUMENTATION, BUILD_FAILURE_REPAIR, ARCHITECTURE_EXPLANATION, DEPENDENCY_UPDATE, SECURITY_AUDIT, PERFORMANCE_ANALYSIS).</li>
+                <li><b>Safety levels</b> — APPROVAL_REQUIRED (default), PLAN_ONLY, AUTO_APPLY, FULL_AUTO. Configurable per project.</li>
+                <li><b>Risk detection</b> — LOW / MEDIUM / HIGH / CRITICAL risks surfaced in the mission plan before any file is written. CRITICAL risks require explicit user acknowledgement.</li>
+                <li><b>Plan-before-write enforcement</b> — agent must produce a mission plan before calling any write tool (default: on).</li>
+                <li><b>Diff-before-write enforcement</b> — unified diff shown before every patch is applied (default: on, even in AUTO_APPLY mode).</li>
+                <li><b>Audit trail</b> — per-mission metadata log (no raw source code stored), accessible at any time via <code>enterprise_mission_audit</code>.</li>
+                <li><b>Rollback instructions</b> — every mission plan includes plain-language rollback steps in the final audit report.</li>
+            </ul>
+
+            <h3>Enterprise Pair Programmer Tools (4 new)</h3>
+            <ul>
+                <li><code>enterprise_mission_create</code> — classify request, detect risks, build the mission plan</li>
+                <li><code>enterprise_mission_context</code> — gather git state, code health, diagnostics, and project snapshot</li>
+                <li><code>enterprise_mission_audit</code> — return audit trail metadata (never raw source code)</li>
+                <li><code>enterprise_mission_report</code> — produce final report and close the mission</li>
+            </ul>
+
+            <h3>Context Menu Actions (7 new)</h3>
+            <p>All under <b>Llamatik Code → Autonomous Local Development</b> in editor and project-view right-click menus:</p>
+            <ul>
+                <li>Enterprise Pair Programmer</li>
+                <li>Review Current Changes</li>
+                <li>Fix Build Failure</li>
+                <li>Generate Tests</li>
+                <li>Explain Architecture</li>
+                <li>Safe Refactor</li>
+                <li>Implement Feature</li>
+            </ul>
+
+            <h3>Inline Completions (opt-in MVP)</h3>
+            <ul>
+                <li>Local fill-in-the-middle completions using the same on-device model as the agent.</li>
+                <li>Debounced requests (600 ms default) — stale requests cancelled automatically.</li>
+                <li>Current-file only; configurable context window (default 1200 chars) and max tokens (default 64).</li>
+                <li>Disabled by default — enable at <b>Settings → Llamatik Code → Autonomous Local Development → Enable inline completions</b>.</li>
+            </ul>
+
+            <h3>Rating &amp; Feedback</h3>
+            <ul>
+                <li>After a configurable number of successful tasks that produced file changes, the plugin shows a non-modal prompt to rate the experience and optionally leave feedback on the JetBrains Marketplace.</li>
+                <li>Prompt respects a cooldown so it never appears more than once per session window.</li>
+                <li>Can be dismissed permanently via a "Don't ask again" option.</li>
+            </ul>
+
+            <h3>File Selection Picker</h3>
+            <ul>
+                <li>The model file picker (load GGUF from disk) now uses IntelliJ's native <code>FileChooser</code> API instead of the Swing <code>JFileChooser</code>. This gives IDE-native look and feel, correct macOS permissions, and reliable filtering to <code>.gguf</code> files on all platforms.</li>
+            </ul>
+
+            <h3>Library</h3>
+            <ul>
+                <li><b>Llamatik library 1.8.0</b> — updated to llama.cpp b9574 with improved KV cache management and full support for Qwen3.6 Mamba-hybrid architecture models.</li>
+            </ul>
+
+            <h3>Agent Loop Reliability</h3>
+            <ul>
+                <li><b>Attached file context respected</b> — when a file is attached via <code>@filename</code> or is the currently open file, the system prompt now explicitly tells the model that the content is already provided. The model no longer wastes rounds calling <code>read_file</code> or <code>search_code</code> on content it already has.</li>
+                <li><b>Cross-round read-only dedup</b> — the agent tracks which <code>read_file</code>, <code>search_code</code>, and <code>list_files</code> calls have been executed across all rounds. Duplicate calls return a synthetic "already called" result instantly instead of consuming a round slot. Attached file paths are pre-seeded into the dedup set so the model can never re-fetch them.</li>
+                <li><b>Write pass forced when all calls are duplicates</b> — if every tool call in a round is a dedup synthetic result, the agent skips directly to a final write pass (with <code>noThink = true</code>) instead of burning another round on the same blocked calls.</li>
+                <li><b>Write pass forced when model writes prose mid-loop</b> — if the model produces plain text instead of a tool call after having read project files, the agent escalates to a final write pass rather than surfacing the prose as the answer.</li>
+                <li><b>No thinking on final round</b> — the final round suppresses chain-of-thought so the model's entire token budget goes to the <code>write_file</code> output rather than reasoning.</li>
+            </ul>
+
+            <h3>Tag Leak Fixes</h3>
+            <ul>
+                <li><b>Orphan <code>&lt;/think&gt;</code> no longer visible in responses</b> — when echo-stripping removed a <code>&lt;think&gt;</code> opener mid-block, the matching <code>&lt;/think&gt;</code> could survive and appear in the displayed text. Both <code>stripThinking</code> and <code>cleanForDisplay</code> now explicitly strip bare closing tags.</li>
+                <li><b>Orphan <code>&lt;/arg&gt;&lt;/tool_call&gt;</code> XML no longer visible in responses</b> — the <code>&lt;tool_call …&gt;</code> opener pattern was already stripped, but closing tags left behind from completed tool calls were not. Added explicit stripping of <code>&lt;/arg&gt;</code>, <code>&lt;/tool_call&gt;</code>, and <code>&lt;/edit_proposal&gt;</code> orphan tags.</li>
+            </ul>
+
             <h2>1.7.0 — UI Polish, Syntax Highlighting &amp; Free Tier Improvements</h2>
 
             <h3>Free Tier Improvements</h3>
@@ -487,7 +561,7 @@ val obfuscate by tasks.registering(ProGuardTask::class) {
 
     // Input: the assembled plugin JAR
     injars(tasks.named("composedJar").flatMap { task ->
-        (task as org.gradle.api.tasks.bundling.AbstractArchiveTask).archiveFile
+        (task as AbstractArchiveTask).archiveFile
     })
 
     // Output: obfuscated JAR
@@ -606,7 +680,7 @@ val recomputeFrames by tasks.registering {
 // Gradle's build cache (mutating composedJar's declared output breaks cache correctness).
 // Resolve composedJar archive name at configuration time (outside doLast) so no
 // Gradle script object reference is captured, satisfying the configuration cache.
-val composedJarArchiveName = tasks.named("composedJar", org.gradle.api.tasks.bundling.AbstractArchiveTask::class)
+val composedJarArchiveName = tasks.named("composedJar", AbstractArchiveTask::class)
     .flatMap { it.archiveFileName }
 
 tasks.named("buildPlugin") {
@@ -619,7 +693,7 @@ tasks.named("buildPlugin") {
         val obfuscatedFile = obfuscatedJarProvider.get().asFile
         if (!obfuscatedFile.exists()) return@doLast
 
-        val zipTask = this as org.gradle.api.tasks.bundling.Zip
+        val zipTask = this as Zip
         val zipFile = zipTask.archiveFile.get().asFile
         if (!zipFile.exists()) return@doLast
 

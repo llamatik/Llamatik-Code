@@ -99,21 +99,7 @@ class LlamatikBackendService : AssistantBackend {
         executorFor(request.sessionTag).submit {
             try {
                 validateConfig(request.config)
-                invalidateIfContextParamsChanged(request.config)
-                com.llamatik.library.platform.LlamaBridge.updateGenerateParams(
-                    temperature = request.config.temperature.toFloat(),
-                    maxTokens = request.config.maxTokens,
-                    topP = 0.95f,
-                    topK = 40,
-                    repeatPenalty = 1.1f,
-                    contextLength = request.config.contextLength,
-                    numThreads = request.config.numThreads,
-                    useMmap = request.config.useMmap,
-                    flashAttention = request.config.flashAttention,
-                    batchSize = request.config.batchSize,
-                    gpuLayers = request.config.gpuLayers,
-                )
-                ensureModel(request.config.modelIdOrPath)
+                ensureModelReady(request.config)
 
                 val session = getOrCreateSession(request.sessionTag)
                     ?: error("Could not create inference session for ${request.sessionTag}")
@@ -180,7 +166,7 @@ class LlamatikBackendService : AssistantBackend {
                 if (prompt.length > maxPromptChars) {
                     callbacks.onError(
                         "Prompt too long for current Context Size ($effectiveContextTokens tokens). " +
-                        "Reduce context or increase Context Size in Inference Settings (requires Pro).",
+                        "Reduce context or increase Context Size in Inference Settings.",
                     )
                     return@submit
                 }
@@ -329,42 +315,76 @@ class LlamatikBackendService : AssistantBackend {
         }
     }
 
-    private fun invalidateIfContextParamsChanged(config: com.llamatik.teammate.backend.BackendConfig) {
-        if (config.contextLength != lastContextLength ||
-            config.batchSize != lastBatchSize ||
-            config.numThreads != lastNumThreads ||
-            config.flashAttention != lastFlashAttention ||
-            config.gpuLayers != lastGpuLayers
-        ) {
-            synchronized(modelLock) {
-                // Close sessions so they are recreated with the new context/GPU params.
-                closeSessionsLocked()
-                initializedModel = null
-                loadedFinetuneType = null
-                lastContextLength = config.contextLength
-                lastBatchSize = config.batchSize
-                lastNumThreads = config.numThreads
-                lastFlashAttention = config.flashAttention
-                lastGpuLayers = config.gpuLayers
-            }
-        }
-    }
-
-    private fun ensureModel(modelPath: String) {
-        val normalizedModelPath = validateModelPath(modelPath)
-        if (initializedModel == normalizedModelPath) return
+    /**
+     * Single locked gate that covers both context-param invalidation and model loading.
+     * Holding modelLock across both operations prevents a second thread from seeing
+     * `initializedModel = null` mid-flight and issuing its own `initGenerateModel` call
+     * while the first load's GPU allocation is still resident — which would double the
+     * VRAM usage and OOM on constrained hardware (e.g. M1 Pro with a 27 GB model).
+     */
+    private fun ensureModelReady(config: com.llamatik.teammate.backend.BackendConfig) {
+        val normalizedModelPath = validateModelPath(config.modelIdOrPath)
 
         synchronized(modelLock) {
-            if (initializedModel == normalizedModelPath) return
-            // Model changed — close existing sessions so new ones pick up the new model weights.
+            val paramsChanged = config.contextLength != lastContextLength ||
+                config.batchSize != lastBatchSize ||
+                config.numThreads != lastNumThreads ||
+                config.flashAttention != lastFlashAttention ||
+                config.gpuLayers != lastGpuLayers
+
+            val modelChanged = initializedModel != normalizedModelPath
+
+            if (!paramsChanged && !modelChanged) {
+                // Nothing to do — update sampling params only.
+                com.llamatik.library.platform.LlamaBridge.updateGenerateParams(
+                    temperature = config.temperature.toFloat(),
+                    maxTokens = config.maxTokens,
+                    topP = 0.95f,
+                    topK = 40,
+                    repeatPenalty = 1.1f,
+                    contextLength = config.contextLength,
+                    numThreads = config.numThreads,
+                    useMmap = config.useMmap,
+                    flashAttention = config.flashAttention,
+                    batchSize = config.batchSize,
+                    gpuLayers = config.gpuLayers,
+                )
+                return
+            }
+
+            // Close existing sessions before changing model/context so the previous
+            // GPU allocation is freed before the new one is created.
             closeSessionsLocked()
+            initializedModel = null
+            loadedFinetuneType = null
+
+            com.llamatik.library.platform.LlamaBridge.updateGenerateParams(
+                temperature = config.temperature.toFloat(),
+                maxTokens = config.maxTokens,
+                topP = 0.95f,
+                topK = 40,
+                repeatPenalty = 1.1f,
+                contextLength = config.contextLength,
+                numThreads = config.numThreads,
+                useMmap = config.useMmap,
+                flashAttention = config.flashAttention,
+                batchSize = config.batchSize,
+                gpuLayers = config.gpuLayers,
+            )
+
             val ok = com.llamatik.library.platform.LlamaBridge.initGenerateModel(normalizedModelPath)
             if (!ok) error("Failed to initialize Llamatik model: $normalizedModelPath")
+
             initializedModel = normalizedModelPath
             loadedFinetuneType = runCatching {
                 com.llamatik.library.platform.LlamaBridge.getModelFinetuneType()
             }.getOrNull()
-            logger.info("Model loaded: $normalizedModelPath (finetune=$loadedFinetuneType)")
+            lastContextLength = config.contextLength
+            lastBatchSize = config.batchSize
+            lastNumThreads = config.numThreads
+            lastFlashAttention = config.flashAttention
+            lastGpuLayers = config.gpuLayers
+            logger.info("Model loaded: $normalizedModelPath (finetune=$loadedFinetuneType, n_ctx=${config.contextLength})")
         }
     }
 

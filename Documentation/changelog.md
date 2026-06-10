@@ -1,5 +1,85 @@
 # Changelog
 
+## 1.8.0 (2026-06-10)
+
+### Autonomous Local Development
+- **Offline Enterprise Pair Programmer** — structured mission workflow: gather context → classify risks → plan → patch → verify → audit report. Source code never leaves the device.
+- **Mission classification** — 11 mission types auto-detected from plain-language requests (CODE_REVIEW, REFACTOR, BUG_FIX, FEATURE_IMPLEMENTATION, TEST_GENERATION, DOCUMENTATION, BUILD_FAILURE_REPAIR, ARCHITECTURE_EXPLANATION, DEPENDENCY_UPDATE, SECURITY_AUDIT, PERFORMANCE_ANALYSIS).
+- **Safety levels** — APPROVAL_REQUIRED (default), PLAN_ONLY, AUTO_APPLY, FULL_AUTO.
+- **Risk detection** — LOW / MEDIUM / HIGH / CRITICAL risks surfaced in the plan before any file is written. CRITICAL risks require explicit acknowledgement.
+- **Plan-before-write enforcement** — agent must produce a mission plan before any write tool call (default: on).
+- **Diff-before-write enforcement** — unified diff shown before every patch (default: on).
+- **Audit trail** — per-mission metadata log, no raw source code stored. Accessible via `enterprise_mission_audit`.
+- **Rollback instructions** — included in every final audit report.
+- 4 new agent tools: `enterprise_mission_create`, `enterprise_mission_context`, `enterprise_mission_audit`, `enterprise_mission_report`.
+- 7 new context menu actions under **Llamatik Code → Autonomous Local Development**: Enterprise Pair Programmer, Review Current Changes, Fix Build Failure, Generate Tests, Explain Architecture, Safe Refactor, Implement Feature.
+- New settings page: **Settings → Llamatik Code → Autonomous Local Development**.
+
+### Inline completions (opt-in MVP)
+- Local fill-in-the-middle completions using the same on-device model as the agent.
+- Debounced requests (600 ms default) — stale requests cancelled automatically.
+- Current-file only; configurable context window (default 1200 chars) and max tokens (default 64).
+- Disabled by default — enable at **Settings → Llamatik Code → Autonomous Local Development → Enable inline completions**.
+
+### Rating & Feedback
+- After a configurable number of successful file-change tasks, the plugin shows a non-modal rating prompt.
+- Respects a cooldown; dismissible permanently with "Don't ask again".
+
+### File selection picker
+- Model file picker (load GGUF from disk) now uses IntelliJ's native `FileChooser` API. Correct macOS permissions, IDE-native look and feel, reliable `.gguf` filtering on all platforms.
+
+### Library
+- Updated to Llamatik library 1.8.0 (llama.cpp b9574) with improved KV cache management and Qwen3.6 Mamba-hybrid architecture support.
+
+### Agent loop reliability
+- **Attached file context respected** — system prompt now explicitly states that attached file contents are already provided. Model no longer wastes rounds calling `read_file` or `search_code` on content it already has.
+- **Cross-round read-only dedup** — `read_file`, `search_code`, and `list_files` calls are tracked across all rounds. Duplicate calls return a synthetic result immediately without consuming a round. Attached file paths are pre-seeded into the dedup set.
+- **Write pass forced on all-duplicate rounds** — if every tool call in a round is synthetic, the agent escalates directly to a final write pass (thinking suppressed).
+- **Write pass forced on mid-loop prose** — if the model writes plain text instead of a tool call after reading files, the agent escalates to a final write pass.
+- **Thinking suppressed on final round** — the model's full token budget goes to the `write_file` output.
+
+### Tag leak fixes
+- Orphan `</think>` no longer appears in displayed responses after echo-stripping removes the opening tag.
+- Orphan `</arg>`, `</tool_call>`, and `</edit_proposal>` closing tags no longer appear in displayed responses.
+
+---
+
+## 1.7.0 (2026-05-27)
+
+### Autonomous Local Development
+
+Llamatik Code is now a mission-driven autonomous development environment. Your source code never leaves your machine.
+
+**Offline Enterprise Pair Programmer**
+- Structured mission workflow: gather context → classify risks → plan → patch → verify → audit report
+- 11 mission types auto-detected from plain-language requests
+- Four safety levels: APPROVAL_REQUIRED (default), PLAN_ONLY, AUTO_APPLY, FULL_AUTO
+- Risk detection (LOW / MEDIUM / HIGH / CRITICAL) surfaced in the plan before any file is written
+- Plan-before-write and diff-before-write enforcement (both on by default)
+- Audit trail per mission — metadata only, no raw source code stored
+- Rollback instructions included in every final report
+- 4 new agent tools: `enterprise_mission_create`, `enterprise_mission_context`, `enterprise_mission_audit`, `enterprise_mission_report`
+
+**Context menu actions (7 new)**
+Right-click any file or selection → **Llamatik Code → Autonomous Local Development**:
+Enterprise Pair Programmer, Review Current Changes, Fix Build Failure, Generate Tests, Explain Architecture, Safe Refactor, Implement Feature
+
+**Inline completions (opt-in MVP)**
+- Local FIM completions using the same on-device model as the agent
+- Debounced (600 ms default), stale requests auto-cancelled
+- Current-file only; configurable context window (default 1200 chars)
+- Disabled by default — enable at **Settings → Llamatik Code → Autonomous Local Development**
+
+**New settings page**
+Settings → Llamatik Code → Autonomous Local Development (enterprise + inline completion settings)
+
+**Other changes**
+- Welcome screen and onboarding updated with mission-based language and "I just want it to work" fast path
+- External knowledge disabled by default during enterprise missions (new opt-in setting)
+- Free tier: daily search limit raised from 5 → 15; docs sources raised from 1 → 3
+
+---
+
 ## 1.5.0 (2026-05-08)
 
 ### Code Health Monitor

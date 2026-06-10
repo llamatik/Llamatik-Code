@@ -36,9 +36,9 @@ object Strings {
         const val PROFILE_PILL = "Default"
         const val SETTINGS_PILL = "⚙"
         const val INPUT_TOOLTIP_DEFAULT =
-            "Ask AI, use @filename to attach source files, use @prompt to recall saved prompts"
-        const val INPUT_PLACEHOLDER = "Use @filename to attach source files"
-        const val INPUT_TOOLTIP_AGENT = "Describe a task for the agent to inspect, plan, and execute"
+            "Run a local coding mission, use @filename to attach source files, or describe a task"
+        const val INPUT_PLACEHOLDER = "Describe a mission or use @filename to attach a file"
+        const val INPUT_TOOLTIP_AGENT = "Run a local coding mission: plan, patch, review, and verify locally"
         const val INPUT_TOOLTIP_ASK = "Ask a focused question about the current file or project"
         const val INPUT_TOOLTIP_NO_MODEL = "Configure a model in Settings → Llamatik Code to start"
     }
@@ -51,13 +51,13 @@ object Strings {
 
     // ── Agent tab ─────────────────────────────────────────────────────────────
     object Agent {
-        const val HERO_TITLE = "Agent"
+        const val HERO_TITLE = "Autonomous Local Development"
         const val HERO_SUBTITLE =
-            "I can inspect the codebase, plan a fix, and apply changes with approval."
-        const val WORKFLOW_TITLE = "Agent workflow"
+            "Plan, patch, review, and verify code locally — your source code never leaves your machine."
+        const val WORKFLOW_TITLE = "Local coding missions"
         const val WORKFLOW_BODY =
-            "Analyze files, call tools, stream progress, preview diffs, and wait for your approval before applying edits."
-        const val PROMPTS_TITLE = "Prompts to try"
+            "Run guided missions: Review → Plan → Patch → Verify → Audit. All context stays private on your device."
+        const val PROMPTS_TITLE = "Start a local coding mission"
         const val APPROVE = "Approve all changes"
         const val REJECT = "Reject"
         const val THINKING_COLLAPSED = "▶ Thinking"
@@ -91,14 +91,38 @@ object Strings {
         const val AGGRESSIVE_MODE_TOOLTIP = "Agent tries multiple fallback strategies before giving up"
 
         val SUGGESTIONS = listOf(
-            "Find and resolve build errors in my project",
-            "Suggest cleaner structure and apply changes with approval",
-            "Generate tests, show the diff, and let me approve",
-            "Make a code review, suggest improvements and apply them",
-            "Benchmark the model",
-            "What's changed in the repo?"
+            "Implement a feature locally",
+            "Fix a bug with project context",
+            "Review current changes before commit",
+            "Safely refactor current file",
+            "Generate tests for this file",
+            "Repair build failure",
+            "Explain this module architecture",
+            "Modernize deprecated APIs"
+        )
+
+        // Mission workflow cards
+        val MISSION_CARDS = listOf(
+            MissionCard("Implement a feature locally", "FEATURE_IMPLEMENTATION",
+                "You are running Offline Enterprise Pair Programmer mode.\n\nMission:\nImplement a new feature in this project.\n\nRequired workflow:\n1. Call enterprise_mission_create.\n2. Gather project context before editing.\n3. Explain risks.\n4. Create a plan.\n5. Apply small, reviewable patches.\n6. Show diff.\n7. Verify when possible.\n8. Produce enterprise_mission_report.\n9. Include rollback instructions.\n10. Do not use external knowledge unless explicitly allowed."),
+            MissionCard("Fix a bug with project context", "BUG_FIX",
+                "You are running Offline Enterprise Pair Programmer mode.\n\nMission:\nFix the reported bug using full project context.\n\nRequired workflow:\n1. Call enterprise_mission_create.\n2. Gather project context before editing.\n3. Explain risks.\n4. Create a plan.\n5. Apply small, reviewable patches.\n6. Show diff.\n7. Verify when possible.\n8. Produce enterprise_mission_report.\n9. Include rollback instructions.\n10. Do not use external knowledge unless explicitly allowed."),
+            MissionCard("Review current changes before commit", "CODE_REVIEW",
+                "You are running Offline Enterprise Pair Programmer mode.\n\nMission:\nReview the current git diff for quality, security, and correctness before committing.\n\nRequired workflow:\n1. Call enterprise_mission_create.\n2. Gather project context before editing.\n3. Explain risks.\n4. Create a plan.\n5. Apply small, reviewable patches.\n6. Show diff.\n7. Verify when possible.\n8. Produce enterprise_mission_report.\n9. Include rollback instructions.\n10. Do not use external knowledge unless explicitly allowed."),
+            MissionCard("Safely refactor current file", "SAFE_REFACTOR",
+                "You are running Offline Enterprise Pair Programmer mode.\n\nMission:\nSafely refactor the current file without changing behavior.\n\nRequired workflow:\n1. Call enterprise_mission_create.\n2. Gather project context before editing.\n3. Explain risks.\n4. Create a plan.\n5. Apply small, reviewable patches.\n6. Show diff.\n7. Verify when possible.\n8. Produce enterprise_mission_report.\n9. Include rollback instructions.\n10. Do not use external knowledge unless explicitly allowed."),
+            MissionCard("Generate tests for this file", "TEST_GENERATION",
+                "You are running Offline Enterprise Pair Programmer mode.\n\nMission:\nGenerate comprehensive tests for the current file.\n\nRequired workflow:\n1. Call enterprise_mission_create.\n2. Gather project context before editing.\n3. Explain risks.\n4. Create a plan.\n5. Apply small, reviewable patches.\n6. Show diff.\n7. Verify when possible.\n8. Produce enterprise_mission_report.\n9. Include rollback instructions.\n10. Do not use external knowledge unless explicitly allowed."),
+            MissionCard("Repair build failure", "BUILD_FAILURE_REPAIR",
+                "You are running Offline Enterprise Pair Programmer mode.\n\nMission:\nRepair the current build failure using available diagnostics.\n\nRequired workflow:\n1. Call enterprise_mission_create.\n2. Gather project context before editing.\n3. Explain risks.\n4. Create a plan.\n5. Apply small, reviewable patches.\n6. Show diff.\n7. Verify when possible.\n8. Produce enterprise_mission_report.\n9. Include rollback instructions.\n10. Do not use external knowledge unless explicitly allowed."),
+            MissionCard("Explain this module architecture", "ARCHITECTURE_EXPLANATION",
+                "You are running Offline Enterprise Pair Programmer mode.\n\nMission:\nExplain the architecture, responsibilities, and design of the current module.\n\nRequired workflow:\n1. Call enterprise_mission_create.\n2. Gather project context before editing.\n3. Explain risks.\n4. Create a plan.\n5. Apply small, reviewable patches.\n6. Show diff.\n7. Verify when possible.\n8. Produce enterprise_mission_report.\n9. Include rollback instructions.\n10. Do not use external knowledge unless explicitly allowed."),
+            MissionCard("Modernize deprecated APIs", "MIGRATION",
+                "You are running Offline Enterprise Pair Programmer mode.\n\nMission:\nModernize deprecated or legacy APIs in this project.\n\nRequired workflow:\n1. Call enterprise_mission_create.\n2. Gather project context before editing.\n3. Explain risks.\n4. Create a plan.\n5. Apply small, reviewable patches.\n6. Show diff.\n7. Verify when possible.\n8. Produce enterprise_mission_report.\n9. Include rollback instructions.\n10. Do not use external knowledge unless explicitly allowed.")
         )
     }
+
+    data class MissionCard(val title: String, val missionType: String, val prompt: String)
 
     // ── Chat / Ask tab ────────────────────────────────────────────────────────
     object Chat {
@@ -267,6 +291,19 @@ object Strings {
         const val VALIDATION_NOT_GGUF = "File must end with .gguf"
         const val SECTION_AGENT_MODE = "<html><b>Agent Mode</b></html>"
         const val AGGRESSIVE_MODE_SETTING = "Aggressive agent mode (try fallbacks before giving up)"
+        const val SECTION_AUTONOMOUS = "<html><b>Autonomous Local Development</b></html>"
+        const val ENTERPRISE_MODE_ENABLED = "Enable Offline Enterprise Pair Programmer mode"
+        const val ENTERPRISE_DEFAULT_SAFETY = "Default safety level:"
+        const val ENTERPRISE_ALLOW_EXTERNAL = "Allow external knowledge in enterprise missions"
+        const val ENTERPRISE_REQUIRE_PLAN = "Require plan before writing files"
+        const val ENTERPRISE_REQUIRE_DIFF = "Require diff preview before applying changes"
+        const val ENTERPRISE_REQUIRE_AUDIT = "Require audit report at mission end"
+        const val SECTION_INLINE_COMPLETION = "<html><b>Inline Completions</b></html>"
+        const val INLINE_COMPLETION_ENABLED = "Enable inline code completions (experimental)"
+        const val INLINE_COMPLETION_DEBOUNCE = "Debounce delay (ms):"
+        const val INLINE_COMPLETION_MAX_CONTEXT = "Max context characters:"
+        const val INLINE_COMPLETION_MAX_TOKENS = "Max completion tokens:"
+        const val INLINE_COMPLETION_NOTE = "Inline completions are disabled by default. Enable only when the model is fast enough to avoid blocking typing."
     }
 
     // ── Inference settings ────────────────────────────────────────────────────
@@ -302,13 +339,28 @@ object Strings {
     // ── Onboarding ────────────────────────────────────────────────────────────
     object Onboarding {
         const val DIALOG_TITLE = "Welcome to Llamatik Code"
-        const val STEP1_HEADING = "Local-first AI coding assistant"
+        const val STEP1_HEADING = "Autonomous local pair programmer"
         const val STEP1_BODY1 =
-            "Llamatik Code runs <b>entirely on your device</b>. No code, prompts, or results ever leave your machine — no internet connection required after initial setup."
+            "Llamatik Code runs <b>entirely on your device</b>. Build, refactor, review, and verify code locally — your source code never leaves your machine."
         const val STEP1_BODY2 =
-            "Powered by local GGUF models via the Llamatik runtime library. You choose which model to use — from lightweight quick helpers to large reasoning models."
-        const val STEP1_BODY3 = "<b>Privacy guarantee:</b> Your code stays on your hardware, always."
-        const val STEP1_NEXT = "Next: Choose a model"
+            "Powered by local GGUF models. Run guided coding missions: Review → Plan → Patch → Verify → Audit — completely offline."
+        const val STEP1_BODY3 = "<b>Privacy guarantee:</b> Your code stays on your hardware, always. No cloud, no telemetry, no source upload."
+        const val STEP1_NEXT = "I just want it to work →"
+        // Setup presets
+        const val PRESET_FAST = "Fast local coding"
+        const val PRESET_BALANCED = "Balanced local agent"
+        const val PRESET_QUALITY = "Best local quality"
+        const val PRESET_LOW_MEM = "Low-memory machine"
+        const val PRESET_ENTERPRISE = "Enterprise / private mode"
+        const val PRESET_FAST_DESC = "Qwen2.5 Coder 7B — quick responses, lower RAM (~8 GB)"
+        const val PRESET_BALANCED_DESC = "Qwen3 14B — strong reasoning and coding (~16 GB RAM)"
+        const val PRESET_QUALITY_DESC = "DeepSeek R1 Distill 32B — best quality, needs 32 GB+ RAM"
+        const val PRESET_LOW_MEM_DESC = "Gemma 4 E4B — runs on 8 GB or less"
+        const val PRESET_ENTERPRISE_DESC = "Offline, no external connections, approval required on every change"
+        const val STEP1_ADVANCED_MODELS = "Advanced: choose specific model…"
+        const val READY_TITLE = "Ready for local coding missions"
+        const val READY_BODY = "Your model is loaded. Start your first private coding mission below."
+        const val START_FIRST_MISSION = "Start your first local coding mission"
         const val STEP2_HEADING = "Set up your model"
         const val STEP2_RECOMMENDED_LABEL = "<b>Recommended:</b> Qwen3-14B-Q4_K_M"
         const val STEP2_RECOMMENDED_DETAILS = "~9 GB disk | 16 GB RAM recommended"
@@ -557,6 +609,18 @@ object Strings {
         const val APPROVAL_ALLOW_ALWAYS_TOOL = "Allow always for this tool (Pro)"
         const val APPROVAL_ALLOW_ALWAYS_SERVER = "Allow always for this server (Pro)"
         const val APPROVAL_PRO_HINT = "Auto-approval requires Pro."
+    }
+
+    // ── Review / Feedback ─────────────────────────────────────────────────────
+    object ReviewFeedback {
+        const val REVIEW_DIALOG_TITLE = "Enjoying Llamatik Code?"
+        const val REVIEW_MESSAGE = "Are you enjoying the plugin? Help us by making a review!"
+        const val REVIEW_BUTTON = "Leave a Review ⭐"
+        const val REVIEW_URL = "https://plugins.jetbrains.com/plugin/31304-llamatik-code/reviews"
+        const val REVIEW_LATER = "Maybe Later"
+        const val REVIEW_NO_THANKS = "No, Thanks"
+        const val FEEDBACK_BUTTON = "Give Feedback"
+        const val FEEDBACK_URL = "https://github.com/Llamatik-AI/Llamatik-Code-Issue-Tracker/issues"
     }
 
     // ── Code Health Monitor ───────────────────────────────────────────────────

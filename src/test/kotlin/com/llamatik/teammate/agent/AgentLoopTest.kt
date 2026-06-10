@@ -103,14 +103,17 @@ class AgentLoopTest {
             val proposalPaths: List<String> = emptyList(),
         )
 
-        fun run(userPrompt: String, systemPrompt: String = "You are a coding agent."): LoopResult {
+        fun run(userPrompt: String, systemPrompt: String = "You are a coding agent.", preSeedReadPaths: Set<String> = emptySet()): LoopResult {
             val tokens = mutableListOf<String>()
             var finalMessage = ""
             var totalRounds = 0
-            val roundProposals = mutableListOf<Pair<String, String>>() // path to newContent
+            val roundProposals = mutableListOf<Pair<String, String>>()
+            // Mirrors AgentOrchestrator.executedToolKeys: dedup set across all rounds.
+            val executedToolKeys = mutableSetOf<Pair<String, String>>()
+            preSeedReadPaths.forEach { executedToolKeys += "read_file" to it }
+            // Tracks whether any read-only tool has been called (hasReadContent across rounds).
+            var hasReadContentAccum = false
 
-            // Mirrors buildProposalsFromToolMessages: parse tool result messages into (path, content) pairs.
-            // Parses tool result messages into (path, content) pairs, using ProposalValidator.
             fun extractProposals(toolMessages: List<ChatMessage>): List<Pair<String, String>> {
                 return toolMessages.mapNotNull { msg ->
                     if (msg.toolName !in editToolNames) return@mapNotNull null
@@ -133,7 +136,7 @@ class AgentLoopTest {
                 }
             }
 
-            fun runRound(messages: List<ChatMessage>, round: Int, task: String) {
+            fun runRound(messages: List<ChatMessage>, round: Int, task: String, hasReadContent: Boolean) {
                 if (round > maxRounds) return
                 totalRounds = round
 
@@ -150,7 +153,8 @@ class AgentLoopTest {
                 )
 
                 backend.generate(
-                    GenerationRequest(systemPrompt = systemPrompt, messages = messages, config = config),
+                    GenerationRequest(systemPrompt = systemPrompt, messages = messages, config = config,
+                        noThink = round + 1 >= maxRounds),
                     object : GenerationCallbacks {
                         override fun onToken(t: String) { tokens += t }
                         override fun onCompleted(fullText: String) {
@@ -159,29 +163,64 @@ class AgentLoopTest {
                                 .filter { it.name in knownToolNames }
                                 .take(maxToolCallsPerRound)
 
+                            // Mid-loop prose guard: fires when the model wrote prose instead of a tool call
+                            // after at least two rounds of reading. round > 2 (not round > 1) so that
+                            // simple Q&A responses (1 read round + 1 prose round) terminate normally
+                            // rather than being escalated to a write pass.
+                            // round < maxRounds - 1 prevents re-entry on the escalated write pass.
+                            if (toolCalls.isEmpty() && round > 2 && round < maxRounds - 1 && hasReadContent) {
+                                runRound(
+                                    listOf(ChatMessage(role = ChatRole.USER, content = "Task: $task\nNow write the file.")),
+                                    maxRounds - 1,
+                                    task,
+                                    hasReadContent,
+                                )
+                                return
+                            }
+
                             if (toolCalls.isEmpty() || round >= maxRounds) {
                                 finalMessage = ToolCallParser.cleanForDisplay(fullText, allowThinkFallback = round == 1)
                                 return
                             }
 
+                            var allCallsDuplicate = true
                             val toolMessages = toolCalls.map { call ->
-                                val result = toolRegistry.execute(call)
+                                val toolKey = call.name to (call.arguments.values.firstOrNull().orEmpty())
+                                val isDuplicateReadOnly = call.name in readOnlyToolNames && !executedToolKeys.add(toolKey)
+                                if (!isDuplicateReadOnly) allCallsDuplicate = false
+                                val result = if (isDuplicateReadOnly) {
+                                    "Already called ${call.name} — use the result you already received."
+                                } else {
+                                    toolRegistry.execute(call)
+                                }
                                 ChatMessage(role = ChatRole.TOOL, content = result, toolName = call.name)
                             }
 
                             val wroteFiles = toolCalls.any { it.name in editToolNames }
                             val proposals = extractProposals(toolMessages)
+                            val nowHasRead = hasReadContent || toolCalls.any { it.name in readOnlyToolNames }
+                            hasReadContentAccum = nowHasRead
                             if (wroteFiles) {
                                 roundProposals += proposals
-                                // Valid proposals → task done. Invalid → continue so model can retry.
                                 if (proposals.isNotEmpty()) {
                                     finalMessage = ""
                                     return
                                 }
                             }
 
+                            // All-duplicate escalation: only fire if we're not already at the penultimate
+                            // round (prevents infinite escalation when maxRounds is small).
+                            if (allCallsDuplicate && proposals.isEmpty() && round < maxRounds - 1) {
+                                runRound(
+                                    listOf(ChatMessage(role = ChatRole.USER, content = "Task: $task\nAll previous reads were duplicates. Now write the file.")),
+                                    maxRounds - 1,
+                                    task,
+                                    nowHasRead,
+                                )
+                                return
+                            }
+
                             val allReadOnly = toolCalls.all { it.name !in editToolNames }
-                            val nowHasRead = toolCalls.any { it.name in readOnlyToolNames }
                             val directive = RoundDirective.get(RoundDirective.RoundState(
                                 round = round,
                                 maxRounds = maxRounds,
@@ -203,7 +242,7 @@ class AgentLoopTest {
                                 append(directive)
                             }
                             val nextMessages = listOf(ChatMessage(role = ChatRole.USER, content = nextContent))
-                            runRound(nextMessages, round + 1, task)
+                            runRound(nextMessages, round + 1, task, nowHasRead)
                         }
                         override fun onError(message: String, throwable: Throwable?) {
                             finalMessage = "ERROR: $message"
@@ -213,7 +252,7 @@ class AgentLoopTest {
             }
 
             val initMessages = listOf(ChatMessage(role = ChatRole.USER, content = userPrompt))
-            runRound(initMessages, 1, userPrompt)
+            runRound(initMessages, 1, userPrompt, hasReadContent = preSeedReadPaths.isNotEmpty())
 
             return LoopResult(
                 finalMessage = finalMessage,
@@ -538,5 +577,157 @@ class AgentLoopTest {
             "Total tool results in round-2 prompt must be capped",
             round2Msg.length <= 4000 + 500, // 4000 for results + ~500 for task + directive overhead
         )
+    }
+
+    // ── Tests: cross-round read-only dedup ───────────────────────────────────
+
+    @Test
+    fun `duplicate read_file call in round 2 returns synthetic result without re-executing`() {
+        val backend = FakeBackend(
+            // Round 1: read the file
+            """<tool_call name="read_file"><arg name="path">src/Foo.kt</arg></tool_call>""",
+            // Round 2: model asks for the same file again
+            """<tool_call name="read_file"><arg name="path">src/Foo.kt</arg></tool_call>""",
+            // Round 3: prose (termination)
+            "Done reviewing.",
+        )
+        val fakeTools = FakeToolRegistry(mapOf("read_file" to "class Foo {}"))
+        val loop = AgentLoop(backend, fakeTools)
+        val result = loop.run("Review Foo.kt")
+        // read_file should only be executed once — the second call is dedup synthetic
+        assertEquals("read_file should only be executed once", 1, result.toolsExecuted.count { it == "read_file" })
+    }
+
+    @Test
+    fun `pre-seeded read path is treated as already-executed on first call`() {
+        // Simulate: file content is already in the system prompt (like @{file} attachment).
+        // The model asks for it anyway — should get synthetic result, not real execution.
+        val backend = FakeBackend(
+            """<tool_call name="read_file"><arg name="path">src/Attached.kt</arg></tool_call>""",
+            "I reviewed the attached file.",
+        )
+        val fakeTools = FakeToolRegistry(mapOf("read_file" to "class Attached {}"))
+        val loop = AgentLoop(backend, fakeTools)
+        val result = loop.run("Review Attached.kt", preSeedReadPaths = setOf("src/Attached.kt"))
+        assertEquals("Pre-seeded path must not trigger real read_file execution", 0, result.toolsExecuted.size)
+    }
+
+    // ── Tests: all-duplicate escalation ─────────────────────────────────────
+
+    @Test
+    fun `all-duplicate round escalates to write pass instead of continuing normally`() {
+        // Round 1: read_file (real)
+        // Round 2: same read_file again → all-duplicate → escalate to write pass (round 4 = MAX_ROUNDS-1)
+        // Round 4 (write pass): write_file produces valid proposal
+        val backend = FakeBackend(
+            // Round 1
+            """<tool_call name="read_file"><arg name="path">src/Foo.kt</arg></tool_call>""",
+            // Round 2 — duplicate read, triggers escalation
+            """<tool_call name="read_file"><arg name="path">src/Foo.kt</arg></tool_call>""",
+            // Write pass (escalated round)
+            """<tool_call name="write_file"><arg name="path">src/Foo.kt</arg><arg name="content">class Foo { fun fixed() = 1 }</arg></tool_call>""",
+        )
+        val fakeTools = FakeToolRegistry(mapOf(
+            "read_file" to "class Foo {}",
+            "write_file" to "Prepared file replacement for src/Foo.kt\n---OLD---\nclass Foo {}\n---NEW---\nclass Foo { fun fixed() = 1 }",
+        ))
+        val loop = AgentLoop(backend, fakeTools, maxRounds = 5)
+        val result = loop.run("Fix Foo.kt")
+        assertTrue("write_file must be executed in the escalated write pass", result.toolsExecuted.contains("write_file"))
+        assertTrue("Proposal for Foo.kt must be present", result.proposalPaths.contains("src/Foo.kt"))
+    }
+
+    // ── Tests: mid-loop prose escalation ────────────────────────────────────
+
+    @Test
+    fun `mid-loop prose after multiple read rounds escalates to write pass`() {
+        // Round 1: list_files, Round 2: read_file, Round 3: prose (guard fires at round > 2)
+        // Write pass (maxRounds-1 = 4): write_file produces valid proposal.
+        val backend = FakeBackend(
+            // Round 1: list
+            """<tool_call name="list_files"><arg name="path">src</arg></tool_call>""",
+            // Round 2: read
+            """<tool_call name="read_file"><arg name="path">src/Bar.kt</arg></tool_call>""",
+            // Round 3: model returns prose mid-loop
+            "The class Bar looks good, but I should add a method.",
+            // Write pass (escalated round 4)
+            """<tool_call name="write_file"><arg name="path">src/Bar.kt</arg><arg name="content">class Bar { fun added() = 2 }</arg></tool_call>""",
+        )
+        val fakeTools = FakeToolRegistry(mapOf(
+            "list_files" to "src/Bar.kt",
+            "read_file" to "class Bar {}",
+            "write_file" to "Prepared file replacement for src/Bar.kt\n---OLD---\nclass Bar {}\n---NEW---\nclass Bar { fun added() = 2 }",
+        ))
+        val loop = AgentLoop(backend, fakeTools, maxRounds = 5)
+        val result = loop.run("Improve Bar.kt")
+        assertTrue("write_file must be executed after mid-loop prose escalation", result.toolsExecuted.contains("write_file"))
+        assertTrue("Proposal for Bar.kt must be present", result.proposalPaths.contains("src/Bar.kt"))
+    }
+
+    @Test
+    fun `mid-loop prose on round 1 does NOT escalate — it is a normal Q&A answer`() {
+        // Round 1 prose is a legitimate answer (user asked a question, model answered).
+        // The guard must not fire on round == 1.
+        val backend = FakeBackend("Here is my answer to your question.")
+        val loop = AgentLoop(backend, FakeToolRegistry(), maxRounds = 5)
+        val result = loop.run("What does this code do?")
+        assertEquals(1, result.rounds)
+        assertEquals("Here is my answer to your question.", result.finalMessage)
+        assertTrue(result.toolsExecuted.isEmpty())
+    }
+
+    @Test
+    fun `mid-loop prose on round 2 does NOT escalate — simple read-then-answer pattern`() {
+        // 1 read round + prose answer is normal Q&A and must NOT be treated as mid-loop prose.
+        val backend = FakeBackend(
+            """<tool_call name="read_file"><arg name="path">src/Qux.kt</arg></tool_call>""",
+            "The class Qux does X.",
+        )
+        val loop = AgentLoop(backend, FakeToolRegistry(mapOf("read_file" to "class Qux {}")), maxRounds = 5)
+        val result = loop.run("Explain Qux.kt")
+        assertEquals(2, result.rounds)
+        assertEquals("The class Qux does X.", result.finalMessage)
+        assertFalse("write_file must NOT be called for a simple read+answer", result.toolsExecuted.contains("write_file"))
+    }
+
+    @Test
+    fun `mid-loop prose on penultimate round does NOT re-enter escalation`() {
+        // When the escalated write pass itself returns prose, the guard must not
+        // fire again (round == MAX_ROUNDS - 1, so round < maxRounds - 1 is false).
+        // The loop must surface the final message, not loop indefinitely.
+        val backend = FakeBackend(
+            // Round 1: list, Round 2: read → prose at round 3 triggers escalation to round 4
+            """<tool_call name="list_files"><arg name="path">src</arg></tool_call>""",
+            """<tool_call name="read_file"><arg name="path">src/Baz.kt</arg></tool_call>""",
+            "I see the file now.",
+            // Round 4 (write pass): model STILL returns prose — must terminate, not re-escalate
+            "I cannot write this file.",
+        )
+        val fakeTools = FakeToolRegistry(mapOf(
+            "list_files" to "src/Baz.kt",
+            "read_file" to "class Baz {}",
+        ))
+        val loop = AgentLoop(backend, fakeTools, maxRounds = 5)
+        val result = loop.run("Fix Baz.kt")
+        // Must terminate without looping — proposalPaths empty is fine, loop must stop
+        assertTrue("Loop must terminate, not re-escalate indefinitely", result.rounds <= 5)
+        assertTrue("No proposal expected when write pass also returns prose", result.proposalPaths.isEmpty())
+    }
+
+    // ── Tests: noThink on final round ────────────────────────────────────────
+
+    @Test
+    fun `final round request has noThink set to true`() {
+        // maxRounds = 3 → final round = 3 → isFinalRound when round + 1 >= maxRounds, i.e. round 2
+        val backend = FakeBackend(
+            """<tool_call name="read_file"><arg name="path">src/X.kt</arg></tool_call>""",
+            "Done.",
+        )
+        val loop = AgentLoop(backend, FakeToolRegistry(mapOf("read_file" to "class X {}")), maxRounds = 3)
+        loop.run("Review X.kt")
+        // Round 2 is the penultimate round (round + 1 = 3 = maxRounds) — noThink must be true
+        val round2Request = backend.capturedRequests.getOrNull(1)
+        assertNotNull("Round 2 request must exist", round2Request)
+        assertTrue("noThink must be true on the final round", round2Request!!.noThink)
     }
 }

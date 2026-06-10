@@ -40,8 +40,8 @@ class ExternalSearchServiceTest {
     }
 
     @Test
-    fun `free daily searches constant is 5`() {
-        assertEquals(5, ExternalKnowledgeLimits.FREE_DAILY_SEARCHES)
+    fun `free daily searches constant is 15`() {
+        assertEquals(15, ExternalKnowledgeLimits.FREE_DAILY_SEARCHES)
     }
 
     @Test

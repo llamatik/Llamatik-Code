@@ -1,9 +1,11 @@
 package com.llamatik.teammate.ui.toolwindow
 
+import com.intellij.ide.BrowserUtil
 import com.intellij.ide.ui.LafManagerListener
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.options.ShowSettingsUtil
 import com.intellij.openapi.components.service
+import com.llamatik.teammate.review.ReviewPromptService
 import com.intellij.openapi.util.IconLoader
 import com.intellij.util.IconUtil
 import com.intellij.openapi.project.Project
@@ -101,7 +103,9 @@ class LlamatikToolWindowPanel(
     private val rootBackground = LlamatikTheme.background
 
     private val pluginVersion: String = runCatching {
-        com.intellij.ide.plugins.PluginManager.getPluginByClass(LlamatikToolWindowPanel::class.java)?.version
+        com.intellij.ide.plugins.PluginManagerCore.getPlugin(
+            com.intellij.openapi.extensions.PluginId.getId("com.llamatik.teammate.LlamatikTeammate")
+        )?.version
     }.getOrNull() ?: ""
 
     private val trialBannerPanel = JPanel(BorderLayout(8, 0)).apply {
@@ -334,18 +338,34 @@ class LlamatikToolWindowPanel(
         }
     }
 
-    private fun buildDisclaimerStrip(): JPanel =
-        JPanel(BorderLayout()).apply {
-            background = rootBackground
-            border = JBUI.Borders.empty(0, 12, 6, 12)
-            add(disclaimerLabel, BorderLayout.CENTER)
+    private fun buildDisclaimerStrip(): JPanel {
+        val feedbackBtn = JButton(Strings.ReviewFeedback.FEEDBACK_BUTTON).apply {
+            isFocusPainted = false
+            isContentAreaFilled = false
+            isBorderPainted = false
+            cursor = java.awt.Cursor(java.awt.Cursor.HAND_CURSOR)
+            foreground = LlamatikTheme.primary
+            font = font.deriveFont(Font.PLAIN, font.size2D - 1f)
+            toolTipText = Strings.ReviewFeedback.FEEDBACK_URL
+            addActionListener { BrowserUtil.browse(Strings.ReviewFeedback.FEEDBACK_URL) }
+        }
+        val eastPanel = JPanel(FlowLayout(FlowLayout.RIGHT, 4, 0)).apply {
+            isOpaque = false
+            add(feedbackBtn)
             if (pluginVersion.isNotBlank()) {
                 add(JBLabel("v$pluginVersion").apply {
                     font = font.deriveFont(Font.PLAIN, font.size2D - 1f)
                     foreground = LlamatikTheme.onSurfaceVariant
-                }, BorderLayout.EAST)
+                })
             }
         }
+        return JPanel(BorderLayout()).apply {
+            background = rootBackground
+            border = JBUI.Borders.empty(0, 12, 6, 12)
+            add(disclaimerLabel, BorderLayout.CENTER)
+            add(eastPanel, BorderLayout.EAST)
+        }
+    }
 
     private fun toggleTaskQueuePanel() {
         taskQueueVisible = !taskQueueVisible
@@ -610,8 +630,9 @@ class LlamatikToolWindowPanel(
                                 setGenerating(false)
                             }
                             markTaskFinished(taskId, TaskStatus.DONE, changeCount = appliedFiles.size)
-                            if (appliedFiles.isNotEmpty() && settings.data().agentAutoBuild) {
-                                startVerification(appliedFiles)
+                            if (appliedFiles.isNotEmpty()) {
+                                service<ReviewPromptService>().onSuccessfulTaskWithChanges(project)
+                                if (settings.data().agentAutoBuild) startVerification(appliedFiles)
                             }
                             return@invokeLater
                         }
@@ -621,8 +642,9 @@ class LlamatikToolWindowPanel(
                         var remaining = proposals.size.coerceAtLeast(1)
                         fun checkAllResolved() {
                             remaining--
-                            if (remaining == 0 && appliedFiles.isNotEmpty() && settings.data().agentAutoBuild) {
-                                startVerification(appliedFiles.toList())
+                            if (remaining == 0 && appliedFiles.isNotEmpty()) {
+                                service<ReviewPromptService>().onSuccessfulTaskWithChanges(project)
+                                if (settings.data().agentAutoBuild) startVerification(appliedFiles.toList())
                             }
                         }
                         if (selectedTaskId == taskId) {
