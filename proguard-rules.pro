@@ -314,6 +314,30 @@
     protected void installDefaults();
 }
 
+# ── Autonomous Local Development (1.8.0) ─────────────────────────────────────
+# Services loaded by FQN from plugin.xml
+-keep class com.llamatik.teammate.workflows.enterprise.EnterprisePairProgrammerService { *; }
+-keep class com.llamatik.teammate.completion.LlamatikInlineCompletionService { *; }
+-keep class com.llamatik.teammate.review.ReviewPromptService { *; }
+
+# Settings configurable loaded by FQN from plugin.xml
+-keep class com.llamatik.teammate.settings.AutonomousDevSettingsConfigurable { *; }
+-keep class com.llamatik.teammate.settings.AutonomousDevSettingsConfigurable$* { *; }
+
+# Enterprise context menu actions loaded by FQN from plugin.xml
+-keep class com.llamatik.teammate.actions.EnterprisePairProgrammerAction { *; }
+-keep class com.llamatik.teammate.actions.EnterpriseReviewCurrentChangesAction { *; }
+-keep class com.llamatik.teammate.actions.EnterpriseFixBuildFailureAction { *; }
+-keep class com.llamatik.teammate.actions.EnterpriseGenerateTestsAction { *; }
+-keep class com.llamatik.teammate.actions.EnterpriseExplainArchitectureAction { *; }
+-keep class com.llamatik.teammate.actions.EnterpriseSafeRefactorAction { *; }
+-keep class com.llamatik.teammate.actions.EnterpriseImplementFeatureAction { *; }
+
+# Enterprise mission enums — valueOf() called in classifyMission() and defaultSafetyLevel()
+-keepclassmembers enum com.llamatik.teammate.workflows.enterprise.EnterpriseMissionType { *; }
+-keepclassmembers enum com.llamatik.teammate.workflows.enterprise.EnterpriseSafetyLevel { *; }
+-keepclassmembers enum com.llamatik.teammate.workflows.enterprise.EnterpriseRiskLevel { *; }
+
 # ── Code Health Monitor ────────────────────────────────────────────────────────
 -keep class com.llamatik.teammate.codehealth.CodeHealthBudgetService { *; }
 -keep class com.llamatik.teammate.codehealth.CodeHealthInsightStore { *; }
