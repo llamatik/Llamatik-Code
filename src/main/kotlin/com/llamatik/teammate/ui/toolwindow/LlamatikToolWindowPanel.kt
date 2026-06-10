@@ -103,7 +103,9 @@ class LlamatikToolWindowPanel(
     private val rootBackground = LlamatikTheme.background
 
     private val pluginVersion: String = runCatching {
-        com.intellij.ide.plugins.PluginManager.getPluginByClass(LlamatikToolWindowPanel::class.java)?.version
+        com.intellij.ide.plugins.PluginManagerCore.getPlugin(
+            com.intellij.openapi.extensions.PluginId.getId("com.llamatik.teammate.LlamatikTeammate")
+        )?.version
     }.getOrNull() ?: ""
 
     private val trialBannerPanel = JPanel(BorderLayout(8, 0)).apply {
