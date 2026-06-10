@@ -50,10 +50,14 @@ For quick actions without typing, right-click in any editor → **Llamatik Code 
 | Single-session agent | Yes | Yes |
 | Multi-task agent | — | Yes |
 | Parallel chat sessions | Yes | Yes |
+| Multi-file apply | Yes | Yes |
+| Auto-build + auto-fix | Yes | Yes |
+| Max tokens per response | 65 536 | 65 536 |
+| Context size setting | Yes | Yes |
+| Image attachments | 5 per session | Unlimited |
+| Skills | 3 active | Unlimited |
 | MCP servers | 1 (manual approval) | Unlimited + auto-approval |
 | Aggressive mode | — | Yes |
-| Multi-file apply | — | Yes |
-| Auto-build + auto-fix | — | Yes |
 | External Knowledge | 15 searches/day, 3 docs sources | 50 searches/day, 10 sources |
 | Code Health Monitor | LIGHT / manual only | BALANCED + AGGRESSIVE + background |
 | Enterprise missions (current file / selection / git diff) | Yes | Yes |

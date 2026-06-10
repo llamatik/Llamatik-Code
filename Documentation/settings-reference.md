@@ -69,7 +69,7 @@ Per-server fields: name, command, arguments, environment variables, working dire
 
 ## Autonomous Local Development
 
-Settings for the enterprise pair programmer and inline completion features. Requires Llamatik Code 1.7.0+.
+Settings for the enterprise pair programmer and inline completion features. Requires Llamatik Code 1.8.0+.
 
 ### Enterprise Pair Programmer
 

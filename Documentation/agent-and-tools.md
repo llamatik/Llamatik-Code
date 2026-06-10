@@ -97,3 +97,17 @@ See [offline-enterprise-pair-programmer.md](offline-enterprise-pair-programmer.m
 ## Read-only vs write tools
 
 The agent enforces a distinction between read-only tools (safe to call autonomously) and write tools (require a diff preview or explicit approval in Aggressive mode). The read-only set includes all `git_*`, `index_*`, `psi_*`, `rules_get`, `run_config_list`, `enterprise_mission_*`, and all Code Health and Research tools that only read data.
+
+## Agent loop reliability (1.8.0+)
+
+The multi-round agent loop has several guards to ensure it produces file changes rather than stalling on repeated reads or prose responses:
+
+| Guard | Trigger | Effect |
+|---|---|---|
+| Attached-file dedup | Model requests `read_file` / `search_code` / `list_files` on a path already in the attached context | Synthetic result returned; round not consumed |
+| Cross-round dedup | Model repeats an identical read call it made in a previous round | Synthetic result returned; round not consumed |
+| All-duplicate escalation | Every tool call in a round is synthetic (dedup) | Agent skips to a final write-only pass with thinking suppressed |
+| Mid-loop prose escalation | Model returns plain text instead of a tool call after having read content | Agent escalates to a final write-only pass |
+| Final-round noThink | The last round before round limit | `<think>` suppressed so the full token budget goes to `write_file` output |
+
+The mid-loop prose escalation fires only when `round > 1` (not the initial Q&A turn) and `round < MAX_ROUNDS - 1` (not already the escalated write pass itself), preventing re-entry.

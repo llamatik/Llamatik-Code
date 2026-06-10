@@ -269,7 +269,107 @@ Required workflow:
         assertTrue("prompt must reference rollback", prompt.contains("rollback"))
     }
 
+    // ── Inline completion: buildFallback ─────────────────────────────────────
+
+    @Test fun `buildFallback produces plain prefix prompt for non-FIM models`() {
+        val ctx = com.llamatik.teammate.completion.InlineCompletionContextCollector.CompletionContext(
+            prefix = "fun greet() {",
+            suffix = "}",
+            fileExtension = "kt",
+            lineNumber = 3,
+        )
+        val prompt = com.llamatik.teammate.completion.InlineCompletionPromptBuilder.buildFallback(ctx)
+        assertTrue("Fallback prompt must include prefix", prompt.contains("fun greet() {"))
+        assertFalse("Fallback prompt must NOT include fim_prefix token", prompt.contains("<fim_prefix>"))
+        assertFalse("Fallback prompt must NOT include fim_suffix token", prompt.contains("<fim_suffix>"))
+        assertFalse("Fallback prompt must NOT include fim_middle token", prompt.contains("<fim_middle>"))
+    }
+
+    @Test fun `buildFallback adds language hint for known extensions`() {
+        val ktCtx = com.llamatik.teammate.completion.InlineCompletionContextCollector.CompletionContext(
+            prefix = "val x = 1", suffix = "", fileExtension = "kt", lineNumber = 1)
+        val ktPrompt = com.llamatik.teammate.completion.InlineCompletionPromptBuilder.buildFallback(ktCtx)
+        assertTrue("Kotlin hint expected", ktPrompt.contains("Kotlin"))
+
+        val pyCtx = com.llamatik.teammate.completion.InlineCompletionContextCollector.CompletionContext(
+            prefix = "def foo():", suffix = "", fileExtension = "py", lineNumber = 1)
+        val pyPrompt = com.llamatik.teammate.completion.InlineCompletionPromptBuilder.buildFallback(pyCtx)
+        assertTrue("Python hint expected", pyPrompt.contains("Python"))
+    }
+
+    @Test fun `buildFallback omits language hint for unknown extensions`() {
+        val ctx = com.llamatik.teammate.completion.InlineCompletionContextCollector.CompletionContext(
+            prefix = "some content", suffix = "", fileExtension = "xyz", lineNumber = 1)
+        val prompt = com.llamatik.teammate.completion.InlineCompletionPromptBuilder.buildFallback(ctx)
+        assertFalse("No language hint for unknown extension", prompt.contains("Language:"))
+    }
+
+    // ── EnterpriseMissionStore: ordering and edge cases ───────────────────────
+
+    @Test fun `store list returns missions sorted by most recently created first`() {
+        val store = EnterpriseMissionStore()
+        val planA = makePlan("a")
+        val planB = makePlan("b")
+        store.store(planA)
+        Thread.sleep(5) // ensure distinct createdMs
+        store.store(planB)
+        val list = store.list()
+        assertEquals("Most recent (b) should come first", "b", list.first().plan.id)
+        assertEquals("Older (a) should come last", "a", list.last().plan.id)
+    }
+
+    @Test fun `complete on unknown mission id is a no-op`() {
+        val store = EnterpriseMissionStore()
+        val report = EnterpriseMissionReport(
+            missionId = "nonexistent",
+            summary = "done",
+            changedFiles = emptyList(),
+            verificationSummary = "ok",
+            remainingRisks = emptyList(),
+            auditTrail = emptyList(),
+            suggestedCommitMessage = null,
+        )
+        store.complete("nonexistent", report) // must not throw
+        assertNull("Unknown mission must not appear after complete()", store.get("nonexistent"))
+    }
+
+    @Test fun `addAuditEvent on unknown mission id is a no-op`() {
+        val store = EnterpriseMissionStore()
+        store.addAuditEvent("nonexistent", "some event") // must not throw
+    }
+
+    // ── EnterprisePairProgrammerService.classifyMission via real service ──────
+
+    @Test fun `classifyMission build_failure precedence beats feature implementation`() {
+        // The real service checks BUILD_FAILURE_REPAIR before FEATURE_IMPLEMENTATION.
+        // "implement a fix for the build failure" contains both — must be BUILD_FAILURE_REPAIR.
+        val svc = com.llamatik.teammate.workflows.enterprise.EnterprisePairProgrammerService(
+            com.intellij.mock.MockProject(null, {})
+        )
+        val result = svc.classifyMission("implement a fix for the build failure")
+        assertEquals(EnterpriseMissionType.BUILD_FAILURE_REPAIR, result)
+    }
+
     // Helpers
 
     private fun String.containsAny(vararg terms: String): Boolean = terms.any { contains(it) }
+
+    private fun makePlan(id: String) = EnterpriseMissionPlan(
+        id = id,
+        title = "Test $id",
+        missionType = EnterpriseMissionType.BUG_FIX,
+        safetyLevel = EnterpriseSafetyLevel.APPROVAL_REQUIRED,
+        userRequest = "fix $id",
+        targetPaths = emptyList(),
+        affectedFiles = emptyList(),
+        requiredContextTools = emptyList(),
+        allowedMutationTools = emptyList(),
+        blockedTools = emptyList(),
+        risks = emptyList(),
+        verificationSteps = emptyList(),
+        auditNotes = emptyList(),
+        rollbackPlan = "git stash",
+        estimatedRiskLevel = EnterpriseRiskLevel.LOW,
+        createdAtEpochMs = System.currentTimeMillis(),
+    )
 }
