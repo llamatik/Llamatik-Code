@@ -26,6 +26,7 @@ object ToolCallParser {
     fun stripThinking(text: String): String =
         text.replace(thinkPattern, "")
             .replace(Regex("<think>.*$", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)), "")
+            .replace(Regex("</think>", RegexOption.IGNORE_CASE), "")
             .replace(modelStopTokenPattern, "")
             .trimStart()
 
@@ -223,6 +224,9 @@ object ToolCallParser {
             .replace(Regex("<edit_proposal\\b.*$", RegexOption.DOT_MATCHES_ALL), "")
             .replace(Regex("<tool_call\\b.*$", RegexOption.DOT_MATCHES_ALL), "")
             .replace(Regex("<result\\s+tool=.*$", RegexOption.DOT_MATCHES_ALL), "")
+            // Strip orphan closing tags left when the opening tag was already stripped above
+            .replace(Regex("</arg>|</tool_call>|</edit_proposal>", RegexOption.IGNORE_CASE), "")
+            .replace(Regex("</think>", RegexOption.IGNORE_CASE), "")
             .replace(modelStopTokenPattern, "")
             // Strip stray model-hallucinated closing tags that should never appear in output
             .replace(Regex("</?(answer|result|results|action)>", RegexOption.IGNORE_CASE), "")

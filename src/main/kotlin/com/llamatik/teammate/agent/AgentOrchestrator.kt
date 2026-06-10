@@ -24,6 +24,7 @@ import com.llamatik.teammate.skills.SkillService
 import com.llamatik.teammate.tools.ToolCallParser
 import com.llamatik.teammate.tools.ToolExecutionContext
 import com.llamatik.teammate.tools.ToolRegistry
+import com.llamatik.teammate.tools.ToolResult
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
@@ -190,6 +191,7 @@ class AgentOrchestrator(private val project: Project) {
                 appendLine()
                 appendLine()
                 appendLine("=== Attached files ===")
+                appendLine("The following file contents are ALREADY provided below. Do NOT call read_file, search_code, or list_files to retrieve them again — use the content directly.")
                 append(effectiveFileContext.take(fileContextMax))
                 appendLine()
                 appendLine("=== End attached files ===")
@@ -248,18 +250,32 @@ class AgentOrchestrator(private val project: Project) {
         // if the agent exhausts rounds without producing a valid proposal.
         val accumulatedRejections = mutableListOf<String>()
         val agentTrace = AgentTrace()
+        // Tracks (toolName, primaryArg) pairs already executed across all rounds.
+        // Duplicate read-only calls get a synthetic "already called" result instead of re-running,
+        // which breaks the search_code/read_file repetition loop without consuming a full round.
+        // Pre-seed with read_file paths that are already injected as attached files, so the model
+        // can't waste a round calling read_file on content it already has in the system prompt.
+        val executedToolKeys = mutableSetOf<Pair<String, String>>()
+        Regex("""@\{([^}]+)}""").findAll(userPrompt).forEach { m ->
+            executedToolKeys += TOOL_READ_FILE to m.groupValues[1].trim()
+        }
+        contextService.getCurrentFile()?.let { executedToolKeys += TOOL_READ_FILE to it }
 
         // Multi-round agentic loop: model can call tools across up to MAX_ROUNDS before answering.
         // Each round feeds tool results back so the model can: list files -> read files -> write files.
         fun runRound(messages: List<ChatMessage>, round: Int, accumulatedProposals: List<EditProposal>, hasReadContent: Boolean = false) {
             if (cancelled.get()) return
             val roundSystemPrompt = if (round == 1) systemPrompt else buildSecondPassSystemPrompt()
+            // Suppress thinking on the final round so the model skips chain-of-thought and writes
+            // its output directly — prevents spending the last token budget on reasoning instead of
+            // the write_file call.
+            val isFinalRound = round + 1 >= MAX_ROUNDS
             val handle = backend.generate(
                 GenerationRequest(
                     systemPrompt = roundSystemPrompt,
                     messages = messages,
                     config = config,
-                    noThink = false,
+                    noThink = isFinalRound,
                     sessionTag = SessionTag.AGENT,
                 ),
                 object : GenerationCallbacks {
@@ -289,6 +305,36 @@ class AgentOrchestrator(private val project: Project) {
                         val toolCalls = ToolCallParser.parseIncludingIncomplete(answerText)
                             .filter { it.name in KNOWN_TOOL_NAMES || it.name in dynamicMcpNames }
                             .take(MAX_TOOL_CALLS_PER_ROUND)
+
+                        // Mid-loop prose guard: model wrote text instead of a tool call after having
+                        // read content. Give it one explicit write pass before the normal terminal path.
+                        // Bounds: round > 1 (not first Q&A round) and round < MAX_ROUNDS - 1 (not already
+                        // at the penultimate write round) to avoid re-entering this path recursively.
+                        if (toolCalls.isEmpty() && round > 1 && round < MAX_ROUNDS - 1 && hasReadContent) {
+                            val finalDirective = RoundDirective.get(RoundDirective.RoundState(
+                                round = MAX_ROUNDS - 1,
+                                maxRounds = MAX_ROUNDS,
+                                hasReadContent = hasReadContent,
+                                wroteFilesThisRound = false,
+                                validProposalsProduced = false,
+                                allToolsWereReadOnly = true,
+                                rejectionReasons = emptyList(),
+                                hasFileContext = effectiveFileContext.isNotBlank(),
+                            ))
+                            val finalContent = buildString {
+                                appendLine("Task: ${cleanInstruction.take(TASK_EXCERPT_MAX_CHARS)}")
+                                if (effectiveFileContext.isNotBlank()) {
+                                    appendLine()
+                                    appendLine("=== Source file ===")
+                                    appendLine(effectiveFileContext.take(fileContextMax))
+                                    appendLine("=== End source file ===")
+                                }
+                                appendLine()
+                                append(finalDirective)
+                            }
+                            runRound(listOf(ChatMessage(role = ChatRole.USER, content = finalContent)), MAX_ROUNDS - 1, accumulatedProposals, hasReadContent)
+                            return
+                        }
 
                         if (toolCalls.isEmpty() || round >= MAX_ROUNDS) {
                             val xmlProposals = extractEditProposals(answerText)
@@ -331,11 +377,19 @@ class AgentOrchestrator(private val project: Project) {
                         if (!cancelled.get()) onToken("${STATUS_PREFIX}Gathering project context…")
                         resetStreamState()
 
+                        var allCallsDuplicate = true
                         val toolMessages = toolCalls.map { call ->
                             val mainArg = call.arguments.values.firstOrNull().orEmpty().take(TOOL_ARG_DISPLAY_MAX_CHARS)
                             if (!cancelled.get()) onToken("${TOOL_PREFIX}${call.name}:$mainArg")
+                            val toolKey = call.name to call.arguments.values.firstOrNull().orEmpty()
+                            val isDuplicateReadOnly = call.name in READ_ONLY_TOOL_NAMES && !executedToolKeys.add(toolKey)
+                            if (!isDuplicateReadOnly) allCallsDuplicate = false
                             val t0 = System.currentTimeMillis()
-                            val result = toolRegistry.execute(call, ToolExecutionContext(project))
+                            val result = if (isDuplicateReadOnly) {
+                                ToolResult(name = call.name, success = true, content = "Already called ${call.name}(${call.arguments.values.firstOrNull().orEmpty()}) in a previous round. Use the result you already received — do not call this tool again.")
+                            } else {
+                                toolRegistry.execute(call, ToolExecutionContext(project))
+                            }
                             val elapsed = System.currentTimeMillis() - t0
                             val traceType = when {
                                 call.name == TOOL_READ_FILE -> AgentTraceStep.Type.FILE_READ
@@ -369,6 +423,33 @@ class AgentOrchestrator(private val project: Project) {
 
                         // Valid proposals produced → task done. Stop immediately.
                         val wroteFiles = toolCalls.any { it.name in EDIT_TOOL_NAMES }
+                        // All calls this round were dedup synthetic — no new information can arrive.
+                        // Escalate directly to the final-round write pass instead of burning another round.
+                        if (allCallsDuplicate && roundProposals.isEmpty()) {
+                            val finalDirective = RoundDirective.get(RoundDirective.RoundState(
+                                round = MAX_ROUNDS - 1,
+                                maxRounds = MAX_ROUNDS,
+                                hasReadContent = hasReadContent,
+                                wroteFilesThisRound = false,
+                                validProposalsProduced = false,
+                                allToolsWereReadOnly = true,
+                                rejectionReasons = emptyList(),
+                                hasFileContext = effectiveFileContext.isNotBlank(),
+                            ))
+                            val finalContent = buildString {
+                                appendLine("Task: ${cleanInstruction.take(TASK_EXCERPT_MAX_CHARS)}")
+                                if (effectiveFileContext.isNotBlank()) {
+                                    appendLine()
+                                    appendLine("=== Source file ===")
+                                    appendLine(effectiveFileContext.take(fileContextMax))
+                                    appendLine("=== End source file ===")
+                                }
+                                appendLine()
+                                append(finalDirective)
+                            }
+                            runRound(listOf(ChatMessage(role = ChatRole.USER, content = finalContent)), MAX_ROUNDS - 1, allProposals, hasReadContent)
+                            return
+                        }
                         if (wroteFiles && roundProposals.isNotEmpty()) {
                             if (!agentTrace.isEmpty()) onTrace?.invoke(agentTrace)
                             val fileList = allProposals.joinToString(", ") { it.filePath }
@@ -615,6 +696,10 @@ class AgentOrchestrator(private val project: Project) {
                 attachments.appendLine("```")
                 attachments.appendLine(content.take(attachmentMax))
                 attachments.appendLine("```")
+                attachments.appendLine()
+            } else {
+                attachments.appendLine("### File: $path")
+                attachments.appendLine("(File not found or unreadable — do NOT search for it; ask the user to verify the path.)")
                 attachments.appendLine()
             }
         }
