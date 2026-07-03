@@ -215,6 +215,15 @@ class AgentTabPanel(
         }, BorderLayout.WEST)
         add(promptLabel, BorderLayout.CENTER)
         isVisible = false
+        cursor = java.awt.Cursor(java.awt.Cursor.TEXT_CURSOR)
+        addMouseListener(object : MouseAdapter() {
+            override fun mousePressed(e: MouseEvent) { if (e.isPopupTrigger) showPromptContextMenu(e) }
+            override fun mouseReleased(e: MouseEvent) { if (e.isPopupTrigger) showPromptContextMenu(e) }
+        })
+        promptLabel.addMouseListener(object : MouseAdapter() {
+            override fun mousePressed(e: MouseEvent) { if (e.isPopupTrigger) showPromptContextMenu(e) }
+            override fun mouseReleased(e: MouseEvent) { if (e.isPopupTrigger) showPromptContextMenu(e) }
+        })
     }
 
     // ── Status pill ───────────────────────────────────────────────────────────
@@ -563,6 +572,9 @@ class AgentTabPanel(
         cardLayout.show(cardPanel, name)
     }
 
+    // Raw (non-HTML) text of the currently displayed prompt — used for copy action.
+    private var currentPromptText = ""
+
     // ── Streaming state ───────────────────────────────────────────────────────
     private val streamBuffer = StringBuilder()
     private var streamingBlocked = false
@@ -792,6 +804,7 @@ class AgentTabPanel(
         pastExchanges.addAll(snapshot.pastExchanges)
         rebuildFrozenHistory()
 
+        currentPromptText = snapshot.prompt
         promptLabel.text = snapshot.prompt
         promptBubble.isVisible = snapshot.prompt.isNotEmpty()
         responseTextArea.text = snapshot.responseText
@@ -848,6 +861,7 @@ class AgentTabPanel(
         pastExchanges.addAll(exchanges)
         rebuildFrozenHistory()
 
+        currentPromptText = prompt
         promptLabel.text = "<html>${prompt.replace("\n", "<br>")}</html>"
         promptBubble.isVisible = true
         responseTextArea.text = accumulatedText
@@ -1032,6 +1046,7 @@ class AgentTabPanel(
         currentGenerationId++
         genStartMs = System.currentTimeMillis()
 
+        currentPromptText = prompt
         promptLabel.text = "<html>${prompt.replace("\n", "<br>")}</html>"
         promptBubble.isVisible = true
 
@@ -2056,6 +2071,17 @@ class AgentTabPanel(
             font = font.deriveFont(Font.PLAIN, font.size2D - 1f)
             addActionListener { onClick() }
         }
+
+    private fun showPromptContextMenu(e: MouseEvent) {
+        if (currentPromptText.isBlank()) return
+        val menu = JPopupMenu()
+        menu.add(JMenuItem(Strings.App.COPY_ALL).apply {
+            addActionListener {
+                CopyPasteManager.getInstance().setContents(StringSelection(currentPromptText))
+            }
+        })
+        menu.show(e.component, e.x, e.y)
+    }
 
     private fun showTextContextMenu(e: MouseEvent, area: JBTextArea) {
         val menu = JPopupMenu()

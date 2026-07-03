@@ -35,7 +35,8 @@ repositories {
 
 dependencies {
     intellijPlatform {
-        intellijIdea("2026.1")
+        //intellijIdea("2026.1")
+        local("/Applications/Android Studio.app")
         testFramework(org.jetbrains.intellij.platform.gradle.TestFrameworkType.Platform)
         bundledPlugin("org.jetbrains.kotlin")
     }

@@ -114,7 +114,25 @@ class ProjectContextService(private val project: Project) {
 
     fun searchFilenames(query: String): List<String> {
         if (query.isBlank()) return emptyList()
-        return allFiles().filter { it.contains(query, ignoreCase = true) }.take(50)
+        return rankFilenames(allFiles(), query).take(50)
+    }
+
+    companion object {
+        /** Pure ranking logic — exposed for testing without a real Project. */
+        fun rankFilenames(files: List<String>, query: String): List<String> {
+            if (query.isBlank()) return emptyList()
+            val q = query.lowercase()
+            return files
+                .filter { it.contains(q, ignoreCase = true) }
+                .sortedWith(compareBy(
+                    // Tier 1: filename starts with query
+                    { !it.substringAfterLast('/').lowercase().startsWith(q) },
+                    // Tier 2: filename contains query (but doesn't start with it)
+                    { !it.substringAfterLast('/').lowercase().contains(q) },
+                    // Tier 3: alphabetical by filename within each tier
+                    { it.substringAfterLast('/').lowercase() }
+                ))
+        }
     }
 
     fun searchCode(query: String): List<String> {
@@ -132,7 +150,7 @@ class ProjectContextService(private val project: Project) {
         val base = project.guessProjectDir() ?: return emptyList()
         val result = mutableListOf<String>()
         collectFiles(base, result)
-        return result.sorted().take(1000)
+        return result.sorted()
     }
 
     fun getCurrentFile(): String? = FileEditorManager.getInstance(project).selectedFiles.firstOrNull()?.let(::relativePath)
