@@ -32,6 +32,8 @@ import com.llamatik.teammate.model.TaskStatus
 import com.llamatik.teammate.models.BuiltInModelCatalog
 import com.llamatik.teammate.settings.LlamatikAppSettings
 import com.llamatik.teammate.settings.LlamatikSettingsConfigurable
+import com.llamatik.teammate.analytics.AnalyticsEvent
+import com.llamatik.teammate.analytics.TrackingService
 import com.llamatik.teammate.tools.ToolCallParser
 import com.llamatik.teammate.ui.LlamatikTheme
 import com.llamatik.teammate.ui.Strings
@@ -72,6 +74,7 @@ class LlamatikToolWindowPanel(
     private val buildService = project.service<BuildVerificationService>()
     private val settings = service<LlamatikAppSettings>()
     private val trialService = service<TrialService>()
+    private val tracker = service<TrackingService>()
     private val stateController = PluginStateController()
 
     private val sessionController = ChatSessionController(project)
@@ -95,6 +98,8 @@ class LlamatikToolWindowPanel(
     // Per-task text accumulators — capture all tokens even for background tasks
     private val taskAnswerBuffers = mutableMapOf<String, StringBuilder>()
     private val taskThinkBuffers = mutableMapOf<String, StringBuilder>()
+    // Per-task generation start timestamp for duration measurement
+    private val taskStartMsMap = mutableMapOf<String, Long>()
 
     companion object {
         private const val MAX_AUTO_FIX_ITERATIONS = 3
@@ -415,6 +420,7 @@ class LlamatikToolWindowPanel(
         taskGenIds.remove(record.id)
         taskAnswerBuffers.remove(record.id)
         taskThinkBuffers.remove(record.id)
+        taskStartMsMap.remove(record.id)
         taskHistory.removeAll { it.id == record.id }
         if (selectedTaskId == record.id) {
             selectedTaskId = null
@@ -448,6 +454,8 @@ class LlamatikToolWindowPanel(
         if (id != null) {
             taskHandles[id]?.cancel()
             taskHandles.remove(id)
+            val durationMs = System.currentTimeMillis() - (taskStartMsMap.remove(id) ?: System.currentTimeMillis())
+            tracker.track(AnalyticsEvent.GenerationCancelled(taskId = id, durationMs = durationMs, surface = "agent"))
             markTaskFinished(id, TaskStatus.HALTED)
         } else {
             agentHandle?.cancel()
@@ -456,12 +464,20 @@ class LlamatikToolWindowPanel(
     }
 
     private fun registerTaskStart(taskId: String, prompt: String) {
+        val now = System.currentTimeMillis()
         taskAnswerBuffers[taskId] = StringBuilder()
         taskThinkBuffers[taskId] = StringBuilder()
+        taskStartMsMap[taskId] = now
         taskHistory.removeAll { it.id == taskId }
-        taskHistory.add(TaskRecord(id = taskId, prompt = prompt, status = TaskStatus.RUNNING, startedAtMs = System.currentTimeMillis()))
+        taskHistory.add(TaskRecord(id = taskId, prompt = prompt, status = TaskStatus.RUNNING, startedAtMs = now))
         taskQueuePanel.setTasks(taskHistory.toList())
         taskQueuePanel.setSelectedTask(taskId)
+        tracker.track(AnalyticsEvent.GenerationStarted(
+            taskId = taskId,
+            modelName = agent.selectedModelLabel(),
+            promptChars = prompt.length,
+            surface = "agent",
+        ))
     }
 
     private fun resumeTask(taskId: String, latestPrompt: String) {
@@ -617,6 +633,16 @@ class LlamatikToolWindowPanel(
                         taskHandles.remove(taskId)
                         proposals.forEach { pendingEdits[it.id] = it }
                         val clean = ToolCallParser.cleanForDisplay(msg.content, allowThinkFallback = false)
+                        val durationMs = System.currentTimeMillis() - (taskStartMsMap.remove(taskId) ?: System.currentTimeMillis())
+                        val finalTokenCount = taskHistory.firstOrNull { it.id == taskId }?.tokenCount ?: 0
+                        tracker.track(AnalyticsEvent.GenerationCompleted(
+                            taskId = taskId,
+                            modelName = agent.selectedModelLabel(),
+                            durationMs = durationMs,
+                            tokenCount = finalTokenCount,
+                            proposalCount = proposals.size,
+                            surface = "agent",
+                        ))
 
                         if (settings.data().agentAutoApprove && proposals.isNotEmpty()) {
                             // Auto-apply: write every proposal immediately, no user confirmation.
@@ -658,9 +684,13 @@ class LlamatikToolWindowPanel(
                                     diffService.showDiff(proposal)
                                     diffService.applyProposal(proposal)
                                     appliedFiles += proposal.filePath
+                                    tracker.track(AnalyticsEvent.ProposalApplied(taskId = taskId, filePath = proposal.filePath))
                                     checkAllResolved()
                                 },
-                                onRejectProposal = { checkAllResolved() },
+                                onRejectProposal = { proposal ->
+                                    tracker.track(AnalyticsEvent.ProposalRejected(taskId = taskId, filePath = proposal.filePath))
+                                    checkAllResolved()
+                                },
                             )
                             setGenerating(false)
                         }
@@ -675,6 +705,12 @@ class LlamatikToolWindowPanel(
                 onError = { message ->
                     ApplicationManager.getApplication().invokeLater {
                         taskHandles.remove(taskId)
+                        taskStartMsMap.remove(taskId)
+                        tracker.track(AnalyticsEvent.GenerationFailed(
+                            taskId = taskId,
+                            errorMessage = message,
+                            surface = "agent",
+                        ))
                         if (selectedTaskId == taskId) {
                             agentTabPanel.showAnswer("Error: $message", genId = genId)
                             setGenerating(false)

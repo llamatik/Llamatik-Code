@@ -271,6 +271,11 @@
                 id="llamatik.code.settings.autonomous"
                 parentId="llamatik.code.settings"
                 instance="com.llamatik.teammate.settings.AutonomousDevSettingsConfigurable"/>
+        <applicationConfigurable
+                displayName="Statistics"
+                id="llamatik.code.settings.statistics"
+                parentId="llamatik.code.settings"
+                instance="com.llamatik.teammate.settings.StatisticsSettingsConfigurable"/>
 
         <!-- Enterprise Pair Programmer project service -->
         <projectService
@@ -283,6 +288,12 @@
         <!-- Review / feedback -->
         <applicationService
                 serviceImplementation="com.llamatik.teammate.review.ReviewPromptService"/>
+
+        <!-- Analytics & Statistics -->
+        <applicationService
+                serviceImplementation="com.llamatik.teammate.analytics.GenerationStatsService"/>
+        <applicationService
+                serviceImplementation="com.llamatik.teammate.analytics.TrackingService"/>
 
     </extensions>
 
