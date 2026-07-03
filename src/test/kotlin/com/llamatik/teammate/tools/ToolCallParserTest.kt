@@ -261,4 +261,57 @@ class ToolCallParserTest {
         assertFalse(clean.contains("</arg>"))
         assertFalse(clean.contains("</tool_call>"))
     }
+
+    // ── JSON argument fallback (Qwen3 and other models that emit JSON instead of XML args) ──
+
+    @Test
+    fun `parse extracts query from JSON body in tool_call`() {
+        val input = """<tool_call name="search_filenames">{"query": "ChatBotOnboardingScreen"}</tool_call>"""
+        val calls = ToolCallParser.parse(input)
+        assertEquals(1, calls.size)
+        assertEquals("search_filenames", calls[0].name)
+        assertEquals("ChatBotOnboardingScreen", calls[0].arguments["query"])
+    }
+
+    @Test
+    fun `parse extracts query from JSON body in search_code`() {
+        val input = """<tool_call name="search_code">{"query": "onboardingViewModel"}</tool_call>"""
+        val calls = ToolCallParser.parse(input)
+        assertEquals(1, calls.size)
+        assertEquals("onboardingViewModel", calls[0].arguments["query"])
+    }
+
+    @Test
+    fun `parse extracts path from JSON body in read_file`() {
+        val input = """<tool_call name="read_file">{"path": "src/main/kotlin/com/example/Main.kt"}</tool_call>"""
+        val calls = ToolCallParser.parse(input)
+        assertEquals(1, calls.size)
+        assertEquals("src/main/kotlin/com/example/Main.kt", calls[0].arguments["path"])
+    }
+
+    @Test
+    fun `parse extracts both path and content from JSON body in write_file`() {
+        val input = """<tool_call name="write_file">{"path": "src/A.kt", "content": "fun main() {}"}</tool_call>"""
+        val calls = ToolCallParser.parse(input)
+        assertEquals(1, calls.size)
+        assertEquals("src/A.kt", calls[0].arguments["path"])
+        assertEquals("fun main() {}", calls[0].arguments["content"])
+    }
+
+    @Test
+    fun `parseIncludingIncomplete handles JSON arg body in truncated tool call`() {
+        val input = """<tool_call name="search_filenames">{"query": "LoginScreen"}"""
+        val calls = ToolCallParser.parseIncludingIncomplete(input)
+        assertEquals(1, calls.size)
+        assertEquals("LoginScreen", calls[0].arguments["query"])
+    }
+
+    @Test
+    fun `XML args take precedence over JSON when both present`() {
+        // Should not happen in practice, but XML must win if present
+        val input = """<tool_call name="read_file"><arg name="path">correct.kt</arg>{"path": "wrong.kt"}</tool_call>"""
+        val calls = ToolCallParser.parse(input)
+        assertEquals(1, calls.size)
+        assertEquals("correct.kt", calls[0].arguments["path"])
+    }
 }

@@ -34,8 +34,7 @@ object ToolCallParser {
         return toolPattern.findAll(text).map { match ->
             val name = match.groupValues[1].trim()
             val argsBody = match.groupValues[2]
-            val args = argPattern.findAll(argsBody).associate { it.groupValues[1].trim() to it.groupValues[2].trim() }
-            ToolCall(name, args)
+            ToolCall(name, extractArgs(name, argsBody))
         }.toList()
     }
 
@@ -57,8 +56,7 @@ object ToolCallParser {
         val calls = incompleteToolPattern.findAll(text).map { match ->
             val name = match.groupValues[1].trim()
             val argsBody = match.groupValues[2]
-            val args = argPattern.findAll(argsBody).associate { it.groupValues[1].trim() to it.groupValues[2].trim() }
-            ToolCall(name, args)
+            ToolCall(name, extractArgs(name, argsBody))
         }.toList()
         if (calls.isNotEmpty()) return calls
 
@@ -72,6 +70,63 @@ object ToolCallParser {
 
         // Space-separated fallback: "toolname arg" on a single line (no colon, no parens)
         return parseSpaceSeparated(text)
+    }
+
+    /**
+     * Extracts args from a <tool_call> body. Tries XML <arg> tags first, then JSON object
+     * fallback, then "key: value" line fallback, then single positional value.
+     * Handles the common case where models (e.g. Qwen3) emit JSON instead of XML arg tags.
+     */
+    private fun extractArgs(toolName: String, argsBody: String): Map<String, String> {
+        // 1. XML <arg name="...">value</arg> tags — the canonical format
+        val xmlArgs = argPattern.findAll(argsBody).associate { it.groupValues[1].trim() to it.groupValues[2].trim() }
+        if (xmlArgs.isNotEmpty()) return xmlArgs
+
+        // 2. JSON object: {"query": "value"} or {"path": "...", "content": "..."}
+        val trimmed = argsBody.trim()
+        val jsonStart = trimmed.indexOf('{')
+        val jsonEnd = trimmed.lastIndexOf('}')
+        if (jsonStart >= 0 && jsonEnd > jsonStart) {
+            val jsonBody = trimmed.substring(jsonStart + 1, jsonEnd)
+            val jsonArgs = parseJsonArgs(jsonBody)
+            if (jsonArgs.isNotEmpty()) return jsonArgs
+        }
+
+        // 3. "key: value" lines (no braces)
+        val kvArgs = Regex("""^\s*"?([\w_]+)"?\s*:\s*"?(.+?)"?\s*$""", RegexOption.MULTILINE)
+            .findAll(trimmed)
+            .associate { it.groupValues[1].trim() to it.groupValues[2].trim() }
+        if (kvArgs.isNotEmpty()) return kvArgs
+
+        // 4. Single positional value — map to the tool's primary arg
+        val body = trimmed.trim('"', '\'', ' ', '\n')
+        if (body.isBlank()) return emptyMap()
+        val argName = when (toolName) {
+            "list_files", "read_file", "create_file", "write_file",
+            "show_diff", "apply_patch", "replace_in_file" -> "path"
+            "search_code", "search_filenames" -> "query"
+            else -> "path"
+        }
+        return mapOf(argName to body)
+    }
+
+    /** Parses simple flat JSON key-value pairs (no nested objects). */
+    private fun parseJsonArgs(jsonBody: String): Map<String, String> {
+        // Match "key": "value" or "key": value (unquoted number/bool/null) pairs
+        val result = mutableMapOf<String, String>()
+        // Capture multi-line string values including escaped characters
+        val pairPattern = Regex(""""([\w_]+)"\s*:\s*(?:"((?:[^"\\]|\\.)*)"|([^",}\n]+))""", RegexOption.DOT_MATCHES_ALL)
+        for (m in pairPattern.findAll(jsonBody)) {
+            val key = m.groupValues[1].trim()
+            // Group 2 = quoted string value, group 3 = unquoted value
+            val value = if (m.groupValues[2].isNotEmpty()) {
+                m.groupValues[2].replace("\\n", "\n").replace("\\\"", "\"").replace("\\\\", "\\")
+            } else {
+                m.groupValues[3].trim().trimEnd(',')
+            }
+            if (key.isNotEmpty() && value.isNotEmpty()) result[key] = value
+        }
+        return result
     }
 
     private fun parsePlainText(text: String): List<ToolCall> {
