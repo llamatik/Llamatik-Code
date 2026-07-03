@@ -314,6 +314,24 @@
     protected void installDefaults();
 }
 
+# ── Analytics & Statistics (1.9.0) ───────────────────────────────────────────
+# Services loaded by FQN from plugin.xml — must not be renamed or removed.
+-keep class com.llamatik.teammate.analytics.TrackingService { *; }
+-keep class com.llamatik.teammate.analytics.GenerationStatsService { *; }
+
+# XmlSerializer serialises State by field name — renaming fields silently drops all data.
+-keep class com.llamatik.teammate.analytics.GenerationStatsService$State { *; }
+
+# Sealed class hierarchy — kept so any future analytics library can inspect events via
+# reflection (e.g. to serialize to JSON or send to a backend), and so that
+# javaClass.simpleName and toString() produce readable names in logs.
+-keep class com.llamatik.teammate.analytics.AnalyticsEvent { *; }
+-keep class com.llamatik.teammate.analytics.AnalyticsEvent$* { *; }
+
+# Settings configurable loaded by FQN from plugin.xml.
+-keep class com.llamatik.teammate.settings.StatisticsSettingsConfigurable { *; }
+-keep class com.llamatik.teammate.settings.StatisticsSettingsConfigurable$* { *; }
+
 # ── Autonomous Local Development (1.8.0) ─────────────────────────────────────
 # Services loaded by FQN from plugin.xml
 -keep class com.llamatik.teammate.workflows.enterprise.EnterprisePairProgrammerService { *; }
