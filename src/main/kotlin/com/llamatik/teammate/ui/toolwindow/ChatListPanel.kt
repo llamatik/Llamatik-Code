@@ -171,7 +171,7 @@ class ChatListPanel(
         val isGenerating = session.id in generatingSessionIds
 
         val title = sessionTitle(session)
-        val textLabel = JBLabel("<html><span style='color:${LlamatikTheme.htmlOnSurface};'>$title</span></html>").apply {
+        val textLabel = JBLabel("<html><nobr><span style='color:${LlamatikTheme.htmlOnSurface};'>$title</span></nobr></html>").apply {
             font = font.deriveFont(Font.PLAIN, font.size2D)
         }
 
