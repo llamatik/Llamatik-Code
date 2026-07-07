@@ -175,6 +175,10 @@ class LlamatikToolWindowPanel(
         onToggleTasksPanel = { toggleTaskQueuePanel() },
         onModelChanged = { syncState() },
         onClear = { cancelSelectedTask(); setGenerating(false) },
+        onRetry = {
+            val prompt = taskHistory.firstOrNull { it.id == selectedTaskId }?.prompt
+            if (!prompt.isNullOrBlank()) sendPromptFromTab(prompt, isAgent = true)
+        },
         isAutoApprove = { settings.data().agentAutoApprove },
         onAutoApproveChanged = { checked -> settings.data().agentAutoApprove = checked },
         isAutoBuild = { settings.data().agentAutoBuild },

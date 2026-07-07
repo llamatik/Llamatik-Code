@@ -75,14 +75,20 @@ class AgentOrchestrator(private val project: Project) {
         //   USER_INSTRUCTION_MAX_CHARS — current user turn text
         //   1_200                      — context hint + file-section wrappers + safety margin
         val effectiveContextChars = settings.contextSize * 3
+        // Mirror the 90% safety margin used in LlamatikBackendService so budget and check agree.
+        val safeContextChars = (effectiveContextChars * 0.9).toInt()
         val nonFileOverheadChars = SYSTEM_PROMPT_BASE_CHARS + AGENT_HISTORY_BUDGET_CHARS + USER_INSTRUCTION_MAX_CHARS + 1_200
-        val fileBudgetChars = (effectiveContextChars - nonFileOverheadChars).coerceAtLeast(0)
+        val fileBudgetChars = (safeContextChars - nonFileOverheadChars).coerceAtLeast(0)
         val fileAttachmentMax    = fileBudgetChars
         val fileContextMax       = fileBudgetChars
         // Per-result cap: the full file budget, floored so small contextSize settings never zero out.
-        // Total-summary cap: 2× budget lets two concurrent read_file results both fit in full.
         val toolResultContentMax = fileBudgetChars.coerceAtLeast(TOOL_RESULT_CONTENT_MAX_CHARS)
-        val toolResultsMax       = (fileBudgetChars * 2).coerceAtLeast(TOOL_RESULTS_MAX_CHARS)
+        // Round 2 user turn holds BOTH source re-injection AND tool results in the same message.
+        // Budget them jointly against safeContextChars so their sum never exceeds the backend limit.
+        // The second-pass system prompt is tiny (~500 chars); reserve 1_200 for it + misc overhead.
+        val round2ContentBudget  = (safeContextChars - 1_200).coerceAtLeast(0)
+        val toolResultsMax       = (round2ContentBudget * 2 / 3).coerceAtLeast(TOOL_RESULTS_MAX_CHARS)
+        val round2FileContextMax = (round2ContentBudget / 3).coerceAtLeast(3_000)
 
         val cancelled = AtomicBoolean(false)
         // Tracks whichever backend call is currently active so cancel() always reaches the live handle.
@@ -337,8 +343,30 @@ class AgentOrchestrator(private val project: Project) {
                         }
 
                         if (toolCalls.isEmpty() || round >= MAX_ROUNDS) {
+                            // On the final round the model may emit write_file/create_file/replace_in_file
+                            // tool calls instead of <edit_proposal> blocks. Execute those edit calls so
+                            // their proposals are not silently dropped.
+                            val finalRoundToolProposals: List<EditProposal> = if (round >= MAX_ROUNDS && toolCalls.isNotEmpty()) {
+                                val editCalls = toolCalls.filter { it.name in EDIT_TOOL_NAMES }
+                                if (editCalls.isNotEmpty()) {
+                                    val editMessages = editCalls.map { call ->
+                                        val mainArg = call.arguments.values.firstOrNull().orEmpty().take(TOOL_ARG_DISPLAY_MAX_CHARS)
+                                        if (!cancelled.get()) onToken("${TOOL_PREFIX}${call.name}:$mainArg")
+                                        val result = toolRegistry.execute(call, ToolExecutionContext(project))
+                                        agentTrace.add(AgentTraceStep(
+                                            type = AgentTraceStep.Type.VERIFICATION,
+                                            title = "${call.name}($mainArg)",
+                                            summary = result.content.take(120).replace('\n', ' '),
+                                            status = AgentTraceStep.Status.SUCCESS,
+                                            durationMs = 0,
+                                        ))
+                                        ChatMessage(role = ChatRole.TOOL, content = result.content, toolName = result.name)
+                                    }
+                                    buildProposalsFromToolMessages(editMessages).proposals
+                                } else emptyList()
+                            } else emptyList()
                             val xmlProposals = extractEditProposals(answerText)
-                            val proposals = (xmlProposals + accumulatedProposals).distinctBy { it.filePath }
+                            val proposals = (finalRoundToolProposals + xmlProposals + accumulatedProposals).distinctBy { it.filePath }
                             // After tool-use rounds the model's final answer is unreliable (hallucinated
                             // tool syntax, echoed system prompt markers, etc.). Only surface it on round 1
                             // with no proposals — every other terminal case uses the structured fallback.
@@ -398,7 +426,7 @@ class AgentOrchestrator(private val project: Project) {
                                 call.name.startsWith("mcp_") -> AgentTraceStep.Type.MCP_CALL
                                 else -> AgentTraceStep.Type.TOOL_CALL
                             }
-                            val traceStatus = if (result.content.startsWith("Error") || result.content.startsWith("No ")) {
+                            val traceStatus = if (!result.success || result.content.startsWith("Error") || result.content.startsWith("No ") || result.content.startsWith("Missing")) {
                                 AgentTraceStep.Status.WARNING
                             } else {
                                 AgentTraceStep.Status.SUCCESS
@@ -441,7 +469,7 @@ class AgentOrchestrator(private val project: Project) {
                                 if (effectiveFileContext.isNotBlank()) {
                                     appendLine()
                                     appendLine("=== Source file ===")
-                                    appendLine(effectiveFileContext.take(fileContextMax))
+                                    appendLine(effectiveFileContext.take(round2FileContextMax))
                                     appendLine("=== End source file ===")
                                 }
                                 appendLine()
@@ -486,7 +514,7 @@ class AgentOrchestrator(private val project: Project) {
                             if (effectiveFileContext.isNotBlank()) {
                                 appendLine()
                                 appendLine("=== Source file ===")
-                                appendLine(effectiveFileContext.take(fileContextMax))
+                                appendLine(effectiveFileContext.take(round2FileContextMax))
                                 appendLine("=== End source file ===")
                             }
                             appendLine()
@@ -540,6 +568,7 @@ class AgentOrchestrator(private val project: Project) {
         val lang = detectProjectLanguage()
         if (lang != null) appendLine("Language: $lang. Write ALL code in $lang only.")
         appendLine("Respond with tool calls OR a plain-text answer. Optional: ${THINK_OPEN}reasoning${THINK_CLOSE} then tool XML or answer text.")
+        appendLine("Tool format: <tool_call name=\"search_code\"><arg name=\"query\">ClassName</arg></tool_call>")
         appendLine("<tool_call name=\"write_file\"><arg name=\"path\">p</arg><arg name=\"content\">c</arg></tool_call>")
         appendLine("Use ONLY paths from the results. Do NOT read the same file twice. Write immediately after reading.")
         appendLine("Tools: ${toolRegistry.listToolNames()}")
@@ -637,6 +666,8 @@ class AgentOrchestrator(private val project: Project) {
         appendLine("Tools: ${toolRegistry.listToolNames()}")
         appendLine("Tool call format: <tool_call name=\"TOOL\"><arg name=\"ARG\">VALUE</arg></tool_call>")
         appendLine("Examples:")
+        appendLine("  <tool_call name=\"search_code\"><arg name=\"query\">ClassName</arg></tool_call>")
+        appendLine("  <tool_call name=\"list_files\"><arg name=\"path\">src</arg></tool_call>")
         appendLine("  <tool_call name=\"read_file\"><arg name=\"path\">src/Main.kt</arg></tool_call>")
         appendLine("  <tool_call name=\"git_status\"></tool_call>")
         appendLine("  <tool_call name=\"write_file\"><arg name=\"path\">src/Main.kt</arg><arg name=\"content\">…</arg></tool_call>")

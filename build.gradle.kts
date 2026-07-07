@@ -389,6 +389,23 @@ tasks {
     }
 }
 
+// The kmm-plugin bundled with Android Studio ships a macOS .framework with a
+// Versions/Current → A symlink. If the sandbox is left in a partial state (A missing),
+// the IntelliJ Platform plugin's NIO copy fails with "Couldn't follow symbolic link".
+// Delete any stale Bridge.framework directories before prepareSandbox runs so they are
+// always recreated cleanly from the IDE installation.
+tasks.named("prepareSandbox") {
+    val sandboxDir = layout.projectDirectory.dir(".intellijPlatform/sandbox").asFile
+    doFirst {
+        if (sandboxDir.exists()) {
+            sandboxDir.walkTopDown()
+                .filter { it.name == "Bridge.framework" && it.isDirectory }
+                .toList()
+                .forEach { it.deleteRecursively() }
+        }
+    }
+}
+
 kotlin {
     compilerOptions {
         jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)

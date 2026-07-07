@@ -132,6 +132,7 @@ class OnboardingDialog(private val project: Project) : DialogWrapper(project, tr
             addActionListener {
                 LoadModelFromFileAction.show(project) {
                     OnboardingLauncher.markCompleted()
+                    refreshToolWindowState()
                     close(OK_EXIT_CODE)
                 }
             }

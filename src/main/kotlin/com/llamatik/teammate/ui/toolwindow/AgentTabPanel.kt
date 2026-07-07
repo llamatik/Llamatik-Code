@@ -82,6 +82,7 @@ class AgentTabPanel(
     private val onToggleTasksPanel: () -> Unit = {},
     private val onModelChanged: () -> Unit = {},
     private val onClear: () -> Unit = {},
+    private val onRetry: () -> Unit = {},
     private val isAutoApprove: () -> Boolean = { false },
     private val onAutoApproveChanged: (Boolean) -> Unit = {},
     private val isAutoBuild: () -> Boolean = { true },
@@ -1210,7 +1211,21 @@ class AgentTabPanel(
             }
             proposalsPanel.isVisible = true
         } else {
-            proposalsPanel.isVisible = false
+            // No proposals — show a retry button so the user can re-run without retyping.
+            if (text.isNotBlank()) {
+                val retryBtn = actionButton(Strings.App.RETRY) { onRetry() }.apply {
+                    alignmentX = LEFT_ALIGNMENT
+                }
+                val retryRow = JPanel(FlowLayout(FlowLayout.LEFT, 0, 4)).apply {
+                    isOpaque = false
+                    alignmentX = LEFT_ALIGNMENT
+                    add(retryBtn)
+                }
+                proposalsPanel.add(retryRow)
+                proposalsPanel.isVisible = true
+            } else {
+                proposalsPanel.isVisible = false
+            }
         }
 
         conversationPanel.revalidate()
