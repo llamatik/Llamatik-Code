@@ -218,8 +218,12 @@ class AgentOrchestrator(private val project: Project) {
                 appendLine()
                 append(contextHint)
             }
+            // When a file is explicitly attached, tell the model to write immediately — the file
+            // content is already in the system prompt so no exploration is needed.
             if (effectiveFileContext.isNotBlank()) {
                 appendLine()
+                appendLine()
+                appendLine("The file content is already provided above in the system prompt. Do NOT call any tools — call write_file immediately with the complete modified file.")
                 append(HISTORY_FILE_SENTINEL)
                 appendLine()
                 append(effectiveFileContext.take(fileContextMax))
@@ -252,6 +256,10 @@ class AgentOrchestrator(private val project: Project) {
             localOnly = settings.localOnly,
         )
 
+        // Wall-clock deadline: cancel the entire agent run if it has been running for too long.
+        // This is a safety net against model hangs, infinite thinking, or unexpected token floods.
+        val sessionStartMs = System.currentTimeMillis()
+
         // Collects rejection reasons across all rounds so they can be shown in the final message
         // if the agent exhausts rounds without producing a valid proposal.
         val accumulatedRejections = mutableListOf<String>()
@@ -267,22 +275,55 @@ class AgentOrchestrator(private val project: Project) {
         }
         contextService.getCurrentFile()?.let { executedToolKeys += TOOL_READ_FILE to it }
 
+        // Files read by the model across rounds — re-injected into every subsequent round so
+        // the model always has the source it already read when it comes time to write.
+        // Keyed by path so later reads overwrite earlier ones for the same file.
+        val accumulatedReadFiles = linkedMapOf<String, String>()
+
+        // For the write pass, pre-fill the assistant turn with the start of a write_file call
+        // so the model cannot emit prose — it must continue from the open tag with file content.
+        // Derived lazily from effectiveFileContext (attached file path) or accumulatedReadFiles.
+        fun writePassPrefill(): String {
+            val path = run {
+                // Prefer the explicit @{path} attachment
+                Regex("""@\{([^}]+)}""").find(userPrompt)?.groupValues?.get(1)?.trim()
+                    ?: run {
+                        // Extract path from effectiveFileContext header line "### File: <path>"
+                        effectiveFileContext.lineSequence()
+                            .firstOrNull { it.startsWith(FILE_SECTION_PREFIX) }
+                            ?.removePrefix(FILE_SECTION_PREFIX)?.trim()
+                    }
+                    ?: accumulatedReadFiles.keys.firstOrNull()
+            } ?: return ""
+            return """<tool_call name="write_file"><arg name="path">$path</arg><arg name="content">"""
+        }
+
         // Multi-round agentic loop: model can call tools across up to MAX_ROUNDS before answering.
         // Each round feeds tool results back so the model can: list files -> read files -> write files.
-        fun runRound(messages: List<ChatMessage>, round: Int, accumulatedProposals: List<EditProposal>, hasReadContent: Boolean = false) {
+        fun runRound(messages: List<ChatMessage>, round: Int, accumulatedProposals: List<EditProposal>, hasReadContent: Boolean = false, prefill: String = "") {
             if (cancelled.get()) return
+            // Global wall-clock safety net — kills the session if the total time exceeds the cap.
+            if (System.currentTimeMillis() - sessionStartMs > AGENT_SESSION_TIMEOUT_MS) {
+                val msg = ChatMessage(role = ChatRole.ASSISTANT, content = "Agent timed out after ${AGENT_SESSION_TIMEOUT_MS / 60_000} minutes. Try a shorter task or attach the file directly with @filename.")
+                session.messages += msg
+                onFinished(msg, accumulatedProposals)
+                return
+            }
             val roundSystemPrompt = if (round == 1) systemPrompt else buildSecondPassSystemPrompt()
-            // Suppress thinking on the final round so the model skips chain-of-thought and writes
-            // its output directly — prevents spending the last token budget on reasoning instead of
-            // the write_file call.
-            val isFinalRound = round + 1 >= MAX_ROUNDS
+            // Disable thinking on ALL agent rounds — iterative tool calls are the reasoning loop,
+            // so per-round <think> blocks only burn token budget and add latency without improving quality.
+            // Use a tighter token cap for exploration rounds (tool calls need few tokens to express);
+            // give the full budget only on the write pass so large file content fits in the output.
+            val isWriteRound = round >= MAX_ROUNDS - 1
+            val roundMaxTokens = if (isWriteRound) maxOf(config.maxTokens, WRITE_ROUND_MIN_TOKENS) else minOf(config.maxTokens, EXPLORATION_ROUND_MAX_TOKENS)
             val handle = backend.generate(
                 GenerationRequest(
                     systemPrompt = roundSystemPrompt,
                     messages = messages,
-                    config = config,
-                    noThink = isFinalRound,
+                    config = config.copy(maxTokens = roundMaxTokens),
+                    noThink = true,
                     sessionTag = SessionTag.AGENT,
+                    assistantPrefill = prefill,
                 ),
                 object : GenerationCallbacks {
                     override fun onToken(token: String) {
@@ -292,13 +333,16 @@ class AgentOrchestrator(private val project: Project) {
 
                     override fun onCompleted(fullText: String) {
                         if (cancelled.get()) return
+                        // When assistant prefill was used, the model generated text AFTER the prefill.
+                        // Reconstruct the full tool call by prepending the prefill back.
+                        val textWithPrefill = if (prefill.isNotBlank()) prefill + fullText else fullText
                         // Base models echo injected context/prompts verbatim before generating.
                         // Round 1: strip leading echo of the user instruction and any echoed file context.
                         // Round > 1: strip echo of the injected tool-results user turn.
                         val echoStripped = when {
-                            round > 1 -> ToolCallParser.stripPromptEcho(fullText, cleanInstruction.take(40))
+                            round > 1 -> ToolCallParser.stripPromptEcho(textWithPrefill, cleanInstruction.take(40))
                             else -> {
-                                val afterInstructionEcho = ToolCallParser.stripLeadingEcho(fullText, cleanInstruction)
+                                val afterInstructionEcho = ToolCallParser.stripLeadingEcho(textWithPrefill, cleanInstruction)
                                 if (fileContext.isNotBlank())
                                     ToolCallParser.stripContextEcho(afterInstructionEcho, fileContext)
                                 else afterInstructionEcho
@@ -325,20 +369,36 @@ class AgentOrchestrator(private val project: Project) {
                                 validProposalsProduced = false,
                                 allToolsWereReadOnly = true,
                                 rejectionReasons = emptyList(),
-                                hasFileContext = effectiveFileContext.isNotBlank(),
+                                hasFileContext = effectiveFileContext.isNotBlank() || accumulatedReadFiles.isNotEmpty(),
                             ))
+                            val proseContext = ToolCallParser.cleanForDisplay(answerText, allowThinkFallback = false).take(400)
                             val finalContent = buildString {
                                 appendLine("Task: ${cleanInstruction.take(TASK_EXCERPT_MAX_CHARS)}")
                                 if (effectiveFileContext.isNotBlank()) {
                                     appendLine()
                                     appendLine("=== Source file ===")
-                                    appendLine(effectiveFileContext.take(fileContextMax))
+                                    appendLine(effectiveFileContext.take(round2FileContextMax))
                                     appendLine("=== End source file ===")
+                                } else if (accumulatedReadFiles.isNotEmpty()) {
+                                    appendLine()
+                                    var budget = round2FileContextMax
+                                    for ((path, content) in accumulatedReadFiles) {
+                                        if (budget <= 0) break
+                                        val chunk = content.take(budget)
+                                        appendLine("=== File: $path ===")
+                                        appendLine(chunk)
+                                        appendLine("=== End file ===")
+                                        budget -= chunk.length + path.length + 40
+                                    }
+                                }
+                                if (proseContext.isNotBlank()) {
+                                    appendLine()
+                                    appendLine("Your previous analysis: $proseContext")
                                 }
                                 appendLine()
                                 append(finalDirective)
                             }
-                            runRound(listOf(ChatMessage(role = ChatRole.USER, content = finalContent)), MAX_ROUNDS - 1, accumulatedProposals, hasReadContent)
+                            runRound(listOf(ChatMessage(role = ChatRole.USER, content = finalContent)), MAX_ROUNDS - 1, accumulatedProposals, hasReadContent, writePassPrefill())
                             return
                         }
 
@@ -447,6 +507,14 @@ class AgentOrchestrator(private val project: Project) {
                         // roundProposals wins over older accumulated proposals for the same file.
                         val allProposals = (roundProposals + accumulatedProposals).distinctBy { it.filePath }
 
+                        // Accumulate read_file results so the model can reference source in later rounds.
+                        toolCalls.zip(toolMessages).forEach { (call, msg) ->
+                            if (call.name == TOOL_READ_FILE && msg.content.isNotBlank() && !msg.content.startsWith("Already called") && !msg.content.startsWith("Error")) {
+                                val path = call.arguments["path"] ?: return@forEach
+                                accumulatedReadFiles[path] = msg.content
+                            }
+                        }
+
                         if (cancelled.get()) return
 
                         // Valid proposals produced → task done. Stop immediately.
@@ -462,7 +530,7 @@ class AgentOrchestrator(private val project: Project) {
                                 validProposalsProduced = false,
                                 allToolsWereReadOnly = true,
                                 rejectionReasons = emptyList(),
-                                hasFileContext = effectiveFileContext.isNotBlank(),
+                                hasFileContext = effectiveFileContext.isNotBlank() || accumulatedReadFiles.isNotEmpty(),
                             ))
                             val finalContent = buildString {
                                 appendLine("Task: ${cleanInstruction.take(TASK_EXCERPT_MAX_CHARS)}")
@@ -471,11 +539,22 @@ class AgentOrchestrator(private val project: Project) {
                                     appendLine("=== Source file ===")
                                     appendLine(effectiveFileContext.take(round2FileContextMax))
                                     appendLine("=== End source file ===")
+                                } else if (accumulatedReadFiles.isNotEmpty()) {
+                                    appendLine()
+                                    var budget = round2FileContextMax
+                                    for ((path, content) in accumulatedReadFiles) {
+                                        if (budget <= 0) break
+                                        val chunk = content.take(budget)
+                                        appendLine("=== File: $path ===")
+                                        appendLine(chunk)
+                                        appendLine("=== End file ===")
+                                        budget -= chunk.length + path.length + 40
+                                    }
                                 }
                                 appendLine()
                                 append(finalDirective)
                             }
-                            runRound(listOf(ChatMessage(role = ChatRole.USER, content = finalContent)), MAX_ROUNDS - 1, allProposals, hasReadContent)
+                            runRound(listOf(ChatMessage(role = ChatRole.USER, content = finalContent)), MAX_ROUNDS - 1, allProposals, hasReadContent, writePassPrefill())
                             return
                         }
                         if (wroteFiles && roundProposals.isNotEmpty()) {
@@ -487,13 +566,64 @@ class AgentOrchestrator(private val project: Project) {
                             return
                         }
 
-                        if (!cancelled.get()) onToken("${STATUS_PREFIX}Thinking…")
+                        val allReadOnly = toolCalls.all { it.name in READ_ONLY_TOOL_NAMES }
+                        val nowHasReadContent = hasReadContent || toolCalls.any { it.name in READ_ONLY_TOOL_NAMES }
 
+                        // Build tool results summary now — used by both the escalation path and the normal next-round path.
                         val toolResultsSummary = toolMessages.joinToString("\n") { msg ->
                             "<result tool=\"${msg.toolName}\">\n${msg.content.take(toolResultContentMax)}\n</result>"
                         }
-                        val allReadOnly = toolCalls.all { it.name in READ_ONLY_TOOL_NAMES }
-                        val nowHasReadContent = hasReadContent || toolCalls.any { it.name in READ_ONLY_TOOL_NAMES }
+
+                        // Directed write escalation: when a file is explicitly attached the model has
+                        // the source in context from round 1 — one exploration round is enough. When a
+                        // file was only found via tool calls, allow two exploration rounds. In both cases,
+                        // if the model is STILL doing read-only operations after that threshold, escalate
+                        // directly to the write pass rather than burning more rounds on exploration that
+                        // the directive text already asked it to stop.
+                        val hasFileContextNow = effectiveFileContext.isNotBlank() || accumulatedReadFiles.isNotEmpty()
+                        // With file explicitly attached: escalate after round 1 (file already in context, no exploration needed).
+                        // Without attachment but file read via tools: escalate after round 2.
+                        val minWriteEscalationRound = if (effectiveFileContext.isNotBlank()) 1 else 2
+                        if (hasFileContextNow && nowHasReadContent && allReadOnly && roundProposals.isEmpty()
+                            && round >= minWriteEscalationRound && round < MAX_ROUNDS - 1) {
+                            val writeDirective = RoundDirective.get(RoundDirective.RoundState(
+                                round = MAX_ROUNDS - 1, maxRounds = MAX_ROUNDS, hasReadContent = true,
+                                wroteFilesThisRound = false, validProposalsProduced = false,
+                                allToolsWereReadOnly = true, rejectionReasons = emptyList(), hasFileContext = true,
+                            ))
+                            val writeContent = buildString {
+                                appendLine("Task: ${cleanInstruction.take(TASK_EXCERPT_MAX_CHARS)}")
+                                if (effectiveFileContext.isNotBlank()) {
+                                    appendLine()
+                                    appendLine("=== Source file ===")
+                                    appendLine(effectiveFileContext.take(round2FileContextMax))
+                                    appendLine("=== End source file ===")
+                                } else if (accumulatedReadFiles.isNotEmpty()) {
+                                    appendLine()
+                                    var budget = round2FileContextMax
+                                    for ((path, content) in accumulatedReadFiles) {
+                                        if (budget <= 0) break
+                                        val chunk = content.take(budget)
+                                        appendLine("=== File: $path ===")
+                                        appendLine(chunk)
+                                        appendLine("=== End file ===")
+                                        budget -= chunk.length + path.length + 40
+                                    }
+                                }
+                                if (toolResultsSummary.isNotBlank()) {
+                                    appendLine()
+                                    appendLine("Tool results:")
+                                    appendLine(toolResultsSummary.take(toolResultsMax))
+                                }
+                                appendLine()
+                                append(writeDirective)
+                            }
+                            runRound(listOf(ChatMessage(role = ChatRole.USER, content = writeContent)), MAX_ROUNDS - 1, allProposals, nowHasReadContent, writePassPrefill())
+                            return
+                        }
+
+                        if (!cancelled.get()) onToken("${STATUS_PREFIX}Thinking…")
+
                         val directive = RoundDirective.get(RoundDirective.RoundState(
                             round = round,
                             maxRounds = MAX_ROUNDS,
@@ -502,20 +632,35 @@ class AgentOrchestrator(private val project: Project) {
                             validProposalsProduced = roundProposals.isNotEmpty(),
                             allToolsWereReadOnly = allReadOnly,
                             rejectionReasons = proposalResult.rejectionReasons,
-                            hasFileContext = effectiveFileContext.isNotBlank(),
+                            hasFileContext = effectiveFileContext.isNotBlank() || accumulatedReadFiles.isNotEmpty(),
                         ))
                         // Each round sends only the current tool results as the user turn — NOT the full
                         // accumulated history. This keeps every round's prompt small and prevents the
                         // "Prompt too long" batch-size error when rounds accumulate.
-                        // Re-attach the source file context so the model always has the full source
-                        // when writing (the read_file tool result gets truncated at toolResultContentMax).
-                        val nextUserContent = buildString {
-                            appendLine("Task: ${cleanInstruction.take(TASK_EXCERPT_MAX_CHARS)}")
+                        // Re-attach file content: prefer the explicitly attached file; fall back to any
+                        // files the model read during earlier rounds so it always has the source when writing.
+                        val reinjectedFiles = buildString {
                             if (effectiveFileContext.isNotBlank()) {
-                                appendLine()
                                 appendLine("=== Source file ===")
                                 appendLine(effectiveFileContext.take(round2FileContextMax))
                                 appendLine("=== End source file ===")
+                            } else if (accumulatedReadFiles.isNotEmpty()) {
+                                var budget = round2FileContextMax
+                                for ((path, content) in accumulatedReadFiles) {
+                                    if (budget <= 0) break
+                                    val chunk = content.take(budget)
+                                    appendLine("=== File: $path ===")
+                                    appendLine(chunk)
+                                    appendLine("=== End file ===")
+                                    budget -= chunk.length + path.length + 40
+                                }
+                            }
+                        }.trimEnd()
+                        val nextUserContent = buildString {
+                            appendLine("Task: ${cleanInstruction.take(TASK_EXCERPT_MAX_CHARS)}")
+                            if (reinjectedFiles.isNotBlank()) {
+                                appendLine()
+                                appendLine(reinjectedFiles)
                             }
                             appendLine()
                             appendLine("Tool results:")
@@ -1289,6 +1434,16 @@ class AgentOrchestrator(private val project: Project) {
         private const val MAX_ROUNDS = 5
         private const val MAX_TOOL_CALLS_PER_ROUND = 4
         private const val MAX_HISTORY_MESSAGES = 20
+        // Exploration rounds only need enough tokens to emit 1–4 tool calls (~80 tokens each).
+        // Capping them prevents the model burning the entire token budget on intermediate reasoning.
+        private const val EXPLORATION_ROUND_MAX_TOKENS = 512
+        // Write pass must be able to output a full file. User maxTokens setting is often 512–1024
+        // which is far too small for a Compose screen. Always allow at least this many tokens to write.
+        private const val WRITE_ROUND_MIN_TOKENS = 8192
+        // Global wall-clock cap per agent session — safety net against true infinite hangs only.
+        // Legitimate write tasks on a local 27B model can take 10+ minutes; set the cap high enough
+        // that real work always completes, while still breaking runaway loops.
+        private const val AGENT_SESSION_TIMEOUT_MS = 20 * 60 * 1000L // 20 minutes
 
         // Character budgets for prompt sections
         private const val HISTORY_BUDGET_CHARS = 1200        // chat mode
@@ -1301,7 +1456,7 @@ class AgentOrchestrator(private val project: Project) {
         private const val OPEN_FILE_CONTENT_MAX_CHARS = 800
         private const val SELECTED_TEXT_MAX_CHARS = 300
         private const val PINNED_INSTRUCTIONS_MAX_CHARS = 200
-        private const val TASK_EXCERPT_MAX_CHARS = 200
+        private const val TASK_EXCERPT_MAX_CHARS = 600
         private const val FILE_CONTEXT_MAX_CHARS = 3000
         private const val FILE_CONTEXT_MULTIMODAL_MAX_CHARS = 2400
         private const val FILE_ATTACHMENT_MAX_CHARS = 2000

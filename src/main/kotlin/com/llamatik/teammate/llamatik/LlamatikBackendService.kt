@@ -135,7 +135,10 @@ class LlamatikBackendService : AssistantBackend {
                 val (prompt, stopSequences) = if (nativePrompt != null) {
                     // When noThink is requested, pre-fill an empty <think> block on the native
                     // assistant prefix so Qwen3 skips its reasoning phase entirely.
-                    val finalPrompt = if (request.noThink) nativePrompt + "<think>\n\n</think>\n" else nativePrompt
+                    // When assistantPrefill is set, inject it after the think block so the model
+                    // continues generating from that point (e.g. mid-tool-call for write pass).
+                    val withThink = if (request.noThink) nativePrompt + "<think>\n\n</think>\n" else nativePrompt
+                    val finalPrompt = if (request.assistantPrefill.isNotBlank()) withThink + request.assistantPrefill else withThink
                     // Infer stop sequences from the format of the native prompt so we only enforce
                     // turn-boundary markers that this model actually uses. Applying ChatML stops to
                     // a model that uses a different template (e.g. Mellum's <user>/<assistant> format)
@@ -154,7 +157,8 @@ class LlamatikBackendService : AssistantBackend {
                         noThink = request.noThink,
                         modelPath = request.config.modelIdOrPath,
                     )
-                    rendered.text to rendered.stopSequences
+                    val fallbackPrompt = if (request.assistantPrefill.isNotBlank()) rendered.text + request.assistantPrefill else rendered.text
+                    fallbackPrompt to rendered.stopSequences
                 }
 
                 // Guard against n_tokens_all > n_batch assert in llama_decode.

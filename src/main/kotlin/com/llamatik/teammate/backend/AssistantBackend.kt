@@ -24,6 +24,8 @@ data class GenerationRequest(
     val config: BackendConfig,
     val noThink: Boolean = false,
     val sessionTag: SessionTag = SessionTag.AGENT,
+    /** Text to inject at the start of the assistant turn before generation begins (assistant prefill). */
+    val assistantPrefill: String = "",
 )
 
 interface GenerationHandle {

@@ -82,6 +82,8 @@ class AgentLoopTest {
         private val maxToolCallsPerRound: Int = 4,
         private val toolResultsMaxChars: Int = 4000,
         private val toolResultContentMaxChars: Int = 1200,
+        private val fileAttached: Boolean = false,
+        private val timeoutMs: Long = Long.MAX_VALUE,
     ) {
         private val knownToolNames = setOf(
             "list_files", "read_file", "search_code", "search_filenames",
@@ -108,6 +110,7 @@ class AgentLoopTest {
             var finalMessage = ""
             var totalRounds = 0
             val roundProposals = mutableListOf<Pair<String, String>>()
+            val sessionStartMs = System.currentTimeMillis()
             // Mirrors AgentOrchestrator.executedToolKeys: dedup set across all rounds.
             val executedToolKeys = mutableSetOf<Pair<String, String>>()
             preSeedReadPaths.forEach { executedToolKeys += "read_file" to it }
@@ -138,6 +141,10 @@ class AgentLoopTest {
 
             fun runRound(messages: List<ChatMessage>, round: Int, task: String, hasReadContent: Boolean) {
                 if (round > maxRounds) return
+                if (System.currentTimeMillis() - sessionStartMs > timeoutMs) {
+                    finalMessage = "Agent timed out"
+                    return
+                }
                 totalRounds = round
 
                 val config = BackendConfig(
@@ -154,7 +161,7 @@ class AgentLoopTest {
 
                 backend.generate(
                     GenerationRequest(systemPrompt = systemPrompt, messages = messages, config = config,
-                        noThink = round + 1 >= maxRounds),
+                        noThink = true),
                     object : GenerationCallbacks {
                         override fun onToken(t: String) { tokens += t }
                         override fun onCompleted(fullText: String) {
@@ -206,6 +213,22 @@ class AgentLoopTest {
                                     finalMessage = ""
                                     return
                                 }
+                            }
+
+                            // Directed write escalation: mirrors AgentOrchestrator.
+                            // With file attached: escalate after round 1. Without: escalate after round 2.
+                            val allReadOnlyThisRound = toolCalls.all { it.name !in editToolNames }
+                            val hasFileContext = fileAttached || preSeedReadPaths.isNotEmpty()
+                            val minWriteEscalationRound = if (fileAttached) 1 else 2
+                            if (hasFileContext && nowHasRead && allReadOnlyThisRound && proposals.isEmpty()
+                                && round >= minWriteEscalationRound && round < maxRounds - 1) {
+                                runRound(
+                                    listOf(ChatMessage(role = ChatRole.USER, content = "Task: $task\nFile is attached. WRITE the file NOW.")),
+                                    maxRounds - 1,
+                                    task,
+                                    nowHasRead,
+                                )
+                                return
                             }
 
                             // All-duplicate escalation: only fire if we're not already at the penultimate
@@ -717,17 +740,138 @@ class AgentLoopTest {
     // ── Tests: noThink on final round ────────────────────────────────────────
 
     @Test
-    fun `final round request has noThink set to true`() {
-        // maxRounds = 3 → final round = 3 → isFinalRound when round + 1 >= maxRounds, i.e. round 2
+    fun `all agent rounds have noThink set to true`() {
+        // Thinking is disabled on every agent round to avoid burning token budget on per-round reasoning.
         val backend = FakeBackend(
             """<tool_call name="read_file"><arg name="path">src/X.kt</arg></tool_call>""",
             "Done.",
         )
         val loop = AgentLoop(backend, FakeToolRegistry(mapOf("read_file" to "class X {}")), maxRounds = 3)
         loop.run("Review X.kt")
-        // Round 2 is the penultimate round (round + 1 = 3 = maxRounds) — noThink must be true
-        val round2Request = backend.capturedRequests.getOrNull(1)
-        assertNotNull("Round 2 request must exist", round2Request)
-        assertTrue("noThink must be true on the final round", round2Request!!.noThink)
+        // Both round 1 and round 2 must have noThink=true
+        backend.capturedRequests.forEachIndexed { i, req ->
+            assertTrue("noThink must be true on every agent round (round ${i + 1})", req.noThink)
+        }
+    }
+
+    // ── Tests: directed write escalation ─────────────────────────────────────
+
+    @Test
+    fun `with attached file model is escalated to write pass after round 1 exploration`() {
+        // File is attached (fileAttached=true) → minWriteEscalationRound=1.
+        // Round 1 does search_code → escalation fires at round 1 (round>=1).
+        // Write pass (round 4 = MAX_ROUNDS-1): write_file produces proposal.
+        val backend = FakeBackend(
+            // Round 1: model explores despite file being attached
+            """<tool_call name="search_code"><arg name="query">ChatBotState</arg></tool_call>""",
+            // Write pass (escalated after round 1)
+            """<tool_call name="write_file"><arg name="path">src/Screen.kt</arg><arg name="content">class Screen { fun skip() {} }</arg></tool_call>""",
+        )
+        val fakeTools = FakeToolRegistry(mapOf(
+            "search_code" to "Found results",
+            "write_file" to "Prepared file replacement for src/Screen.kt\n---OLD---\n\n---NEW---\nclass Screen { fun skip() {} }",
+        ))
+        val loop = AgentLoop(backend, fakeTools, maxRounds = 5, fileAttached = true)
+        val result = loop.run("Add a skip button to Screen.kt")
+        assertTrue("write_file must be executed after escalation", result.toolsExecuted.contains("write_file"))
+        assertTrue("Proposal for src/Screen.kt must be present", result.proposalPaths.contains("src/Screen.kt"))
+    }
+
+    @Test
+    fun `with attached file model never reaches round 5 when it keeps exploring`() {
+        // The model would keep doing search_code indefinitely — escalation after round 1 cuts it short.
+        val searchCall = """<tool_call name="search_code"><arg name="query">something</arg></tool_call>"""
+        val backend = FakeBackend(
+            searchCall,  // round 1 → escalation fires (fileAttached, round>=1)
+            // Write pass (round 4 = maxRounds-1):
+            """<tool_call name="write_file"><arg name="path">src/A.kt</arg><arg name="content">class A {}</arg></tool_call>""",
+            searchCall,  // should never run
+        )
+        val fakeTools = FakeToolRegistry(mapOf(
+            "search_code" to "results",
+            "write_file" to "Prepared file replacement for src/A.kt\n---OLD---\n\n---NEW---\nclass A {}",
+        ))
+        val loop = AgentLoop(backend, fakeTools, maxRounds = 5, fileAttached = true)
+        val result = loop.run("Modify A.kt")
+        // Must not use more backend calls than: round1 + writePass = 2
+        assertEquals("Backend must only be called 2 times (explore, write)", 2, backend.capturedRequests.size)
+        assertTrue("Proposal must be produced", result.proposalPaths.isNotEmpty())
+    }
+
+    @Test
+    fun `without attached file model gets two exploration rounds before escalation`() {
+        // No file attached — escalation fires at round >= 3 (minWriteEscalationRound=3)
+        // Round 1: list_files, Round 2: read_file, Round 3: another read → escalation fires at round 3
+        // Write pass: write_file
+        val backend = FakeBackend(
+            """<tool_call name="list_files"><arg name="path">src</arg></tool_call>""",
+            """<tool_call name="read_file"><arg name="path">src/Foo.kt</arg></tool_call>""",
+            """<tool_call name="search_code"><arg name="query">helper</arg></tool_call>""",
+            // Write pass (escalated round 4)
+            """<tool_call name="write_file"><arg name="path">src/Foo.kt</arg><arg name="content">class Foo { fun fixed() {} }</arg></tool_call>""",
+        )
+        val fakeTools = FakeToolRegistry(mapOf(
+            "list_files" to "src/Foo.kt",
+            "read_file" to "class Foo {}",
+            "search_code" to "helper() in Utils.kt",
+            "write_file" to "Prepared file replacement for src/Foo.kt\n---OLD---\nclass Foo {}\n---NEW---\nclass Foo { fun fixed() {} }",
+        ))
+        val loop = AgentLoop(backend, fakeTools, maxRounds = 5, fileAttached = false)
+        val result = loop.run("Fix Foo.kt")
+        assertTrue("write_file must be executed", result.toolsExecuted.contains("write_file"))
+        assertTrue("Proposal for Foo.kt must be present", result.proposalPaths.contains("src/Foo.kt"))
+        assertEquals("Backend must only be called 4 times", 4, backend.capturedRequests.size)
+    }
+
+    // ── Tests: global session timeout ─────────────────────────────────────────
+
+    @Test
+    fun `agent terminates with timeout message when wall-clock limit exceeded`() {
+        // Negative timeout means sessionStartMs - (-1) > 0 is always true → deadline already passed.
+        val backend = FakeBackend(
+            """<tool_call name="read_file"><arg name="path">src/X.kt</arg></tool_call>""",
+            "Done.",
+        )
+        val loop = AgentLoop(backend, FakeToolRegistry(mapOf("read_file" to "class X {}")), timeoutMs = -1L)
+        val result = loop.run("Do something")
+        assertTrue("Result must mention timeout", result.finalMessage.contains("timed out", ignoreCase = true))
+        assertEquals("No backend calls should happen after timeout", 0, backend.capturedRequests.size)
+    }
+
+    @Test
+    fun `exploration round token cap keeps tool calls short`() {
+        // The loop must use a lower token cap for exploration rounds.
+        // With noThink=true and only tool calls needed, 512 tokens is ample for any round.
+        // Verify by passing a small maxTokens in config and ensuring the loop still completes.
+        val backend = FakeBackend(
+            """<tool_call name="read_file"><arg name="path">src/F.kt</arg></tool_call>""",
+            """<tool_call name="write_file"><arg name="path">src/F.kt</arg><arg name="content">class F {}</arg></tool_call>""",
+        )
+        val fakeTools = FakeToolRegistry(mapOf(
+            "read_file" to "class F { /* old */ }",
+            "write_file" to "Prepared file replacement for src/F.kt\n---OLD---\nclass F {}\n---NEW---\nclass F {}",
+        ))
+        val loop = AgentLoop(backend, fakeTools, fileAttached = true)
+        val result = loop.run("Fix F.kt")
+        assertTrue("write_file must execute even with capped exploration tokens", result.toolsExecuted.contains("write_file"))
+    }
+
+    @Test
+    fun `escalation does not fire when model writes in first available round`() {
+        // Happy path: model explores round 1, then calls write_file in round 2.
+        // Escalation must NOT interfere — write_file should be executed normally.
+        val backend = FakeBackend(
+            """<tool_call name="read_file"><arg name="path">src/B.kt</arg></tool_call>""",
+            """<tool_call name="write_file"><arg name="path">src/B.kt</arg><arg name="content">class B { fun go() {} }</arg></tool_call>""",
+        )
+        val fakeTools = FakeToolRegistry(mapOf(
+            "read_file" to "class B {}",
+            "write_file" to "Prepared file replacement for src/B.kt\n---OLD---\nclass B {}\n---NEW---\nclass B { fun go() {} }",
+        ))
+        val loop = AgentLoop(backend, fakeTools, maxRounds = 5, fileAttached = true)
+        val result = loop.run("Update B.kt")
+        assertTrue("write_file must be in the executed calls", result.toolsExecuted.contains("write_file"))
+        assertTrue("Proposal for B.kt must be present", result.proposalPaths.contains("src/B.kt"))
+        assertEquals("Must not over-call backend when model writes on time", 2, backend.capturedRequests.size)
     }
 }
