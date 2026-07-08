@@ -76,6 +76,8 @@ object Strings {
         const val TOOL_CALL_ICON = "⚙"
         const val AUTO_APPROVE_NEXT = "Auto-apply edits on next run"
         const val AUTO_BUILD_NEXT = "Auto-build after applying edits"
+        const val AUTO_BUILD_IDE_NEXT = "  Build in IDE (incremental)"
+        const val AUTO_BUILD_BG_NEXT = "  Build in background (Gradle)"
         const val AUTO_FIX_NEXT = "Auto-fix build errors"
         const val AGGRESSIVE_MODE_NEXT = "Aggressive mode"
         const val RUN_OPTIONS_PRO_REQUIRED = "Requires Pro"
@@ -455,6 +457,7 @@ object Strings {
         const val BUILD_FAILED = "Build failed"
         const val TESTS_FAILED = "Tests failed"
         const val AUTO_FIX = "Auto-fix"
+        const val CANCEL_BUILD = "Cancel build"
         const val RETRY_LIMIT = "Auto-fix limit reached — please fix manually"
     }
 

@@ -87,6 +87,8 @@ class AgentTabPanel(
     private val onAutoApproveChanged: (Boolean) -> Unit = {},
     private val isAutoBuild: () -> Boolean = { true },
     private val onAutoBuildChanged: (Boolean) -> Unit = {},
+    private val isBuildInBackground: () -> Boolean = { false },
+    private val onBuildInBackgroundChanged: (Boolean) -> Unit = {},
     private val isAutoFix: () -> Boolean = { false },
     private val onAutoFixChanged: (Boolean) -> Unit = {},
     private val isAggressiveMode: () -> Boolean = { false },
@@ -174,10 +176,18 @@ class AgentTabPanel(
     }
 
     // ── Prompt bubble ─────────────────────────────────────────────────────────
-    private val promptLabel = JBLabel("").apply {
+    private val promptLabel = JBTextArea("").apply {
+        isEditable = false
+        isOpaque = false
+        lineWrap = true
+        wrapStyleWord = true
+        background = cardBackground
         foreground = LlamatikTheme.onSurface
         font = font.deriveFont(Font.BOLD, font.size2D)
         border = JBUI.Borders.empty(0, 0, 10, 0)
+        caret = object : DefaultCaret() {
+            override fun setSelectionVisible(visible: Boolean) = super.setSelectionVisible(true)
+        }
     }
     private val userAvatar = object : JPanel() {
         private val initials: String get() {
@@ -397,6 +407,23 @@ class AgentTabPanel(
         isSelected = isAutoBuild()
         addActionListener { onAutoBuildChanged(isSelected); updateRunOptionsButton() }
     }
+    private val buildIdeItem = JCheckBoxMenuItem(Strings.Agent.AUTO_BUILD_IDE_NEXT).apply {
+        isSelected = !isBuildInBackground()
+    }
+    private val buildBgItem = JCheckBoxMenuItem(Strings.Agent.AUTO_BUILD_BG_NEXT).apply {
+        isSelected = isBuildInBackground()
+    }
+    init {
+        buildIdeItem.addActionListener {
+            if (buildIdeItem.isSelected) { buildBgItem.isSelected = false; onBuildInBackgroundChanged(false) }
+            updateRunOptionsButton()
+        }
+        buildBgItem.addActionListener {
+            if (buildBgItem.isSelected) { buildIdeItem.isSelected = false; onBuildInBackgroundChanged(true) }
+            else { buildIdeItem.isSelected = true; onBuildInBackgroundChanged(false) }
+            updateRunOptionsButton()
+        }
+    }
     private val autoFixItem = JCheckBoxMenuItem(Strings.Agent.AUTO_FIX_NEXT).apply {
         isSelected = isAutoFix()
         addActionListener { onAutoFixChanged(isSelected); updateRunOptionsButton() }
@@ -422,6 +449,8 @@ class AgentTabPanel(
         }
         add(autoApproveItem)
         add(autoBuildItem)
+        add(buildIdeItem)
+        add(buildBgItem)
         add(autoFixItem)
         addSeparator()
         add(aggressiveItem)
@@ -490,6 +519,16 @@ class AgentTabPanel(
         )
         alignmentX = LEFT_ALIGNMENT
     }
+    private val cancelBuildButton = JButton(Strings.Verification.CANCEL_BUILD).apply {
+        isVisible = false
+        isFocusPainted = false
+        isContentAreaFilled = false
+        border = JBUI.Borders.compound(
+            BorderFactory.createLineBorder(LlamatikTheme.onSurface.darker(), 1, true),
+            JBUI.Borders.empty(4, 10),
+        )
+        alignmentX = LEFT_ALIGNMENT
+    }
     private val verificationPanel = JPanel().apply {
         layout = BoxLayout(this, BoxLayout.Y_AXIS)
         isOpaque = false
@@ -500,6 +539,7 @@ class AgentTabPanel(
         add(javax.swing.Box.createVerticalStrut(4))
         add(verifyErrorContent)
         add(javax.swing.Box.createVerticalStrut(4))
+        add(cancelBuildButton)
         add(autoFixButton)
     }
 
@@ -807,6 +847,7 @@ class AgentTabPanel(
 
         currentPromptText = snapshot.prompt
         promptLabel.text = snapshot.prompt
+        promptLabel.caretPosition = 0
         promptBubble.isVisible = snapshot.prompt.isNotEmpty()
         responseTextArea.text = snapshot.responseText
         if (snapshot.responseText.isNotBlank()) {
@@ -1097,6 +1138,8 @@ class AgentTabPanel(
 
         autoApproveItem.isSelected = isAutoApprove()
         autoBuildItem.isSelected = isAutoBuild()
+        buildIdeItem.isSelected = !isBuildInBackground()
+        buildBgItem.isSelected = isBuildInBackground()
         autoFixItem.isSelected = isAutoFix()
         aggressiveItem.isSelected = isAggressiveMode()
         updateRunOptionsButton()
@@ -1411,12 +1454,19 @@ class AgentTabPanel(
         verificationPanel.isVisible = false
     }
 
-    fun showVerifying(message: String) {
+    fun showVerifying(message: String, onCancel: (() -> Unit)? = null) {
         verifyStatusLabel.text = message
         verifyStatusLabel.foreground = mutedText
         verifyStatusLabel.isVisible = true
         verifyErrorContent.isVisible = false
         autoFixButton.isVisible = false
+        for (l in cancelBuildButton.actionListeners) cancelBuildButton.removeActionListener(l)
+        if (onCancel != null) {
+            cancelBuildButton.addActionListener { onCancel() }
+            cancelBuildButton.isVisible = true
+        } else {
+            cancelBuildButton.isVisible = false
+        }
         verificationPanel.isVisible = true
         conversationPanel.revalidate()
         conversationPanel.repaint()
@@ -1428,6 +1478,7 @@ class AgentTabPanel(
         verifyStatusLabel.foreground = success
         verifyStatusLabel.isVisible = true
         verifyErrorContent.isVisible = false
+        cancelBuildButton.isVisible = false
         autoFixButton.isVisible = false
         verificationPanel.isVisible = true
         conversationPanel.revalidate()
@@ -1441,6 +1492,7 @@ class AgentTabPanel(
         verifyStatusLabel.isVisible = true
         verifyErrorArea.text = errors
         verifyErrorContent.isVisible = true
+        cancelBuildButton.isVisible = false
         for (l in autoFixButton.actionListeners) autoFixButton.removeActionListener(l)
         autoFixButton.text = Strings.Verification.AUTO_FIX
         autoFixButton.addActionListener { onAutoFix() }
@@ -1455,6 +1507,7 @@ class AgentTabPanel(
         verifyStatusLabel.text = Strings.Verification.RETRY_LIMIT
         verifyStatusLabel.foreground = mutedText
         verifyStatusLabel.isVisible = true
+        cancelBuildButton.isVisible = false
         autoFixButton.isVisible = false
         verificationPanel.isVisible = true
         conversationPanel.revalidate()
@@ -2067,7 +2120,7 @@ class AgentTabPanel(
     private fun updateRunOptionsButton() {
         val active = listOfNotNull(
             if (autoApproveItem.isSelected) "Auto-apply" else null,
-            if (autoBuildItem.isSelected) "Auto-build" else null,
+            if (autoBuildItem.isSelected) (if (buildBgItem.isSelected) "Auto-build (bg)" else "Auto-build") else null,
             if (autoFixItem.isSelected) "Auto-fix" else null,
             if (aggressiveItem.isSelected) "Aggressive" else null,
         )

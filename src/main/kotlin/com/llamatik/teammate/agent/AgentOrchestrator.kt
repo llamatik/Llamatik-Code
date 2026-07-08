@@ -218,12 +218,13 @@ class AgentOrchestrator(private val project: Project) {
                 appendLine()
                 append(contextHint)
             }
-            // When a file is explicitly attached, tell the model to write immediately — the file
-            // content is already in the system prompt so no exploration is needed.
+            // When a file is explicitly attached, the content is already in the system prompt.
+            // Allow at most one read_file call if the model needs to check a related symbol,
+            // then it must call write_file. The prefill mechanism ensures the write pass fires.
             if (effectiveFileContext.isNotBlank()) {
                 appendLine()
                 appendLine()
-                appendLine("The file content is already provided above in the system prompt. Do NOT call any tools — call write_file immediately with the complete modified file.")
+                appendLine("The file content is already provided above in the system prompt. If you need to look up a symbol in a related file call read_file ONCE, then immediately call write_file with the complete modified file. Do NOT loop — one optional read then write.")
                 append(HISTORY_FILE_SENTINEL)
                 appendLine()
                 append(effectiveFileContext.take(fileContextMax))
@@ -321,7 +322,7 @@ class AgentOrchestrator(private val project: Project) {
                     systemPrompt = roundSystemPrompt,
                     messages = messages,
                     config = config.copy(maxTokens = roundMaxTokens),
-                    noThink = true,
+                    noThink = prefill.isNotBlank() || effectiveFileContext.isNotBlank(),
                     sessionTag = SessionTag.AGENT,
                     assistantPrefill = prefill,
                 ),

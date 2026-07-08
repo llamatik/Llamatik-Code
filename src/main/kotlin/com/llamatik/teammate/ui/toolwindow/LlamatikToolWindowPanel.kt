@@ -183,6 +183,8 @@ class LlamatikToolWindowPanel(
         onAutoApproveChanged = { checked -> settings.data().agentAutoApprove = checked },
         isAutoBuild = { settings.data().agentAutoBuild },
         onAutoBuildChanged = { checked -> settings.data().agentAutoBuild = checked },
+        isBuildInBackground = { settings.data().agentBuildInBackground },
+        onBuildInBackgroundChanged = { checked -> settings.data().agentBuildInBackground = checked },
         isAutoFix = { settings.data().agentAutoFix },
         onAutoFixChanged = { checked -> settings.data().agentAutoFix = checked },
         isAggressiveMode = { settings.data().agentExecutionMode == "AGGRESSIVE" },
@@ -882,26 +884,23 @@ class LlamatikToolWindowPanel(
     }
 
     private fun startVerification(appliedFiles: List<String>) {
-        ApplicationManager.getApplication().invokeLater {
-            agentTabPanel.showVerifying(Strings.Verification.BUILDING)
-        }
-        buildService.compile { success, errors ->
+        val onCompileResult: (success: Boolean, errors: List<String>) -> Unit = { success, errors ->
             if (success) {
                 val testFiles = appliedFiles.filter { buildService.isTestFile(it) }
                 if (testFiles.isNotEmpty()) {
                     val testClasses = testFiles.map { java.io.File(it).nameWithoutExtension }
-                    ApplicationManager.getApplication().invokeLater {
-                        agentTabPanel.showVerifying(Strings.Verification.RUNNING_TESTS)
-                    }
-                    buildService.runTests(testClasses) { testSuccess, output ->
+                    val cancelTests = buildService.runTests(testClasses) { testSuccess, output ->
                         ApplicationManager.getApplication().invokeLater {
                             if (testSuccess) {
                                 agentTabPanel.showBuildSuccess(testsRan = true)
                             } else {
-                                agentTabPanel.showBuildErrors(output) { autoFixErrors(output) }
-                                if (settings.data().agentAutoFix) autoFixErrors(output)
+                                agentTabPanel.showBuildErrors(output) { autoFixErrors(output, appliedFiles) }
+                                if (settings.data().agentAutoFix) autoFixErrors(output, appliedFiles)
                             }
                         }
+                    }
+                    ApplicationManager.getApplication().invokeLater {
+                        agentTabPanel.showVerifying(Strings.Verification.RUNNING_TESTS, cancelTests)
                     }
                 } else {
                     ApplicationManager.getApplication().invokeLater {
@@ -911,14 +910,26 @@ class LlamatikToolWindowPanel(
             } else {
                 val errorText = errors.joinToString("\n")
                 ApplicationManager.getApplication().invokeLater {
-                    agentTabPanel.showBuildErrors(errorText) { autoFixErrors(errorText) }
-                    if (settings.data().agentAutoFix) autoFixErrors(errorText)
+                    agentTabPanel.showBuildErrors(errorText) { autoFixErrors(errorText, appliedFiles) }
+                    if (settings.data().agentAutoFix) autoFixErrors(errorText, appliedFiles)
                 }
+            }
+        }
+
+        if (settings.data().agentBuildInBackground) {
+            val cancelCompile = buildService.compileInBackground(onCompileResult)
+            ApplicationManager.getApplication().invokeLater {
+                agentTabPanel.showVerifying(Strings.Verification.BUILDING, cancelCompile)
+            }
+        } else {
+            ApplicationManager.getApplication().invokeLater {
+                agentTabPanel.showVerifying(Strings.Verification.BUILDING)
+                buildService.compileInIde(onCompileResult)
             }
         }
     }
 
-    private fun autoFixErrors(errors: String) {
+    private fun autoFixErrors(errors: String, changedFiles: List<String> = emptyList()) {
         autoFixCount++
         if (autoFixCount > MAX_AUTO_FIX_ITERATIONS) {
             ApplicationManager.getApplication().invokeLater {
@@ -926,7 +937,14 @@ class LlamatikToolWindowPanel(
             }
             return
         }
-        val fixPrompt = "Fix the following build/test errors:\n$errors"
+        val fixPrompt = buildString {
+            if (changedFiles.isNotEmpty()) {
+                appendLine("The following files were just modified:")
+                changedFiles.forEach { appendLine("  - $it") }
+                appendLine()
+            }
+            append("Fix the following build/test errors:\n$errors")
+        }
         isAutoFix = true
         ApplicationManager.getApplication().invokeLater {
             sendPromptFromTab(fixPrompt, isAgent = true)

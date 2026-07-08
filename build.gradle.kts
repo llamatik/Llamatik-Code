@@ -23,7 +23,7 @@ plugins {
 }
 
 group = "com.llamatik.teammate"
-version = "1.8.0"
+version = "1.9.0"
 
 repositories {
     //mavenLocal()
@@ -41,7 +41,7 @@ dependencies {
         bundledPlugin("org.jetbrains.kotlin")
     }
 
-    implementation("com.llamatik:library:1.8.0")
+    implementation("com.llamatik:library:1.8.1")
     testImplementation("junit:junit:4.13.2")
 }
 
