@@ -244,12 +244,23 @@ class AgentOrchestrator(private val project: Project) {
         toolAugmentedMessages += recentMessages
         toolAugmentedMessages += userTurnForModel
 
+        // Apply resource mode thread cap:
+        //   FULL     → use exactly the user's numThreads setting (no cap)
+        //   BALANCED → cap at half the physical cores so the IDE stays responsive
+        //   LOW      → cap at 1/4 cores (min 1); threads already run at MIN_PRIORITY via executor
+        val physicalCores = Runtime.getRuntime().availableProcessors()
+        val effectiveThreads = when (settings.resourceMode) {
+            "FULL" -> settings.numThreads
+            "LOW"  -> maxOf(1, physicalCores / 4)
+            else   -> maxOf(1, minOf(settings.numThreads, physicalCores / 2)) // BALANCED
+        }
+
         val config = BackendConfig(
             modelIdOrPath = settings.modelPath.ifBlank { settings.modelIdentifier },
             temperature = settings.temperature,
             maxTokens = settings.maxTokens,
             contextLength = settings.contextSize,
-            numThreads = settings.numThreads,
+            numThreads = effectiveThreads,
             useMmap = settings.useMmap,
             flashAttention = settings.flashAttention,
             batchSize = settings.batchSize,
@@ -414,6 +425,8 @@ class AgentOrchestrator(private val project: Project) {
                                 appendLine()
                                 append(finalDirective)
                             }
+                            resetStreamState()
+                            if (!cancelled.get()) onToken("${STATUS_PREFIX}Writing changes…")
                             runRound(listOf(ChatMessage(role = ChatRole.USER, content = finalContent)), MAX_ROUNDS - 1, accumulatedProposals, hasReadContent, writePassPrefill())
                             return
                         }
@@ -600,6 +613,8 @@ class AgentOrchestrator(private val project: Project) {
                                 appendLine()
                                 append(finalDirective)
                             }
+                            resetStreamState()
+                            if (!cancelled.get()) onToken("${STATUS_PREFIX}Writing changes…")
                             runRound(listOf(ChatMessage(role = ChatRole.USER, content = finalContent)), MAX_ROUNDS - 1, allProposals, hasReadContent, writePassPrefill())
                             return
                         }
@@ -664,6 +679,8 @@ class AgentOrchestrator(private val project: Project) {
                                 appendLine()
                                 append(writeDirective)
                             }
+                            resetStreamState()
+                            if (!cancelled.get()) onToken("${STATUS_PREFIX}Writing changes…")
                             runRound(listOf(ChatMessage(role = ChatRole.USER, content = writeContent)), MAX_ROUNDS - 1, allProposals, nowHasReadContent, writePassPrefill())
                             return
                         }
@@ -1137,12 +1154,18 @@ class AgentOrchestrator(private val project: Project) {
         // invoking chat()), so we must not append it again here.
         val recentMessages = fitMessagesInBudget(session.messages, HISTORY_BUDGET_CHARS)
 
+        val chatCores = Runtime.getRuntime().availableProcessors()
+        val chatThreads = when (settings.resourceMode) {
+            "FULL" -> settings.numThreads
+            "LOW"  -> maxOf(1, chatCores / 4)
+            else   -> maxOf(1, minOf(settings.numThreads, chatCores / 2))
+        }
         val config = BackendConfig(
             modelIdOrPath = settings.modelPath.ifBlank { settings.modelIdentifier },
             temperature = settings.temperature,
             maxTokens = settings.maxTokens,
             contextLength = settings.contextSize,
-            numThreads = settings.numThreads,
+            numThreads = chatThreads,
             useMmap = settings.useMmap,
             flashAttention = settings.flashAttention,
             batchSize = settings.batchSize,
@@ -1238,12 +1261,18 @@ class AgentOrchestrator(private val project: Project) {
         }.trim()
 
         val settings = service<LlamatikAppSettings>().data()
+        val mmCores = Runtime.getRuntime().availableProcessors()
+        val mmThreads = when (settings.resourceMode) {
+            "FULL" -> settings.numThreads
+            "LOW"  -> maxOf(1, mmCores / 4)
+            else   -> maxOf(1, minOf(settings.numThreads, mmCores / 2))
+        }
         val config = BackendConfig(
             modelIdOrPath = settings.modelPath.ifBlank { settings.modelIdentifier },
             temperature = settings.temperature,
             maxTokens = settings.maxTokens,
             contextLength = settings.contextSize,
-            numThreads = settings.numThreads,
+            numThreads = mmThreads,
             useMmap = settings.useMmap,
             flashAttention = settings.flashAttention,
             batchSize = settings.batchSize,
