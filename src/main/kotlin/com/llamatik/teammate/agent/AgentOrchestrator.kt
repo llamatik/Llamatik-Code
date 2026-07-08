@@ -301,7 +301,7 @@ class AgentOrchestrator(private val project: Project) {
 
         // Multi-round agentic loop: model can call tools across up to MAX_ROUNDS before answering.
         // Each round feeds tool results back so the model can: list files -> read files -> write files.
-        fun runRound(messages: List<ChatMessage>, round: Int, accumulatedProposals: List<EditProposal>, hasReadContent: Boolean = false, prefill: String = "") {
+        fun runRound(messages: List<ChatMessage>, round: Int, accumulatedProposals: List<EditProposal>, hasReadContent: Boolean = false, prefill: String = "", emptyRetry: Int = 0) {
             if (cancelled.get()) return
             // Global wall-clock safety net — kills the session if the total time exceeds the cap.
             if (System.currentTimeMillis() - sessionStartMs > AGENT_SESSION_TIMEOUT_MS) {
@@ -316,7 +316,11 @@ class AgentOrchestrator(private val project: Project) {
             // Use a tighter token cap for exploration rounds (tool calls need few tokens to express);
             // give the full budget only on the write pass so large file content fits in the output.
             val isWriteRound = round >= MAX_ROUNDS - 1
-            val roundMaxTokens = if (isWriteRound) maxOf(config.maxTokens, WRITE_ROUND_MIN_TOKENS) else minOf(config.maxTokens, EXPLORATION_ROUND_MAX_TOKENS)
+            // Exploration rounds must still allow thinking models to emit at least one tool call
+            // after their <think> block. EXPLORATION_ROUND_MAX_TOKENS is a soft cap — if the
+            // user's maxTokens setting is smaller than the floor, use the floor.
+            val roundMaxTokens = if (isWriteRound) maxOf(config.maxTokens, WRITE_ROUND_MIN_TOKENS)
+                                 else maxOf(config.maxTokens, EXPLORATION_ROUND_MAX_TOKENS)
             val handle = backend.generate(
                 GenerationRequest(
                     systemPrompt = roundSystemPrompt,
@@ -350,6 +354,17 @@ class AgentOrchestrator(private val project: Project) {
                             }
                         }
                         val answerText = ToolCallParser.stripThinking(echoStripped)
+
+                        // Blank output guard: local models occasionally emit only whitespace or nothing
+                        // after stripping think/echo. Retry the same round up to MAX_EMPTY_RETRIES
+                        // before falling through to the normal termination path.
+                        if (answerText.isBlank() && emptyRetry < MAX_EMPTY_RETRIES) {
+                            resetStreamState()
+                            if (!cancelled.get()) onToken("${STATUS_PREFIX}Retrying…")
+                            runRound(messages, round, accumulatedProposals, hasReadContent, prefill, emptyRetry + 1)
+                            return
+                        }
+
                         // Filter to known tool names — hallucinated names (e.g. "diff_tool") would loop forever.
                         // Dynamic MCP bridged tools are also allowed (they are in the registry's dynamicTools map).
                         val dynamicMcpNames = toolRegistry.dynamicToolNames()
@@ -1435,12 +1450,17 @@ class AgentOrchestrator(private val project: Project) {
         private const val MAX_ROUNDS = 5
         private const val MAX_TOOL_CALLS_PER_ROUND = 4
         private const val MAX_HISTORY_MESSAGES = 20
-        // Exploration rounds only need enough tokens to emit 1–4 tool calls (~80 tokens each).
-        // Capping them prevents the model burning the entire token budget on intermediate reasoning.
-        private const val EXPLORATION_ROUND_MAX_TOKENS = 512
+        // Exploration rounds must emit 1–4 tool calls. Thinking models consume tokens on <think>
+        // blocks before they emit any tool XML, so we need a generous floor — 1024 tokens covers
+        // a short think block plus 2–3 tool calls. We use maxOf(user setting, floor) so users
+        // who set maxTokens > 1024 are not capped down.
+        private const val EXPLORATION_ROUND_MAX_TOKENS = 1024
         // Write pass must be able to output a full file. User maxTokens setting is often 512–1024
         // which is far too small for a Compose screen. Always allow at least this many tokens to write.
         private const val WRITE_ROUND_MIN_TOKENS = 8192
+        // How many times to retry a round that produced completely blank output (after echo/think
+        // stripping). Local models occasionally stall and emit nothing; a single retry usually fixes it.
+        private const val MAX_EMPTY_RETRIES = 2
         // Global wall-clock cap per agent session — safety net against true infinite hangs only.
         // Legitimate write tasks on a local 27B model can take 10+ minutes; set the cap high enough
         // that real work always completes, while still breaking runaway loops.
