@@ -301,7 +301,7 @@ class AgentOrchestrator(private val project: Project) {
 
         // Multi-round agentic loop: model can call tools across up to MAX_ROUNDS before answering.
         // Each round feeds tool results back so the model can: list files -> read files -> write files.
-        fun runRound(messages: List<ChatMessage>, round: Int, accumulatedProposals: List<EditProposal>, hasReadContent: Boolean = false, prefill: String = "", emptyRetry: Int = 0) {
+        fun runRound(messages: List<ChatMessage>, round: Int, accumulatedProposals: List<EditProposal>, hasReadContent: Boolean = false, prefill: String = "", emptyRetry: Int = 0, toolErrorRetry: Int = 0) {
             if (cancelled.get()) return
             // Global wall-clock safety net — kills the session if the total time exceeds the cap.
             if (System.currentTimeMillis() - sessionStartMs > AGENT_SESSION_TIMEOUT_MS) {
@@ -515,6 +515,36 @@ class AgentOrchestrator(private val project: Project) {
                                 durationMs = elapsed,
                             ))
                             ChatMessage(role = ChatRole.TOOL, content = result.content, toolName = result.name)
+                        }
+
+                        // Tool error reflection: if every tool call this round failed and we haven't
+                        // exhausted retries, feed the errors back explicitly so the model can correct
+                        // its arguments (most commonly: wrong path, bad indentation in oldText).
+                        // Skip for duplicate-suppressed calls — those are informational, not errors.
+                        val failedMessages = toolMessages.filter { !it.content.startsWith("Already called") && (it.content.startsWith("Error") || it.content.startsWith("Missing") || it.content.contains("not found") || it.content.contains("failed:")) }
+                        val allToolsFailed = failedMessages.size == toolMessages.size && toolMessages.isNotEmpty() && !allCallsDuplicate
+                        if (allToolsFailed && toolErrorRetry < MAX_TOOL_ERROR_RETRIES && round < MAX_ROUNDS) {
+                            val errorSummary = failedMessages.joinToString("\n") { msg ->
+                                "Tool ${msg.toolName} error: ${msg.content.lines().firstOrNull().orEmpty().take(200)}"
+                            }
+                            val reflectionContent = buildString {
+                                appendLine("Task: ${cleanInstruction.take(TASK_EXCERPT_MAX_CHARS)}")
+                                appendLine()
+                                appendLine("The previous tool calls all failed:")
+                                appendLine(errorSummary)
+                                appendLine()
+                                appendLine("Fix the arguments and try again. Common causes:")
+                                appendLine("- Wrong file path: use list_files or search_filenames to find the correct path first.")
+                                appendLine("- replace_in_file oldText mismatch: use read_file to get the exact current content, then copy the exact lines to replace.")
+                                appendLine("- Missing required argument: check the tool's argument names.")
+                            }
+                            resetStreamState()
+                            if (!cancelled.get()) onToken("${STATUS_PREFIX}Correcting…")
+                            runRound(
+                                listOf(ChatMessage(role = ChatRole.USER, content = reflectionContent)),
+                                round, accumulatedProposals, hasReadContent, prefill = "", toolErrorRetry = toolErrorRetry + 1,
+                            )
+                            return
                         }
 
                         val proposalResult = buildProposalsFromToolMessages(toolMessages)
@@ -1461,6 +1491,9 @@ class AgentOrchestrator(private val project: Project) {
         // How many times to retry a round that produced completely blank output (after echo/think
         // stripping). Local models occasionally stall and emit nothing; a single retry usually fixes it.
         private const val MAX_EMPTY_RETRIES = 2
+        // How many times to reflect a round where every tool call returned an error.
+        // The model is shown the error messages and asked to fix its arguments before retrying.
+        private const val MAX_TOOL_ERROR_RETRIES = 2
         // Global wall-clock cap per agent session — safety net against true infinite hangs only.
         // Legitimate write tasks on a local 27B model can take 10+ minutes; set the cap high enough
         // that real work always completes, while still breaking runaway loops.
