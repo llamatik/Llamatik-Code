@@ -904,7 +904,8 @@ class AgentTabPanel(
         rebuildFrozenHistory()
 
         currentPromptText = prompt
-        promptLabel.text = "<html>${prompt.replace("\n", "<br>")}</html>"
+        promptLabel.text = prompt
+        promptLabel.caretPosition = 0
         promptBubble.isVisible = true
         responseTextArea.text = accumulatedText
         if (accumulatedText.isNotEmpty()) responseTextArea.caretPosition = 0
@@ -948,8 +949,6 @@ class AgentTabPanel(
      */
     fun freezeCurrentTurn() {
         val prompt = promptLabel.text
-            .removePrefix("<html>").removeSuffix("</html>")
-            .replace("<br>", "\n")
         val response = responseTextArea.text
         if (prompt.isBlank() && response.isBlank()) return
 
@@ -1089,7 +1088,8 @@ class AgentTabPanel(
         genStartMs = System.currentTimeMillis()
 
         currentPromptText = prompt
-        promptLabel.text = "<html>${prompt.replace("\n", "<br>")}</html>"
+        promptLabel.text = prompt
+        promptLabel.caretPosition = 0
         promptBubble.isVisible = true
 
         thinkHasContent = false
@@ -1937,15 +1937,36 @@ class AgentTabPanel(
             promptCardButtons.add(this)
         }
 
-    private fun buildToolCallRow(name: String, arg: String): JPanel =
-        JPanel(FlowLayout(FlowLayout.LEFT, 6, 2)).apply {
+    private fun buildToolCallRow(name: String, arg: String): JPanel {
+        val combined = if (arg.isNotBlank()) "$name  $arg" else name
+        val textArea = JBTextArea(combined).apply {
+            isEditable = false
             isOpaque = false
-            add(JBLabel(Strings.Agent.TOOL_CALL_ICON).apply { foreground = mutedText })
-            add(JBLabel("<html><span style='font-family:monospace; color:${LlamatikTheme.htmlOnSurface};'>$name</span></html>"))
-            if (arg.isNotBlank()) {
-                add(JBLabel("<html><span style='font-family:monospace; color:${LlamatikTheme.htmlOnSurfaceVariant};'>$arg</span></html>"))
+            lineWrap = true
+            wrapStyleWord = true
+            background = cardBackground
+            foreground = mutedText
+            border = JBUI.Borders.empty()
+            font = font.deriveFont(Font.PLAIN, font.size2D - 1f).run {
+                java.awt.Font(java.awt.Font.MONOSPACED, style, size)
+            }
+            caret = object : DefaultCaret() {
+                override fun setSelectionVisible(visible: Boolean) = super.setSelectionVisible(true)
             }
         }
+        return JPanel(BorderLayout(6, 0)).apply {
+            isOpaque = false
+            alignmentX = LEFT_ALIGNMENT
+            maximumSize = Dimension(Int.MAX_VALUE, Int.MAX_VALUE)
+            add(JBLabel(Strings.Agent.TOOL_CALL_ICON).apply {
+                foreground = mutedText
+                border = JBUI.Borders.emptyTop(2)
+                verticalAlignment = JBLabel.TOP
+            }, BorderLayout.WEST)
+            add(textArea, BorderLayout.CENTER)
+            border = JBUI.Borders.empty(2, 0)
+        }
+    }
 
     private fun buildProposalCard(
         proposal: EditProposal,
