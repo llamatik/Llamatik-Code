@@ -92,7 +92,6 @@ object BuiltInModelCatalog {
             recommendedFileName = "qwen3-14b-q4_k_m.gguf",
             specialization = ModelSpecialization.BALANCED,
             catalogStatus = ModelCatalogStatus.RECOMMENDED,
-            isDefault = true,
         ),
         ExtendedModelDescriptor(
             id = "qwen2.5-coder-7b-full",
@@ -144,6 +143,24 @@ object BuiltInModelCatalog {
         ),
 
         // Tier 3 - High performance
+        ExtendedModelDescriptor(
+            id = "qwen3.6-27b-q4",
+            displayName = "Qwen3.6-27B",
+            quantization = "Q4_K_M",
+            diskSizeGb = 17.1,
+            minRamGb = 20.0,
+            recommendedRamGb = 32.0,
+            tier = ModelTier.TIER_3,
+            useCases = listOf("Complex reasoning", "Large refactors", "Agentic workflows"),
+            tradeoffs = "Excellent balance of reasoning depth and coding quality for demanding local tasks.",
+            repositoryUrl = "https://huggingface.co/unsloth/Qwen3.6-27B-MTP-GGUF",
+            modelCardUrl = "https://huggingface.co/unsloth/Qwen3.6-27B-MTP-GGUF",
+            downloadSourceUrl = "https://huggingface.co/unsloth/Qwen3.6-27B-MTP-GGUF/resolve/main/Qwen3.6-27B-Q4_K_M.gguf?download=true",
+            recommendedFileName = "Qwen3.6-27B-Q4_K_M.gguf",
+            specialization = ModelSpecialization.BALANCED,
+            catalogStatus = ModelCatalogStatus.RECOMMENDED,
+            isDefault = true,
+        ),
         ExtendedModelDescriptor(
             id = "qwen2.5-coder-14b-q4",
             displayName = "Qwen2.5-Coder 14B",
