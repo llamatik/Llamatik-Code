@@ -384,10 +384,17 @@ class AgentOrchestrator(private val project: Project) {
                             .take(MAX_TOOL_CALLS_PER_ROUND)
 
                         // Mid-loop prose guard: model wrote text instead of a tool call after having
-                        // read content. Give it one explicit write pass before the normal terminal path.
-                        // Bounds: round > 1 (not first Q&A round) and round < MAX_ROUNDS - 1 (not already
-                        // at the penultimate write round) to avoid re-entering this path recursively.
-                        if (toolCalls.isEmpty() && round > 1 && round < MAX_ROUNDS - 1 && hasReadContent) {
+                        // read content (or when a file was explicitly attached). Give it one explicit
+                        // write pass before the normal terminal path.
+                        // Round == 1 is also allowed when effectiveFileContext is set: the file is
+                        // already in the system prompt, so the model has everything it needs and
+                        // emitting prose instead of a tool call means it got confused — escalate
+                        // directly rather than showing "file not found" to the user.
+                        // Bounds: round < MAX_ROUNDS - 1 to avoid re-entering this path recursively.
+                        val hasFileInContext = effectiveFileContext.isNotBlank()
+                        val shouldEscalateToWrite = toolCalls.isEmpty() && round < MAX_ROUNDS - 1 &&
+                            (hasReadContent || (hasFileInContext && round == 1))
+                        if (shouldEscalateToWrite) {
                             val finalDirective = RoundDirective.get(RoundDirective.RoundState(
                                 round = MAX_ROUNDS - 1,
                                 maxRounds = MAX_ROUNDS,
@@ -427,7 +434,9 @@ class AgentOrchestrator(private val project: Project) {
                             }
                             resetStreamState()
                             if (!cancelled.get()) onToken("${STATUS_PREFIX}Writing changes…")
-                            runRound(listOf(ChatMessage(role = ChatRole.USER, content = finalContent)), MAX_ROUNDS - 1, accumulatedProposals, hasReadContent, writePassPrefill())
+                            // Pass hasReadContent = true when file context was explicitly attached —
+                            // the file IS in context even though the model never called read_file.
+                            runRound(listOf(ChatMessage(role = ChatRole.USER, content = finalContent)), MAX_ROUNDS - 1, accumulatedProposals, hasReadContent || hasFileInContext, writePassPrefill())
                             return
                         }
 
@@ -459,8 +468,12 @@ class AgentOrchestrator(private val project: Project) {
                             // After tool-use rounds the model's final answer is unreliable (hallucinated
                             // tool syntax, echoed system prompt markers, etc.). Only surface it on round 1
                             // with no proposals — every other terminal case uses the structured fallback.
-                            val clean = if (round == 1 && proposals.isEmpty()) {
-                                ToolCallParser.cleanForDisplay(echoStripped, allowThinkFallback = true)
+                            // Also require a minimum word count: a bare file path or single-token output
+                            // from a truncated generation is not a real answer and must not be displayed.
+                            val cleanedRound1 = ToolCallParser.cleanForDisplay(echoStripped, allowThinkFallback = true)
+                            val isLikelyRealAnswer = cleanedRound1.contains(' ') && cleanedRound1.split("\\s+".toRegex()).size >= 4
+                            val clean = if (round == 1 && proposals.isEmpty() && isLikelyRealAnswer) {
+                                cleanedRound1
                             } else if (proposals.isNotEmpty()) {
                                 ""
                             } else if (accumulatedRejections.isEmpty() && hasReadContent) {
@@ -530,20 +543,27 @@ class AgentOrchestrator(private val project: Project) {
                             ChatMessage(role = ChatRole.TOOL, content = result.content, toolName = result.name)
                         }
 
-                        // Tool error reflection: if every tool call this round failed and we haven't
-                        // exhausted retries, feed the errors back explicitly so the model can correct
-                        // its arguments (most commonly: wrong path, bad indentation in oldText).
+                        // Tool error reflection: if every tool call this round failed, OR any write
+                        // tool failed (even when read-only calls succeeded), feed errors back so the
+                        // model can correct its arguments (wrong path, truncated content, etc.).
                         // Skip for duplicate-suppressed calls — those are informational, not errors.
                         val failedMessages = toolMessages.filter { !it.content.startsWith("Already called") && (it.content.startsWith("Error") || it.content.startsWith("Missing") || it.content.contains("not found") || it.content.contains("failed:")) }
                         val allToolsFailed = failedMessages.size == toolMessages.size && toolMessages.isNotEmpty() && !allCallsDuplicate
-                        if (allToolsFailed && toolErrorRetry < MAX_TOOL_ERROR_RETRIES && round < MAX_ROUNDS) {
+                        val anyWriteToolFailed = failedMessages.any { msg -> msg.toolName in EDIT_TOOL_NAMES }
+                        if ((allToolsFailed || anyWriteToolFailed) && toolErrorRetry < MAX_TOOL_ERROR_RETRIES && round < MAX_ROUNDS) {
                             val errorSummary = failedMessages.joinToString("\n") { msg ->
                                 "Tool ${msg.toolName} error: ${msg.content.lines().firstOrNull().orEmpty().take(200)}"
+                            }
+                            // Record write failures NOW so the terminal path always knows a write was
+                            // attempted and failed, even if the reflection retry produces prose instead
+                            // of a tool call and hits the terminal path with an empty accumulatedRejections.
+                            failedMessages.filter { it.toolName in EDIT_TOOL_NAMES }.forEach { msg ->
+                                accumulatedRejections += "${msg.toolName} failed: ${msg.content.lines().firstOrNull().orEmpty().take(200)}"
                             }
                             val reflectionContent = buildString {
                                 appendLine("Task: ${cleanInstruction.take(TASK_EXCERPT_MAX_CHARS)}")
                                 appendLine()
-                                appendLine("The previous tool calls all failed:")
+                                appendLine("The following tool calls failed:")
                                 appendLine(errorSummary)
                                 appendLine()
                                 appendLine("Fix the arguments and try again. Common causes:")
@@ -1068,7 +1088,6 @@ class AgentOrchestrator(private val project: Project) {
             if (toolName !in EDIT_TOOL_NAMES) continue
             val content = msg.content
 
-            // Silently skip results whose format we don't recognise (e.g. tool returned an error).
             val path = when {
                 content.startsWith("Prepared file replacement for ") ->
                     content.removePrefix("Prepared file replacement for ").substringBefore("\n")
@@ -1076,7 +1095,12 @@ class AgentOrchestrator(private val project: Project) {
                     content.removePrefix("Prepared replacement for ").substringBefore("\n")
                 content.startsWith("Prepared new file for ") ->
                     content.removePrefix("Prepared new file for ").substringBefore("\n")
-                else -> continue
+                else -> {
+                    // Capture write tool errors (e.g. "Missing content") as rejections so the
+                    // caller can reflect them back to the model for a corrective retry.
+                    rejections += "$toolName failed: ${content.lines().firstOrNull().orEmpty().take(200)}"
+                    continue
+                }
             }.trim()
 
             val newContent = when {

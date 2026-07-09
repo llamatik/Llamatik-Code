@@ -103,6 +103,7 @@ class AgentLoopTest {
             val rounds: Int,
             val toolsExecuted: List<String>,
             val proposalPaths: List<String> = emptyList(),
+            val writeToolErrors: List<String> = emptyList(),
         )
 
         fun run(userPrompt: String, systemPrompt: String = "You are a coding agent.", preSeedReadPaths: Set<String> = emptySet()): LoopResult {
@@ -110,6 +111,7 @@ class AgentLoopTest {
             var finalMessage = ""
             var totalRounds = 0
             val roundProposals = mutableListOf<Pair<String, String>>()
+            val writeErrors = mutableListOf<String>()
             val sessionStartMs = System.currentTimeMillis()
             // Mirrors AgentOrchestrator.executedToolKeys: dedup set across all rounds.
             val executedToolKeys = mutableSetOf<Pair<String, String>>()
@@ -126,7 +128,11 @@ class AgentLoopTest {
                             c.removePrefix("Prepared file replacement for ").substringBefore("\n")
                         c.startsWith("Prepared new file for ") ->
                             c.removePrefix("Prepared new file for ").substringBefore("\n")
-                        else -> return@mapNotNull null
+                        else -> {
+                            // Mirror production fix: record write tool errors as rejections
+                            writeErrors += "${msg.toolName} failed: ${c.lines().firstOrNull().orEmpty().take(200)}"
+                            return@mapNotNull null
+                        }
                     }.trim()
                     val newContent = when {
                         c.contains("\n---NEW---\n") -> c.substringAfter("\n---NEW---\n").trim()
@@ -138,6 +144,13 @@ class AgentLoopTest {
                     path to newContent
                 }
             }
+
+            fun anyWriteToolFailed(toolMessages: List<ChatMessage>): Boolean =
+                toolMessages.any { msg ->
+                    msg.toolName in editToolNames &&
+                    !msg.content.startsWith("Prepared") &&
+                    (msg.content.startsWith("Error") || msg.content.startsWith("Missing") || msg.content.contains("failed:"))
+                }
 
             fun runRound(messages: List<ChatMessage>, round: Int, task: String, hasReadContent: Boolean) {
                 if (round > maxRounds) return
@@ -207,6 +220,26 @@ class AgentLoopTest {
                             val proposals = extractProposals(toolMessages)
                             val nowHasRead = hasReadContent || toolCalls.any { it.name in readOnlyToolNames }
                             hasReadContentAccum = nowHasRead
+
+                            // Mirror production fix: if any write tool failed while read-only tools
+                            // succeeded, reflect errors back so the model can correct its arguments.
+                            val failedMessages = toolMessages.filter {
+                                !it.content.startsWith("Already called") &&
+                                (it.content.startsWith("Error") || it.content.startsWith("Missing") || it.content.contains("not found") || it.content.contains("failed:"))
+                            }
+                            val allToolsFailed = failedMessages.size == toolMessages.size && toolMessages.isNotEmpty()
+                            val anyWriteFailed = anyWriteToolFailed(toolMessages)
+                            if ((allToolsFailed || anyWriteFailed) && round < maxRounds) {
+                                val errorSummary = failedMessages.joinToString("\n") { msg ->
+                                    "Tool ${msg.toolName} error: ${msg.content.lines().firstOrNull().orEmpty().take(200)}"
+                                }
+                                runRound(
+                                    listOf(ChatMessage(role = ChatRole.USER, content = "Task: $task\nThe following tool calls failed:\n$errorSummary\nFix the arguments and try again.")),
+                                    round + 1, task, nowHasRead,
+                                )
+                                return
+                            }
+
                             if (wroteFiles) {
                                 roundProposals += proposals
                                 if (proposals.isNotEmpty()) {
@@ -282,6 +315,7 @@ class AgentLoopTest {
                 rounds = totalRounds,
                 toolsExecuted = toolRegistry.executedCalls.map { it.name },
                 proposalPaths = roundProposals.map { it.first },
+                writeToolErrors = writeErrors.toList(),
             )
         }
     }
@@ -854,6 +888,52 @@ class AgentLoopTest {
         val loop = AgentLoop(backend, fakeTools, fileAttached = true)
         val result = loop.run("Fix F.kt")
         assertTrue("write_file must execute even with capped exploration tokens", result.toolsExecuted.contains("write_file"))
+    }
+
+    // ── Tests: write tool error reflection ───────────────────────────────────
+
+    @Test
+    fun `write_file missing content triggers error reflection even when search_code succeeded`() {
+        // Regression test for: model calls search_code (succeeds) + write_file with no content arg
+        // (returns "Missing content"). Old code silently dropped the write error and produced no
+        // proposal. New code records the error and reflects it back so the model retries.
+        val backend = FakeBackend(
+            // Round 1: search_code succeeds, write_file fails (no content arg)
+            """<tool_call name="search_code"><arg name="query">ChatBotState</arg></tool_call>""" + "\n" +
+            """<tool_call name="write_file"><arg name="path">src/Screen.kt</arg></tool_call>""",
+            // Round 2: model sees the error and emits a correct write_file
+            """<tool_call name="write_file"><arg name="path">src/Screen.kt</arg><arg name="content">class Screen { fun skip() {} }</arg></tool_call>""",
+        )
+        val fakeTools = FakeToolRegistry(
+            sequentialResults = listOf(
+                "Found: ChatBotState in ChatBotState.kt",   // search_code result
+                "Missing content",                           // write_file (no content arg)
+                "Prepared file replacement for src/Screen.kt\n---OLD---\n\n---NEW---\nclass Screen { fun skip() {} }",
+            )
+        )
+        val loop = AgentLoop(backend, fakeTools, maxRounds = 5)
+        val result = loop.run("Add skip button to Screen.kt")
+        assertTrue("write tool error must be recorded", result.writeToolErrors.isNotEmpty())
+        assertTrue("write_file must be retried and produce a proposal", result.proposalPaths.contains("src/Screen.kt"))
+    }
+
+    @Test
+    fun `write_file error is recorded as rejection reason in writeToolErrors`() {
+        // When write_file returns "Missing content", that error must appear in writeToolErrors
+        // so callers (and tests) can verify the error was captured and not silently dropped.
+        val backend = FakeBackend(
+            """<tool_call name="write_file"><arg name="path">src/Foo.kt</arg></tool_call>""",
+            "I could not write the file.",
+        )
+        val fakeTools = FakeToolRegistry(
+            sequentialResults = listOf("Missing content")
+        )
+        val loop = AgentLoop(backend, fakeTools, maxRounds = 5)
+        val result = loop.run("Update Foo.kt")
+        assertTrue(
+            "Missing content error must be captured in writeToolErrors",
+            result.writeToolErrors.any { it.contains("Missing content", ignoreCase = true) },
+        )
     }
 
     @Test
