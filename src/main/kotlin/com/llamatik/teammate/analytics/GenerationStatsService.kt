@@ -62,14 +62,14 @@ class GenerationStatsService : PersistentStateComponent<GenerationStatsService.S
         else myState.totalDurationMs / myState.totalGenerations
 
     fun totalEnergyWh(): Double =
-        myState.totalTokens * LOCAL_WATTS_PER_TOKEN / 3_600_000.0
+        myState.totalTokens * LOCAL_WATTS_PER_TOKEN
 
     fun averageEnergyPerTaskWh(): Double =
         if (myState.totalGenerations == 0) 0.0
         else totalEnergyWh() / myState.totalGenerations
 
     fun co2AvoidedGrams(): Double =
-        myState.totalTokens * AVOIDED_WATTS_PER_TOKEN / 3_600_000.0 * CO2_KG_PER_KWH * 1_000.0
+        myState.totalTokens * AVOIDED_WATTS_PER_TOKEN / 1_000.0 * CO2_KG_PER_KWH * 1_000.0
 
     fun moneySavedUsd(): Double =
         myState.totalTokens / 1_000.0 * COST_PER_1K_TOKENS
