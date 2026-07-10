@@ -93,14 +93,14 @@ object Strings {
         const val AGGRESSIVE_MODE_TOOLTIP = "Agent tries multiple fallback strategies before giving up"
 
         val SUGGESTIONS = listOf(
-            "Implement a feature locally",
-            "Fix a bug with project context",
-            "Review current changes before commit",
-            "Safely refactor current file",
-            "Generate tests for this file",
-            "Repair build failure",
-            "Explain this module architecture",
-            "Modernize deprecated APIs"
+            "Add input validation to the login form and show inline error messages",
+            "The null pointer crash on line 42 of UserRepository — find the root cause and fix it",
+            "Review my staged changes for bugs, security issues, and missing error handling",
+            "Extract the duplicated pagination logic into a shared utility class",
+            "Write unit tests covering edge cases for the payment calculation module",
+            "The Gradle build is failing with an unresolved reference — diagnose and fix it",
+            "Explain how data flows through the authentication module end to end",
+            "Replace all usages of the deprecated Handler class with coroutines"
         )
 
         // Mission workflow cards
