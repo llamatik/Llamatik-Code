@@ -17,8 +17,8 @@
         optional      – true = FREEMIUM: free tier works without a licence.
     -->
     <product-descriptor code="PLLAMATIKCODE"
-                        release-date="20260708"
-                        release-version="18"
+                        release-date="20260709"
+                        release-version="19"
                         optional="true"/>
 
     <description><![CDATA[
