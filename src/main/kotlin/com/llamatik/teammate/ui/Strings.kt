@@ -76,6 +76,8 @@ object Strings {
         const val TOOL_CALL_ICON = "⚙"
         const val AUTO_APPROVE_NEXT = "Auto-apply edits on next run"
         const val AUTO_BUILD_NEXT = "Auto-build after applying edits"
+        const val AUTO_BUILD_IDE_NEXT = "  Build in IDE (incremental)"
+        const val AUTO_BUILD_BG_NEXT = "  Build in background (Gradle)"
         const val AUTO_FIX_NEXT = "Auto-fix build errors"
         const val AGGRESSIVE_MODE_NEXT = "Aggressive mode"
         const val RUN_OPTIONS_PRO_REQUIRED = "Requires Pro"
@@ -91,14 +93,14 @@ object Strings {
         const val AGGRESSIVE_MODE_TOOLTIP = "Agent tries multiple fallback strategies before giving up"
 
         val SUGGESTIONS = listOf(
-            "Implement a feature locally",
-            "Fix a bug with project context",
-            "Review current changes before commit",
-            "Safely refactor current file",
-            "Generate tests for this file",
-            "Repair build failure",
-            "Explain this module architecture",
-            "Modernize deprecated APIs"
+            "Add input validation to the login form and show inline error messages",
+            "The null pointer crash on line 42 of UserRepository — find the root cause and fix it",
+            "Review my staged changes for bugs, security issues, and missing error handling",
+            "Extract the duplicated pagination logic into a shared utility class",
+            "Write unit tests covering edge cases for the payment calculation module",
+            "The Gradle build is failing with an unresolved reference — diagnose and fix it",
+            "Explain how data flows through the authentication module end to end",
+            "Replace all usages of the deprecated Handler class with coroutines"
         )
 
         // Mission workflow cards
@@ -325,6 +327,15 @@ object Strings {
         const val BATCH_SIZE_TOOLTIP   = "Prompt evaluation batch size — must be ≥ prompt token count"
         const val NUM_THREADS          = "CPU threads:"
         const val NUM_THREADS_TOOLTIP  = "Number of CPU threads used for inference"
+        const val SECTION_RESOURCES    = "<html><b>Resource usage</b></html>"
+        const val RESOURCE_MODE        = "Resource mode:"
+        const val RESOURCE_MODE_TOOLTIP = "Controls how aggressively the plugin uses CPU while generating. Low priority yields CPU to other apps. Full speed uses all allocated threads at normal priority."
+        const val RESOURCE_MODE_BALANCED = "Balanced (recommended)"
+        const val RESOURCE_MODE_LOW     = "Low priority (background)"
+        const val RESOURCE_MODE_FULL    = "Full speed"
+        const val RESOURCE_MODE_BALANCED_DESC = "Uses half your CPU cores at normal priority — leaves headroom for the IDE and other apps"
+        const val RESOURCE_MODE_LOW_DESC      = "Runs inference threads at minimum OS priority — slowest but least intrusive"
+        const val RESOURCE_MODE_FULL_DESC     = "Uses all allocated threads at normal priority — fastest but may affect IDE responsiveness"
         const val USE_MMAP             = "Use memory-mapped I/O (mmap)"
         const val USE_MMAP_TOOLTIP     = "Load model weights via mmap — faster startup, shares memory across processes"
         const val FLASH_ATTENTION      = "Enable Flash Attention"
@@ -455,6 +466,7 @@ object Strings {
         const val BUILD_FAILED = "Build failed"
         const val TESTS_FAILED = "Tests failed"
         const val AUTO_FIX = "Auto-fix"
+        const val CANCEL_BUILD = "Cancel build"
         const val RETRY_LIMIT = "Auto-fix limit reached — please fix manually"
     }
 

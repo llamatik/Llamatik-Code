@@ -355,6 +355,7 @@ class ChatTabPanel(
             border = JBUI.Borders.empty()
             viewport.background = rootBackground
             background = rootBackground
+            horizontalScrollBarPolicy = JBScrollPane.HORIZONTAL_SCROLLBAR_NEVER
         }
 
         val sessionClearButton = toolbarButton(AllIcons.Actions.GC, Strings.Chat.CLEAR).apply {

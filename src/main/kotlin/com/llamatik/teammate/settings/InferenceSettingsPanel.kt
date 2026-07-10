@@ -11,8 +11,10 @@ import com.llamatik.teammate.ui.LlamatikTheme
 import com.llamatik.teammate.ui.Strings
 import java.awt.BorderLayout
 import java.awt.Font
+import javax.swing.ButtonGroup
 import javax.swing.JButton
 import javax.swing.JPanel
+import javax.swing.JRadioButton
 import javax.swing.JSpinner
 import javax.swing.SpinnerNumberModel
 
@@ -29,8 +31,16 @@ class InferenceSettingsPanel(private val onUpgrade: (() -> Unit)? = null) {
         /* max   */ maxTokensMax,
         /* step  */ 256,
     ))
-    val numThreadsSpinner  = JSpinner(SpinnerNumberModel(4, 1, 64, 1))
+    val numThreadsSpinner  = JSpinner(SpinnerNumberModel(maxOf(1, Runtime.getRuntime().availableProcessors() / 2), 1, 64, 1))
     val useMmapCheck       = JBCheckBox(Strings.Inference.USE_MMAP)
+
+    // ── Resource mode radio buttons ───────────────────────────────────────────
+    val resourceBalancedRadio = JRadioButton(Strings.Inference.RESOURCE_MODE_BALANCED).apply { isSelected = true }
+    val resourceLowRadio      = JRadioButton(Strings.Inference.RESOURCE_MODE_LOW)
+    val resourceFullRadio     = JRadioButton(Strings.Inference.RESOURCE_MODE_FULL)
+    private val resourceModeGroup = ButtonGroup().also {
+        it.add(resourceBalancedRadio); it.add(resourceLowRadio); it.add(resourceFullRadio)
+    }
 
     // ── Pro-only controls ─────────────────────────────────────────────────────
     val contextSizeSpinner = JSpinner(SpinnerNumberModel(16384, 512, 131072, 512))
@@ -64,6 +74,10 @@ class InferenceSettingsPanel(private val onUpgrade: (() -> Unit)? = null) {
             .addComponent(useMmapCheck)
             .addTooltip(Strings.Inference.USE_MMAP_TOOLTIP)
             .addSeparator()
+            .addLabeledComponent(JBLabel(Strings.Inference.SECTION_RESOURCES), JBLabel(""))
+            .addLabeledComponent(JBLabel(Strings.Inference.RESOURCE_MODE), buildResourceModePanel())
+            .addTooltip(Strings.Inference.RESOURCE_MODE_TOOLTIP)
+            .addSeparator()
 
         val proSectionRight = JBLabel("")
 
@@ -95,6 +109,11 @@ class InferenceSettingsPanel(private val onUpgrade: (() -> Unit)? = null) {
         useMmapCheck.isSelected        = s.useMmap
         flashAttentionCheck.isSelected = s.flashAttention
         gpuOffloadCheck.isSelected     = s.gpuLayers != 0
+        when (s.resourceMode) {
+            "LOW"  -> resourceLowRadio.isSelected      = true
+            "FULL" -> resourceFullRadio.isSelected     = true
+            else   -> resourceBalancedRadio.isSelected = true
+        }
     }
 
     fun applyTo(s: LlamatikAppSettings.State) {
@@ -103,9 +122,10 @@ class InferenceSettingsPanel(private val onUpgrade: (() -> Unit)? = null) {
         s.batchSize      = (batchSizeSpinner.value as Number).toInt()
         s.flashAttention = flashAttentionCheck.isSelected
         s.gpuLayers      = if (gpuOffloadCheck.isSelected) -1 else 0
-        s.contextSize = (contextSizeSpinner.value as Number).toInt()
+        s.contextSize    = (contextSizeSpinner.value as Number).toInt()
         s.numThreads     = (numThreadsSpinner.value as Number).toInt()
         s.useMmap        = useMmapCheck.isSelected
+        s.resourceMode   = selectedResourceMode()
     }
 
     fun isModified(s: LlamatikAppSettings.State): Boolean =
@@ -116,7 +136,8 @@ class InferenceSettingsPanel(private val onUpgrade: (() -> Unit)? = null) {
         (batchSizeSpinner.value as Number).toInt()      != s.batchSize   ||
         flashAttentionCheck.isSelected                  != s.flashAttention ||
         gpuOffloadCheck.isSelected                      != (s.gpuLayers != 0) ||
-        (contextSizeSpinner.value as Number).toInt() != s.contextSize
+        (contextSizeSpinner.value as Number).toInt()    != s.contextSize ||
+        selectedResourceMode()                          != s.resourceMode
 
     private fun resetToDefaults() {
         val d = LlamatikAppSettings.State()
@@ -127,6 +148,32 @@ class InferenceSettingsPanel(private val onUpgrade: (() -> Unit)? = null) {
         batchSizeSpinner.value         = d.batchSize
         flashAttentionCheck.isSelected = d.flashAttention
         gpuOffloadCheck.isSelected     = d.gpuLayers != 0
-        contextSizeSpinner.value = d.contextSize
+        contextSizeSpinner.value       = d.contextSize
+        resourceBalancedRadio.isSelected = true
+    }
+
+    private fun selectedResourceMode(): String = when {
+        resourceLowRadio.isSelected  -> "LOW"
+        resourceFullRadio.isSelected -> "FULL"
+        else                         -> "BALANCED"
+    }
+
+    private fun buildResourceModePanel(): JPanel = JPanel().apply {
+        layout = javax.swing.BoxLayout(this, javax.swing.BoxLayout.Y_AXIS)
+        isOpaque = false
+
+        fun row(radio: JRadioButton, desc: String): JPanel = JPanel(BorderLayout(6, 0)).apply {
+            isOpaque = false
+            add(radio, BorderLayout.WEST)
+            add(JBLabel("<html><span style='color:gray; font-size:90%;'>$desc</span></html>").apply {
+                border = JBUI.Borders.emptyLeft(4)
+            }, BorderLayout.CENTER)
+        }
+
+        add(row(resourceBalancedRadio, Strings.Inference.RESOURCE_MODE_BALANCED_DESC))
+        add(javax.swing.Box.createVerticalStrut(2))
+        add(row(resourceLowRadio,      Strings.Inference.RESOURCE_MODE_LOW_DESC))
+        add(javax.swing.Box.createVerticalStrut(2))
+        add(row(resourceFullRadio,     Strings.Inference.RESOURCE_MODE_FULL_DESC))
     }
 }

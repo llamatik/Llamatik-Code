@@ -82,10 +82,13 @@ class AgentTabPanel(
     private val onToggleTasksPanel: () -> Unit = {},
     private val onModelChanged: () -> Unit = {},
     private val onClear: () -> Unit = {},
+    private val onRetry: () -> Unit = {},
     private val isAutoApprove: () -> Boolean = { false },
     private val onAutoApproveChanged: (Boolean) -> Unit = {},
     private val isAutoBuild: () -> Boolean = { true },
     private val onAutoBuildChanged: (Boolean) -> Unit = {},
+    private val isBuildInBackground: () -> Boolean = { false },
+    private val onBuildInBackgroundChanged: (Boolean) -> Unit = {},
     private val isAutoFix: () -> Boolean = { false },
     private val onAutoFixChanged: (Boolean) -> Unit = {},
     private val isAggressiveMode: () -> Boolean = { false },
@@ -173,10 +176,18 @@ class AgentTabPanel(
     }
 
     // ── Prompt bubble ─────────────────────────────────────────────────────────
-    private val promptLabel = JBLabel("").apply {
+    private val promptLabel = JBTextArea("").apply {
+        isEditable = false
+        isOpaque = false
+        lineWrap = true
+        wrapStyleWord = true
+        background = cardBackground
         foreground = LlamatikTheme.onSurface
         font = font.deriveFont(Font.BOLD, font.size2D)
         border = JBUI.Borders.empty(0, 0, 10, 0)
+        caret = object : DefaultCaret() {
+            override fun setSelectionVisible(visible: Boolean) = super.setSelectionVisible(true)
+        }
     }
     private val userAvatar = object : JPanel() {
         private val initials: String get() {
@@ -215,6 +226,15 @@ class AgentTabPanel(
         }, BorderLayout.WEST)
         add(promptLabel, BorderLayout.CENTER)
         isVisible = false
+        cursor = java.awt.Cursor(java.awt.Cursor.TEXT_CURSOR)
+        addMouseListener(object : MouseAdapter() {
+            override fun mousePressed(e: MouseEvent) { if (e.isPopupTrigger) showPromptContextMenu(e) }
+            override fun mouseReleased(e: MouseEvent) { if (e.isPopupTrigger) showPromptContextMenu(e) }
+        })
+        promptLabel.addMouseListener(object : MouseAdapter() {
+            override fun mousePressed(e: MouseEvent) { if (e.isPopupTrigger) showPromptContextMenu(e) }
+            override fun mouseReleased(e: MouseEvent) { if (e.isPopupTrigger) showPromptContextMenu(e) }
+        })
     }
 
     // ── Status pill ───────────────────────────────────────────────────────────
@@ -387,6 +407,23 @@ class AgentTabPanel(
         isSelected = isAutoBuild()
         addActionListener { onAutoBuildChanged(isSelected); updateRunOptionsButton() }
     }
+    private val buildIdeItem = JCheckBoxMenuItem(Strings.Agent.AUTO_BUILD_IDE_NEXT).apply {
+        isSelected = !isBuildInBackground()
+    }
+    private val buildBgItem = JCheckBoxMenuItem(Strings.Agent.AUTO_BUILD_BG_NEXT).apply {
+        isSelected = isBuildInBackground()
+    }
+    init {
+        buildIdeItem.addActionListener {
+            if (buildIdeItem.isSelected) { buildBgItem.isSelected = false; onBuildInBackgroundChanged(false) }
+            updateRunOptionsButton()
+        }
+        buildBgItem.addActionListener {
+            if (buildBgItem.isSelected) { buildIdeItem.isSelected = false; onBuildInBackgroundChanged(true) }
+            else { buildIdeItem.isSelected = true; onBuildInBackgroundChanged(false) }
+            updateRunOptionsButton()
+        }
+    }
     private val autoFixItem = JCheckBoxMenuItem(Strings.Agent.AUTO_FIX_NEXT).apply {
         isSelected = isAutoFix()
         addActionListener { onAutoFixChanged(isSelected); updateRunOptionsButton() }
@@ -412,6 +449,8 @@ class AgentTabPanel(
         }
         add(autoApproveItem)
         add(autoBuildItem)
+        add(buildIdeItem)
+        add(buildBgItem)
         add(autoFixItem)
         addSeparator()
         add(aggressiveItem)
@@ -480,6 +519,16 @@ class AgentTabPanel(
         )
         alignmentX = LEFT_ALIGNMENT
     }
+    private val cancelBuildButton = JButton(Strings.Verification.CANCEL_BUILD).apply {
+        isVisible = false
+        isFocusPainted = false
+        isContentAreaFilled = false
+        border = JBUI.Borders.compound(
+            BorderFactory.createLineBorder(LlamatikTheme.onSurface.darker(), 1, true),
+            JBUI.Borders.empty(4, 10),
+        )
+        alignmentX = LEFT_ALIGNMENT
+    }
     private val verificationPanel = JPanel().apply {
         layout = BoxLayout(this, BoxLayout.Y_AXIS)
         isOpaque = false
@@ -490,6 +539,7 @@ class AgentTabPanel(
         add(javax.swing.Box.createVerticalStrut(4))
         add(verifyErrorContent)
         add(javax.swing.Box.createVerticalStrut(4))
+        add(cancelBuildButton)
         add(autoFixButton)
     }
 
@@ -562,6 +612,9 @@ class AgentTabPanel(
         currentCard = name
         cardLayout.show(cardPanel, name)
     }
+
+    // Raw (non-HTML) text of the currently displayed prompt — used for copy action.
+    private var currentPromptText = ""
 
     // ── Streaming state ───────────────────────────────────────────────────────
     private val streamBuffer = StringBuilder()
@@ -792,7 +845,9 @@ class AgentTabPanel(
         pastExchanges.addAll(snapshot.pastExchanges)
         rebuildFrozenHistory()
 
+        currentPromptText = snapshot.prompt
         promptLabel.text = snapshot.prompt
+        promptLabel.caretPosition = 0
         promptBubble.isVisible = snapshot.prompt.isNotEmpty()
         responseTextArea.text = snapshot.responseText
         if (snapshot.responseText.isNotBlank()) {
@@ -848,7 +903,9 @@ class AgentTabPanel(
         pastExchanges.addAll(exchanges)
         rebuildFrozenHistory()
 
-        promptLabel.text = "<html>${prompt.replace("\n", "<br>")}</html>"
+        currentPromptText = prompt
+        promptLabel.text = prompt
+        promptLabel.caretPosition = 0
         promptBubble.isVisible = true
         responseTextArea.text = accumulatedText
         if (accumulatedText.isNotEmpty()) responseTextArea.caretPosition = 0
@@ -892,8 +949,6 @@ class AgentTabPanel(
      */
     fun freezeCurrentTurn() {
         val prompt = promptLabel.text
-            .removePrefix("<html>").removeSuffix("</html>")
-            .replace("<br>", "\n")
         val response = responseTextArea.text
         if (prompt.isBlank() && response.isBlank()) return
 
@@ -1032,7 +1087,9 @@ class AgentTabPanel(
         currentGenerationId++
         genStartMs = System.currentTimeMillis()
 
-        promptLabel.text = "<html>${prompt.replace("\n", "<br>")}</html>"
+        currentPromptText = prompt
+        promptLabel.text = prompt
+        promptLabel.caretPosition = 0
         promptBubble.isVisible = true
 
         thinkHasContent = false
@@ -1081,6 +1138,8 @@ class AgentTabPanel(
 
         autoApproveItem.isSelected = isAutoApprove()
         autoBuildItem.isSelected = isAutoBuild()
+        buildIdeItem.isSelected = !isBuildInBackground()
+        buildBgItem.isSelected = isBuildInBackground()
         autoFixItem.isSelected = isAutoFix()
         aggressiveItem.isSelected = isAggressiveMode()
         updateRunOptionsButton()
@@ -1195,7 +1254,21 @@ class AgentTabPanel(
             }
             proposalsPanel.isVisible = true
         } else {
-            proposalsPanel.isVisible = false
+            // No proposals — show a retry button so the user can re-run without retyping.
+            if (text.isNotBlank()) {
+                val retryBtn = actionButton(Strings.App.RETRY) { onRetry() }.apply {
+                    alignmentX = LEFT_ALIGNMENT
+                }
+                val retryRow = JPanel(FlowLayout(FlowLayout.LEFT, 0, 4)).apply {
+                    isOpaque = false
+                    alignmentX = LEFT_ALIGNMENT
+                    add(retryBtn)
+                }
+                proposalsPanel.add(retryRow)
+                proposalsPanel.isVisible = true
+            } else {
+                proposalsPanel.isVisible = false
+            }
         }
 
         conversationPanel.revalidate()
@@ -1381,12 +1454,19 @@ class AgentTabPanel(
         verificationPanel.isVisible = false
     }
 
-    fun showVerifying(message: String) {
+    fun showVerifying(message: String, onCancel: (() -> Unit)? = null) {
         verifyStatusLabel.text = message
         verifyStatusLabel.foreground = mutedText
         verifyStatusLabel.isVisible = true
         verifyErrorContent.isVisible = false
         autoFixButton.isVisible = false
+        for (l in cancelBuildButton.actionListeners) cancelBuildButton.removeActionListener(l)
+        if (onCancel != null) {
+            cancelBuildButton.addActionListener { onCancel() }
+            cancelBuildButton.isVisible = true
+        } else {
+            cancelBuildButton.isVisible = false
+        }
         verificationPanel.isVisible = true
         conversationPanel.revalidate()
         conversationPanel.repaint()
@@ -1398,6 +1478,7 @@ class AgentTabPanel(
         verifyStatusLabel.foreground = success
         verifyStatusLabel.isVisible = true
         verifyErrorContent.isVisible = false
+        cancelBuildButton.isVisible = false
         autoFixButton.isVisible = false
         verificationPanel.isVisible = true
         conversationPanel.revalidate()
@@ -1411,6 +1492,7 @@ class AgentTabPanel(
         verifyStatusLabel.isVisible = true
         verifyErrorArea.text = errors
         verifyErrorContent.isVisible = true
+        cancelBuildButton.isVisible = false
         for (l in autoFixButton.actionListeners) autoFixButton.removeActionListener(l)
         autoFixButton.text = Strings.Verification.AUTO_FIX
         autoFixButton.addActionListener { onAutoFix() }
@@ -1425,6 +1507,7 @@ class AgentTabPanel(
         verifyStatusLabel.text = Strings.Verification.RETRY_LIMIT
         verifyStatusLabel.foreground = mutedText
         verifyStatusLabel.isVisible = true
+        cancelBuildButton.isVisible = false
         autoFixButton.isVisible = false
         verificationPanel.isVisible = true
         conversationPanel.revalidate()
@@ -1854,15 +1937,36 @@ class AgentTabPanel(
             promptCardButtons.add(this)
         }
 
-    private fun buildToolCallRow(name: String, arg: String): JPanel =
-        JPanel(FlowLayout(FlowLayout.LEFT, 6, 2)).apply {
+    private fun buildToolCallRow(name: String, arg: String): JPanel {
+        val combined = if (arg.isNotBlank()) "$name  $arg" else name
+        val textArea = JBTextArea(combined).apply {
+            isEditable = false
             isOpaque = false
-            add(JBLabel(Strings.Agent.TOOL_CALL_ICON).apply { foreground = mutedText })
-            add(JBLabel("<html><span style='font-family:monospace; color:${LlamatikTheme.htmlOnSurface};'>$name</span></html>"))
-            if (arg.isNotBlank()) {
-                add(JBLabel("<html><span style='font-family:monospace; color:${LlamatikTheme.htmlOnSurfaceVariant};'>$arg</span></html>"))
+            lineWrap = true
+            wrapStyleWord = true
+            background = cardBackground
+            foreground = mutedText
+            border = JBUI.Borders.empty()
+            font = font.deriveFont(Font.PLAIN, font.size2D - 1f).run {
+                java.awt.Font(java.awt.Font.MONOSPACED, style, size)
+            }
+            caret = object : DefaultCaret() {
+                override fun setSelectionVisible(visible: Boolean) = super.setSelectionVisible(true)
             }
         }
+        return JPanel(BorderLayout(6, 0)).apply {
+            isOpaque = false
+            alignmentX = LEFT_ALIGNMENT
+            maximumSize = Dimension(Int.MAX_VALUE, Int.MAX_VALUE)
+            add(JBLabel(Strings.Agent.TOOL_CALL_ICON).apply {
+                foreground = mutedText
+                border = JBUI.Borders.emptyTop(2)
+                verticalAlignment = JBLabel.TOP
+            }, BorderLayout.WEST)
+            add(textArea, BorderLayout.CENTER)
+            border = JBUI.Borders.empty(2, 0)
+        }
+    }
 
     private fun buildProposalCard(
         proposal: EditProposal,
@@ -2037,7 +2141,7 @@ class AgentTabPanel(
     private fun updateRunOptionsButton() {
         val active = listOfNotNull(
             if (autoApproveItem.isSelected) "Auto-apply" else null,
-            if (autoBuildItem.isSelected) "Auto-build" else null,
+            if (autoBuildItem.isSelected) (if (buildBgItem.isSelected) "Auto-build (bg)" else "Auto-build") else null,
             if (autoFixItem.isSelected) "Auto-fix" else null,
             if (aggressiveItem.isSelected) "Aggressive" else null,
         )
@@ -2056,6 +2160,17 @@ class AgentTabPanel(
             font = font.deriveFont(Font.PLAIN, font.size2D - 1f)
             addActionListener { onClick() }
         }
+
+    private fun showPromptContextMenu(e: MouseEvent) {
+        if (currentPromptText.isBlank()) return
+        val menu = JPopupMenu()
+        menu.add(JMenuItem(Strings.App.COPY_ALL).apply {
+            addActionListener {
+                CopyPasteManager.getInstance().setContents(StringSelection(currentPromptText))
+            }
+        })
+        menu.show(e.component, e.x, e.y)
+    }
 
     private fun showTextContextMenu(e: MouseEvent, area: JBTextArea) {
         val menu = JPopupMenu()

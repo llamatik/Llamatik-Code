@@ -13,7 +13,9 @@ import com.llamatik.teammate.backend.SessionTag
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.Executors
+import java.util.concurrent.ThreadFactory
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 
 
 @Service(Service.Level.APP)
@@ -24,9 +26,12 @@ class LlamatikBackendService : AssistantBackend {
     // - updateGenerateParams / initGenerateModel: serialised by modelLock, safe to call from either thread.
     // - applyChatTemplate: pure string formatting, no global state, concurrent-safe.
     // - session.stream(): uses ss->ctx exclusively, concurrent-safe.
-    private val agentExecutor     = Executors.newSingleThreadExecutor()
-    private val chatExecutor      = Executors.newSingleThreadExecutor()
-    private val benchmarkExecutor = Executors.newSingleThreadExecutor()
+    // Thread priority is set at creation time from the persisted resourceMode setting.
+    // Changing resourceMode takes effect on the next plugin restart (executors are long-lived).
+    private val inferenceThreadPriority: Int = resolveThreadPriority()
+    private val agentExecutor     = Executors.newSingleThreadExecutor(inferenceThreadFactory("llamatik-agent",     inferenceThreadPriority))
+    private val chatExecutor      = Executors.newSingleThreadExecutor(inferenceThreadFactory("llamatik-chat",      inferenceThreadPriority))
+    private val benchmarkExecutor = Executors.newSingleThreadExecutor(inferenceThreadFactory("llamatik-benchmark", inferenceThreadPriority))
 
     private val modelLock = Any()
 
@@ -135,7 +140,10 @@ class LlamatikBackendService : AssistantBackend {
                 val (prompt, stopSequences) = if (nativePrompt != null) {
                     // When noThink is requested, pre-fill an empty <think> block on the native
                     // assistant prefix so Qwen3 skips its reasoning phase entirely.
-                    val finalPrompt = if (request.noThink) nativePrompt + "<think>\n\n</think>\n" else nativePrompt
+                    // When assistantPrefill is set, inject it after the think block so the model
+                    // continues generating from that point (e.g. mid-tool-call for write pass).
+                    val withThink = if (request.noThink) nativePrompt + "<think>\n\n</think>\n" else nativePrompt
+                    val finalPrompt = if (request.assistantPrefill.isNotBlank()) withThink + request.assistantPrefill else withThink
                     // Infer stop sequences from the format of the native prompt so we only enforce
                     // turn-boundary markers that this model actually uses. Applying ChatML stops to
                     // a model that uses a different template (e.g. Mellum's <user>/<assistant> format)
@@ -154,7 +162,8 @@ class LlamatikBackendService : AssistantBackend {
                         noThink = request.noThink,
                         modelPath = request.config.modelIdOrPath,
                     )
-                    rendered.text to rendered.stopSequences
+                    val fallbackPrompt = if (request.assistantPrefill.isNotBlank()) rendered.text + request.assistantPrefill else rendered.text
+                    fallbackPrompt to rendered.stopSequences
                 }
 
                 // Guard against n_tokens_all > n_batch assert in llama_decode.
@@ -438,6 +447,35 @@ class LlamatikBackendService : AssistantBackend {
         }
 
         override val isCancelled: Boolean get() = cancelled.get()
+    }
+}
+
+/**
+ * Reads the persisted resourceMode and returns the Java thread priority to use for all
+ * inference executor threads.
+ *   BALANCED → NORM_PRIORITY (5) — default OS scheduling, half the available cores
+ *   LOW      → MIN_PRIORITY  (1) — OS yields this thread whenever anything else wants CPU
+ *   FULL     → NORM_PRIORITY (5) — normal priority, user-configured thread count unchanged
+ */
+private fun resolveThreadPriority(): Int {
+    val mode = runCatching {
+        com.intellij.openapi.components.service<com.llamatik.teammate.settings.LlamatikAppSettings>()
+            .data().resourceMode
+    }.getOrDefault("BALANCED")
+    return if (mode == "LOW") Thread.MIN_PRIORITY else Thread.NORM_PRIORITY
+}
+
+/**
+ * Returns a [ThreadFactory] that names threads with [namePrefix] and sets their OS priority
+ * to [priority]. Named threads make inference threads identifiable in profilers and thread dumps.
+ */
+private fun inferenceThreadFactory(namePrefix: String, priority: Int): ThreadFactory {
+    val counter = AtomicInteger(0)
+    return ThreadFactory { runnable ->
+        Thread(runnable, "$namePrefix-${counter.incrementAndGet()}").also { t ->
+            t.isDaemon = true
+            t.priority = priority
+        }
     }
 }
 

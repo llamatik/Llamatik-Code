@@ -23,7 +23,7 @@ plugins {
 }
 
 group = "com.llamatik.teammate"
-version = "1.8.0"
+version = "1.9.0"
 
 repositories {
     //mavenLocal()
@@ -36,11 +36,12 @@ repositories {
 dependencies {
     intellijPlatform {
         intellijIdea("2026.1")
+        //local("/Applications/Android Studio.app")
         testFramework(org.jetbrains.intellij.platform.gradle.TestFrameworkType.Platform)
         bundledPlugin("org.jetbrains.kotlin")
     }
 
-    implementation("com.llamatik:library:1.8.0")
+    implementation("com.llamatik:library:1.8.1")
     testImplementation("junit:junit:4.13.2")
 }
 
@@ -50,6 +51,59 @@ intellijPlatform {
             sinceBuild = "252"
         }
         changeNotes = """
+            <h2>1.9.0 — Statistics, Resource Modes, Qwen 3.6 &amp; Agent Improvements</h2>
+
+            <h3>Usage Statistics</h3>
+            <ul>
+                <li><b>Statistics settings page</b> — new <b>Settings → Llamatik Code → Statistics</b> page showing total generations, average and longest task times, total generation time, tokens consumed, energy usage, CO₂ avoided vs cloud API, money saved vs cloud API, and most-used model.</li>
+                <li><b>Persistent stats</b> — generation counts, durations, and token totals are stored in <code>llamatik_generation_stats.xml</code> in the IDE config directory and survive IDE restarts.</li>
+                <li><b>Delete all statistics data</b> — one-click button to clear all recorded statistics.</li>
+            </ul>
+
+            <h3>Resource Modes</h3>
+            <ul>
+                <li><b>Resource Mode selector</b> — new <b>Settings → Llamatik Code → Inference → Resource Mode</b> setting with three options: <b>Balanced</b> (default, caps threads at half the physical cores so the IDE stays responsive), <b>Low</b> (quarter cores, minimum 1 — best for background use), and <b>Full</b> (uses the exact thread count from the Threads setting for maximum throughput).</li>
+                <li><b>Thread count defaults to half of physical cores</b> — on fresh installs, the Threads setting now defaults to half the available processors instead of a hard-coded 4, giving a better out-of-the-box experience on both low-end and high-end machines.</li>
+            </ul>
+
+            <h3>Qwen 3.6-27B Added as Default Model</h3>
+            <ul>
+                <li><b>Qwen3.6-27B-Q4_K_M</b> — added to the built-in model catalog as the new default recommended model (Tier 3, 17.1 GB, 20 GB RAM minimum). Excellent balance of reasoning depth and coding quality for demanding local tasks including complex reasoning, large refactors, and agentic workflows.</li>
+                <li>Qwen3-14B is no longer the default; it remains in the catalog as a RECOMMENDED Tier 2 option.</li>
+            </ul>
+
+            <h3>Agent Improvements</h3>
+            <ul>
+                <li><b>Session timeout</b> — agent runs are now capped at 20 minutes. If a generation hangs or runs unexpectedly long, the session is cancelled automatically with a clear message.</li>
+                <li><b>Accumulated read files</b> — files read by the model across rounds are re-injected into every subsequent round so the model always has the source it already read when it comes time to write.</li>
+                <li><b>Write-pass prefill</b> — the assistant turn is pre-filled with the opening of a <code>write_file</code> call on the final round, preventing the model from emitting prose instead of code.</li>
+                <li><b>Round token budgets</b> — exploration rounds use a tighter token cap; the full budget is reserved for the write pass so large file content fits in the output.</li>
+                <li><b>Round 2 content budget</b> — source re-injection and tool results are budgeted jointly against a shared limit so their combined size never exceeds the backend context cap.</li>
+                <li><b>Retry button</b> — a Retry button is now shown after a completed agent task, re-submitting the same prompt for another attempt.</li>
+                <li><b>Build in background option</b> — a new Run Options menu in the Agent panel lets you choose between IDE incremental build (default, fast) and background Gradle build for projects that require it. The choice is persisted per project.</li>
+                <li><b>Cancel build button</b> — a Cancel Build button is shown during build verification so long Gradle builds can be aborted without leaving the IDE.</li>
+            </ul>
+
+            <h3>Tool Call Parser — JSON &amp; Fuzzy Arg Parsing</h3>
+            <ul>
+                <li><b>JSON arg fallback</b> — the tool call parser now accepts JSON objects (<code>{"query": "…"}</code>) as argument bodies in addition to the canonical XML <code>&lt;arg&gt;</code> format. Handles the common case where Qwen3 and other models emit JSON-style tool calls.</li>
+                <li><b>Key-value line fallback</b> — if neither XML nor JSON is recognised, the parser tries <code>key: value</code> line format.</li>
+                <li><b>Single positional value fallback</b> — for tools that take a single primary argument, a bare string value is accepted and mapped to the correct argument name automatically.</li>
+            </ul>
+
+            <h3>replace_in_file — Fuzzy Matching</h3>
+            <ul>
+                <li><b>Indent-normalised match</b> — when the exact <code>oldText</code> is not found, the tool now retries after normalising indentation on both sides. Local models frequently hallucinate slightly wrong indentation, causing exact matches to fail; this catches most of those cases.</li>
+                <li><b>Trimmed-lines match</b> — a third fallback compares logical lines ignoring all leading/trailing whitespace, catching cases where the model omits or changes blank lines between code blocks.</li>
+                <li><b>Clearer error messages</b> — when all three strategies fail, the error now explains exactly why and tells the model to use <code>read_file</code> first, then copy the exact text.</li>
+            </ul>
+
+            <h3>Build Verification</h3>
+            <ul>
+                <li><b>IDE incremental build</b> — build verification now supports triggering a fast IDE incremental Make via <code>CompilerManager</code> in addition to the existing Gradle subprocess mode. IDE build is the new default.</li>
+                <li><b>Infrastructure error filtering</b> — <code>[Internal Error]</code> messages (JVM/plugin crashes such as Compose/Kotlin version mismatches) are filtered from the error list before it reaches the autofix model, preventing the model from wasting rounds trying to fix unfixable infrastructure failures.</li>
+            </ul>
+
             <h2>1.8.0 — Autonomous Local Development, Agent Reliability &amp; Library Upgrade</h2>
 
             <h3>Autonomous Local Development</h3>
@@ -385,6 +439,23 @@ tasks {
     withType<JavaCompile> {
         sourceCompatibility = "21"
         targetCompatibility = "21"
+    }
+}
+
+// The kmm-plugin bundled with Android Studio ships a macOS .framework with a
+// Versions/Current → A symlink. If the sandbox is left in a partial state (A missing),
+// the IntelliJ Platform plugin's NIO copy fails with "Couldn't follow symbolic link".
+// Delete any stale Bridge.framework directories before prepareSandbox runs so they are
+// always recreated cleanly from the IDE installation.
+tasks.named("prepareSandbox") {
+    val sandboxDir = layout.projectDirectory.dir(".intellijPlatform/sandbox").asFile
+    doFirst {
+        if (sandboxDir.exists()) {
+            sandboxDir.walkTopDown()
+                .filter { it.name == "Bridge.framework" && it.isDirectory }
+                .toList()
+                .forEach { it.deleteRecursively() }
+        }
     }
 }
 
