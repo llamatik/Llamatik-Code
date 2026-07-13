@@ -42,6 +42,9 @@ class ModelDownloadManager {
      * Start a real HTTP download for [modelId] from [downloadUrl], saving to [destDir]/[fileName].
      * Follows redirects (e.g. HuggingFace resolve URLs) to get the real content-length.
      * Progress is streamed via listeners every ~500 ms.
+     *
+     * [currentShard] and [totalShards] are forwarded into every [DownloadProgressState] emitted
+     * so that callers handling multi-shard downloads can display "Shard N / M" in the UI.
      */
     fun startDownload(
         modelId: String,
@@ -50,6 +53,11 @@ class ModelDownloadManager {
         fileName: String,
         onComplete: (localPath: String) -> Unit = {},
         onError: (message: String) -> Unit = {},
+        currentShard: Int = 1,
+        totalShards: Int = 1,
+        // Suppress automatic markDownloaded() for intermediate shards; the multi-shard
+        // orchestrator calls it explicitly after the final shard completes.
+        skipRegistration: Boolean = false,
     ) {
         if (activeFutures[modelId]?.isDone == false) {
             logger.info("Download already in progress for $modelId")
@@ -67,6 +75,8 @@ class ModelDownloadManager {
             speedBytesPerSec = 0L,
             etaSeconds = 0L,
             status = ModelStatus.DOWNLOADING,
+            currentShard = currentShard,
+            totalShards = totalShards,
         )
         progressMap[modelId] = initial
         notifyListeners(modelId, initial)
@@ -76,7 +86,7 @@ class ModelDownloadManager {
                 // Follow redirects manually so we can read content-length after all hops
                 val finalConnection = openFollowingRedirects(downloadUrl)
                 val totalBytes = finalConnection.contentLengthLong
-                logger.info("Starting download for $modelId: totalBytes=$totalBytes url=${finalConnection.url}")
+                logger.info("Starting download for $modelId shard $currentShard/$totalShards: totalBytes=$totalBytes url=${finalConnection.url}")
 
                 val withTotal = initial.copy(totalBytes = totalBytes)
                 progressMap[modelId] = withTotal
@@ -114,6 +124,8 @@ class ModelDownloadManager {
                                     speedBytesPerSec = speed,
                                     etaSeconds = eta,
                                     status = ModelStatus.DOWNLOADING,
+                                    currentShard = currentShard,
+                                    totalShards = totalShards,
                                 )
                                 progressMap[modelId] = progress
                                 notifyListeners(modelId, progress)
@@ -131,6 +143,8 @@ class ModelDownloadManager {
                             speedBytesPerSec = 0L,
                             etaSeconds = 0L,
                             status = ModelStatus.DOWNLOADING,
+                            currentShard = currentShard,
+                            totalShards = totalShards,
                         )
                         progressMap[modelId] = finalProgress
                         notifyListeners(modelId, finalProgress)
@@ -139,9 +153,9 @@ class ModelDownloadManager {
 
                 Files.move(partFile, destFile, StandardCopyOption.REPLACE_EXISTING)
                 val localPath = destFile.toAbsolutePath().toString()
-                logger.info("Download complete for $modelId → $localPath")
+                logger.info("Download complete for $modelId shard $currentShard/$totalShards → $localPath")
 
-                markDownloaded(modelId, localPath)
+                if (!skipRegistration) markDownloaded(modelId, localPath)
                 onComplete(localPath)
 
             } catch (e: InterruptedException) {
@@ -160,6 +174,70 @@ class ModelDownloadManager {
         }
 
         activeFutures[modelId] = future
+    }
+
+    /**
+     * Download a multi-shard GGUF model sequentially.
+     *
+     * Each URL in [shardUrls] is downloaded one at a time into [destDir] using
+     * the matching name from [shardFileNames]. Progress listeners on [modelId]
+     * receive [DownloadProgressState] with [DownloadProgressState.currentShard]
+     * and [DownloadProgressState.totalShards] populated so the UI can render
+     * "Shard N / M".
+     *
+     * [onComplete] is called with the path of the *first* shard — llama.cpp
+     * auto-discovers the remaining shards from the same directory.
+     */
+    fun startMultiShardDownload(
+        modelId: String,
+        shardUrls: List<String>,
+        shardFileNames: List<String>,
+        destDir: Path,
+        onComplete: (firstShardPath: String) -> Unit = {},
+        onError: (message: String) -> Unit = {},
+    ) {
+        require(shardUrls.size == shardFileNames.size) {
+            "shardUrls and shardFileNames must have the same size"
+        }
+        require(shardUrls.isNotEmpty()) { "shardUrls must not be empty" }
+
+        if (activeFutures[modelId]?.isDone == false) {
+            logger.info("Multi-shard download already in progress for $modelId")
+            return
+        }
+
+        val totalShards = shardUrls.size
+
+        // Kick off the first shard; each shard's onComplete chains into the next.
+        fun downloadShard(index: Int) {
+            if (progressMap[modelId]?.status == ModelStatus.NOT_DOWNLOADED) return
+
+            val isLast = index + 1 == totalShards
+            startDownload(
+                modelId = modelId,
+                downloadUrl = shardUrls[index],
+                destDir = destDir,
+                fileName = shardFileNames[index],
+                currentShard = index + 1,
+                totalShards = totalShards,
+                // Only register (and emit DOWNLOADED) after the final shard
+                skipRegistration = !isLast,
+                onComplete = { _ ->
+                    if (!isLast) {
+                        downloadShard(index + 1)
+                    } else {
+                        // All shards done — register the first shard path; llama.cpp
+                        // auto-discovers the remaining shards in the same directory.
+                        val firstShardPath = destDir.resolve(shardFileNames[0]).toAbsolutePath().toString()
+                        markDownloaded(modelId, firstShardPath)
+                        onComplete(firstShardPath)
+                    }
+                },
+                onError = onError,
+            )
+        }
+
+        downloadShard(0)
     }
 
     fun cancelDownload(modelId: String) {

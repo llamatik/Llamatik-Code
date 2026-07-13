@@ -313,47 +313,73 @@ class ModelCardPanel(
                 .takeIf { it.endsWith(".gguf") }
             ?: "${descriptor.id}.gguf"
 
+    private fun shardFileNames(): List<String> =
+        descriptor.shardDownloadUrls.map { url ->
+            url.substringAfterLast('/').substringBefore('?')
+                .takeIf { it.endsWith(".gguf") } ?: url.substringAfterLast('/')
+        }
+
     private fun startDownload() {
         val destDir = settings.storageDir()
-        val fileName = localFileName()
         val mmprojUrl = descriptor.mmprojDownloadUrl
         val hasMmproj = mmprojUrl != null
 
-        showProgressBar(
-            bytesDownloaded = 0L,
-            totalBytes = (descriptor.diskSizeGb * 1_073_741_824).toLong(),
-            phase = if (hasMmproj) "Downloading model (1/2)…" else null,
-        )
-        attachProgressListener()
-
-        downloadManager.startDownload(
-            modelId = descriptor.id,
-            downloadUrl = descriptor.downloadSourceUrl,
-            destDir = destDir,
-            fileName = fileName,
-            onComplete = { localPath ->
-                if (hasMmproj) {
-                    startMmprojDownload(mmprojUrl!!, destDir, localPath)
-                } else {
-                    ApplicationManager.getApplication().invokeLater({
-                        updateStatusBadge(ModelStatus.DOWNLOADED)
-                        refreshActionsPanel()
-                        Messages.showInfoMessage(
-                            project,
-                            "\"${descriptor.displayName}\" downloaded.\nPath: $localPath\n\nClick Load to make it active.",
-                            "Download Complete",
-                        )
-                    }, ModalityState.any())
-                }
-            },
-            onError = { msg ->
+        val onDownloadComplete: (String) -> Unit = { localPath ->
+            if (hasMmproj && mmprojUrl != null) {
+                startMmprojDownload(mmprojUrl, destDir, localPath)
+            } else {
                 ApplicationManager.getApplication().invokeLater({
-                    updateStatusBadge(ModelStatus.FAILED)
+                    updateStatusBadge(ModelStatus.DOWNLOADED)
                     refreshActionsPanel()
-                    Messages.showErrorDialog(project, "Download failed: $msg", "Download Error")
+                    Messages.showInfoMessage(
+                        project,
+                        "\"${descriptor.displayName}\" downloaded.\nPath: $localPath\n\nClick Load to make it active.",
+                        "Download Complete",
+                    )
                 }, ModalityState.any())
-            },
-        )
+            }
+        }
+        val onDownloadError: (String) -> Unit = { msg ->
+            ApplicationManager.getApplication().invokeLater({
+                updateStatusBadge(ModelStatus.FAILED)
+                refreshActionsPanel()
+                Messages.showErrorDialog(project, "Download failed: $msg", "Download Error")
+            }, ModalityState.any())
+        }
+
+        if (descriptor.isMultiShard) {
+            val shardNames = shardFileNames()
+            val totalShards = shardNames.size
+            showProgressBar(
+                bytesDownloaded = 0L,
+                totalBytes = (descriptor.diskSizeGb * 1_073_741_824).toLong(),
+                phase = "Downloading shard 1 / $totalShards…",
+            )
+            attachProgressListener()
+            downloadManager.startMultiShardDownload(
+                modelId = descriptor.id,
+                shardUrls = descriptor.shardDownloadUrls,
+                shardFileNames = shardNames,
+                destDir = destDir,
+                onComplete = onDownloadComplete,
+                onError = onDownloadError,
+            )
+        } else {
+            showProgressBar(
+                bytesDownloaded = 0L,
+                totalBytes = (descriptor.diskSizeGb * 1_073_741_824).toLong(),
+                phase = if (hasMmproj) "Downloading model (1/2)…" else null,
+            )
+            attachProgressListener()
+            downloadManager.startDownload(
+                modelId = descriptor.id,
+                downloadUrl = descriptor.downloadSourceUrl,
+                destDir = destDir,
+                fileName = localFileName(),
+                onComplete = onDownloadComplete,
+                onError = onDownloadError,
+            )
+        }
     }
 
     private fun startMmprojDownload(mmprojUrl: String, destDir: java.nio.file.Path, modelLocalPath: String) {
@@ -403,6 +429,9 @@ class ModelCardPanel(
                     ModelStatus.DOWNLOADING -> {
                         updateProgressBar(state.bytesDownloaded, state.totalBytes)
                         updateStatusBadge(ModelStatus.DOWNLOADING)
+                        if (state.totalShards > 1) {
+                            updatePhaseLabel("Downloading shard ${state.currentShard} / ${state.totalShards}…")
+                        }
                     }
                     ModelStatus.DOWNLOADED -> {
                         // If there is an mmproj to download, keep the progress bar visible until

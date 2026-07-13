@@ -172,8 +172,11 @@ object BuiltInModelCatalog {
             tradeoffs = "Strong balanced reasoning/coding model with thinking and non-thinking modes; heavier and less coding-specialized than Qwen3-Coder.",
             repositoryUrl = "https://huggingface.co/zai-org/GLM-4.5-Air",
             modelCardUrl = "https://huggingface.co/unsloth/GLM-4.5-Air-GGUF",
-            downloadSourceUrl = "https://huggingface.co/unsloth/GLM-4.5-Air-GGUF/resolve/main/Q4_K_M/GLM-4.5-Air-Q4_K_M-00001-of-00002.gguf?download=true",
-            recommendedFileName = "GLM-4.5-Air-Q4_K_M-00001-of-00002.gguf",
+            // Two-shard split GGUF; downloaded sequentially. llama.cpp loads via the first shard path.
+            shardDownloadUrls = listOf(
+                "https://huggingface.co/unsloth/GLM-4.5-Air-GGUF/resolve/main/Q4_K_M/GLM-4.5-Air-Q4_K_M-00001-of-00002.gguf?download=true",
+                "https://huggingface.co/unsloth/GLM-4.5-Air-GGUF/resolve/main/Q4_K_M/GLM-4.5-Air-Q4_K_M-00002-of-00002.gguf?download=true",
+            ),
             specialization = ModelSpecialization.BALANCED,
             catalogStatus = ModelCatalogStatus.RECOMMENDED,
         ),

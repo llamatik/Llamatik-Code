@@ -30,6 +30,10 @@ data class DownloadProgressState(
     val speedBytesPerSec: Long,
     val etaSeconds: Long,
     val status: ModelStatus,
+    /** 1-based index of the shard currently downloading. 1 for single-file downloads. */
+    val currentShard: Int = 1,
+    /** Total number of shards. 1 for single-file downloads. */
+    val totalShards: Int = 1,
 )
 
 data class HardwareCompatibility(
