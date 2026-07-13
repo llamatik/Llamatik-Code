@@ -363,7 +363,7 @@ object Strings {
         const val PRESET_QUALITY = "Best local quality"
         const val PRESET_LOW_MEM = "Low-memory machine"
         const val PRESET_ENTERPRISE = "Enterprise / private mode"
-        const val PRESET_FAST_DESC = "Qwen2.5 Coder 7B — quick responses, lower RAM (~8 GB)"
+        const val PRESET_FAST_DESC = "Devstral Small 1.1 — agentic coding, ~16 GB RAM"
         const val PRESET_BALANCED_DESC = "Qwen3 14B — strong reasoning and coding (~16 GB RAM)"
         const val PRESET_QUALITY_DESC = "DeepSeek R1 Distill 32B — best quality, needs 32 GB+ RAM"
         const val PRESET_LOW_MEM_DESC = "Gemma 4 E4B — runs on 8 GB or less"

@@ -5,41 +5,18 @@ import com.llamatik.teammate.model.ModelCatalogStatus
 import com.llamatik.teammate.model.ModelSpecialization
 import com.llamatik.teammate.model.ModelTier
 
+// Catalog strategy:
+//   Tier 1 — Lightweight local assistants (≤8 GB RAM): fast, low-resource helpers
+//   Tier 2 — Balanced local assistants (12–16 GB RAM): strong reasoning + coding for everyday use
+//   Tier 3 — Claude Sonnet-like coding/reasoning models (24–64 GB RAM): agentic, repo-scale work
+//
+// TODO (Ultra / workstation tier): Kimi K2 — exceptional agentic coding quality but requires
+//   80–140 GB RAM even in Q4; excluded from default catalog to avoid confusing normal users.
+
 object BuiltInModelCatalog {
     val models: List<ExtendedModelDescriptor> = listOf(
-        // Tier 1 - Lightweight
-        ExtendedModelDescriptor(
-            id = "phi-3-mini-q4",
-            displayName = "Phi-3 Mini",
-            quantization = "Q4_K_M",
-            diskSizeGb = 2.2,
-            minRamGb = 4.0,
-            recommendedRamGb = 8.0,
-            tier = ModelTier.TIER_1,
-            useCases = listOf("Quick queries", "Low-resource machines"),
-            tradeoffs = "Fast and tiny, but weaker for deeper repo reasoning and larger edits.",
-            modelCardUrl = "https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-gguf",
-            specialization = ModelSpecialization.GENERAL_REASONING,
-            catalogStatus = ModelCatalogStatus.LEGACY,
-            downloadSourceUrl = "https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-gguf/resolve/main/Phi-3-mini-4k-instruct-q4.gguf?download=true"
-        ),
-        ExtendedModelDescriptor(
-            id = "qwen2.5-coder-7b-q4",
-            displayName = "Qwen2.5-Coder 7B",
-            quantization = "Q4_K_M",
-            diskSizeGb = 4.4,
-            minRamGb = 6.0,
-            recommendedRamGb = 8.0,
-            tier = ModelTier.TIER_1,
-            useCases = listOf("Code completion", "Explanation", "Bug fixing"),
-            tradeoffs = "Great lightweight coding pick with strong speed-to-quality balance.",
-            repositoryUrl = "https://huggingface.co/Qwen/Qwen2.5-Coder-7B-Instruct",
-            modelCardUrl = "https://huggingface.co/Qwen/Qwen2.5-Coder-7B-Instruct-GGUF",
-            downloadSourceUrl = "https://huggingface.co/Qwen/Qwen2.5-Coder-7B-Instruct-GGUF/resolve/main/qwen2.5-coder-7b-instruct-q4_k_m.gguf?download=true",
-            recommendedFileName = "qwen2.5-coder-7b-instruct-q4_k_m.gguf",
-            specialization = ModelSpecialization.CODING,
-            catalogStatus = ModelCatalogStatus.RECOMMENDED,
-        ),
+
+        // ── Tier 1 — Lightweight ─────────────────────────────────────────────
         ExtendedModelDescriptor(
             id = "gemma-4-e2b-it",
             displayName = "Gemma 4 E2B it",
@@ -75,7 +52,7 @@ object BuiltInModelCatalog {
             mmprojDownloadUrl = "https://huggingface.co/ggml-org/gemma-4-E4B-it-GGUF/resolve/main/mmproj-gemma-4-E4B-it-Q8_0.gguf?download=true"
         ),
 
-        // Tier 2 - Balanced
+        // ── Tier 2 — Balanced ────────────────────────────────────────────────
         ExtendedModelDescriptor(
             id = "qwen3-14b-q4",
             displayName = "Qwen3-14B",
@@ -85,45 +62,13 @@ object BuiltInModelCatalog {
             recommendedRamGb = 16.0,
             tier = ModelTier.TIER_2,
             useCases = listOf("Complex reasoning", "Refactoring", "Architecture"),
-            tradeoffs = "Excellent reasoning and broad coding help, especially for complex tasks.",
+            tradeoffs = "Excellent reasoning and broad coding help, especially for complex tasks. Best 16 GB RAM option.",
             repositoryUrl = "https://huggingface.co/Qwen/Qwen3-14B",
             modelCardUrl = "https://huggingface.co/Qwen/Qwen3-14B-GGUF",
             downloadSourceUrl = "https://huggingface.co/ggml-org/Qwen3-14B-GGUF/resolve/main/Qwen3-14B-Q4_K_M.gguf?download=true",
             recommendedFileName = "qwen3-14b-q4_k_m.gguf",
             specialization = ModelSpecialization.BALANCED,
             catalogStatus = ModelCatalogStatus.RECOMMENDED,
-        ),
-        ExtendedModelDescriptor(
-            id = "qwen2.5-coder-7b-full",
-            displayName = "Qwen2.5-Coder 7B (full precision)",
-            quantization = "F16",
-            diskSizeGb = 15.2,
-            minRamGb = 16.0,
-            recommendedRamGb = 24.0,
-            tier = ModelTier.TIER_2,
-            useCases = listOf("High-quality code generation"),
-            tradeoffs = "Higher quality than the Q4 variant, but much heavier for day-to-day plugin use.",
-            repositoryUrl = "https://huggingface.co/Qwen/Qwen2.5-Coder-7B-Instruct",
-            modelCardUrl = "https://huggingface.co/Qwen/Qwen2.5-Coder-7B-Instruct-GGUF",
-            specialization = ModelSpecialization.CODING,
-            catalogStatus = ModelCatalogStatus.LEGACY,
-            downloadSourceUrl = "https://huggingface.co/ggml-org/Qwen2.5-Coder-7B-Instruct-Q8_0-GGUF/resolve/main/qwen2.5-coder-7b-instruct-q8_0.gguf?download=true"
-        ),
-        ExtendedModelDescriptor(
-            id = "deepseek-coder-6.7b-q4",
-            displayName = "DeepSeek-Coder 6.7B",
-            quantization = "Q4_K_M",
-            diskSizeGb = 4.1,
-            minRamGb = 6.0,
-            recommendedRamGb = 8.0,
-            tier = ModelTier.TIER_2,
-            useCases = listOf("Code generation", "Completion"),
-            tradeoffs = "Still useful, but older than newer coding-focused open models.",
-            repositoryUrl = "https://huggingface.co/deepseek-ai/deepseek-coder-6.7b-instruct",
-            modelCardUrl = "https://huggingface.co/deepseek-ai/deepseek-coder-6.7b-instruct",
-            specialization = ModelSpecialization.CODING,
-            catalogStatus = ModelCatalogStatus.LEGACY,
-            downloadSourceUrl = "https://huggingface.co/TheBloke/deepseek-coder-6.7B-instruct-GGUF/resolve/main/deepseek-coder-6.7b-instruct.Q4_K_M.gguf?download=true"
         ),
         ExtendedModelDescriptor(
             id = "gemma-4-26b-a4b-q4",
@@ -142,8 +87,9 @@ object BuiltInModelCatalog {
             downloadSourceUrl = "https://huggingface.co/ggml-org/gemma-4-26B-A4B-it-GGUF/resolve/main/gemma-4-26B-A4B-it-Q4_K_M.gguf?download=true"
         ),
 
-        // Tier 3 - High performance
+        // ── Tier 3 — Claude Sonnet-like coding / reasoning ───────────────────
         ExtendedModelDescriptor(
+            // Best local balanced model; default for general use
             id = "qwen3.6-27b-q4",
             displayName = "Qwen3.6-27B",
             quantization = "Q4_K_M",
@@ -162,23 +108,42 @@ object BuiltInModelCatalog {
             isDefault = true,
         ),
         ExtendedModelDescriptor(
-            id = "qwen2.5-coder-14b-q4",
-            displayName = "Qwen2.5-Coder 14B",
+            // Closest local coding-specialized model to a Claude Sonnet-like IDE experience
+            id = "qwen3-coder-30b-a3b-q4",
+            displayName = "Qwen3-Coder 30B A3B",
             quantization = "Q4_K_M",
-            diskSizeGb = 8.9,
-            minRamGb = 12.0,
-            recommendedRamGb = 16.0,
+            diskSizeGb = 18.6,
+            minRamGb = 24.0,
+            recommendedRamGb = 32.0,
             tier = ModelTier.TIER_3,
-            useCases = listOf("Advanced code generation", "Large refactors"),
-            tradeoffs = "One of the best coding-specialized local models for IntelliJ workflows.",
-            repositoryUrl = "https://huggingface.co/Qwen/Qwen2.5-Coder-14B-Instruct",
-            modelCardUrl = "https://huggingface.co/Qwen/Qwen2.5-Coder-14B-Instruct-GGUF",
-            downloadSourceUrl = "https://huggingface.co/llm76/Qwen2.5-Coder-14B-Instruct-Q4_K_M-GGUF/resolve/main/qwen2.5-coder-14b-instruct-q4_k_m.gguf?download=true",
-            recommendedFileName = "qwen2.5-coder-14b-instruct-q4_k_m.gguf",
+            useCases = listOf("Agentic coding", "Repository-scale refactors", "Tool use", "Architecture"),
+            tradeoffs = "Closest local coding-specialized option to a Claude Sonnet-like IDE experience, but requires a high-end machine.",
+            repositoryUrl = "https://huggingface.co/Qwen/Qwen3-Coder-30B-A3B-Instruct",
+            modelCardUrl = "https://huggingface.co/unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF",
+            downloadSourceUrl = "https://huggingface.co/unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF/resolve/main/Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf?download=true",
+            recommendedFileName = "Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf",
             specialization = ModelSpecialization.CODING,
             catalogStatus = ModelCatalogStatus.RECOMMENDED,
         ),
         ExtendedModelDescriptor(
+            id = "devstral-small-1.1-q4",
+            displayName = "Devstral Small 1.1",
+            quantization = "Q4_K_M",
+            diskSizeGb = 14.3,
+            minRamGb = 16.0,
+            recommendedRamGb = 32.0,
+            tier = ModelTier.TIER_3,
+            useCases = listOf("Agentic software engineering", "Multi-file edits", "Codebase exploration", "Bug fixing"),
+            tradeoffs = "Excellent agentic coding model for tool-heavy IDE workflows; more practical than older Codestral for software-engineering agents.",
+            repositoryUrl = "https://huggingface.co/mistralai/Devstral-Small-2507",
+            modelCardUrl = "https://huggingface.co/unsloth/Devstral-Small-2507-GGUF",
+            downloadSourceUrl = "https://huggingface.co/unsloth/Devstral-Small-2507-GGUF/resolve/main/Devstral-Small-2507-Q4_K_M.gguf?download=true",
+            recommendedFileName = "Devstral-Small-2507-Q4_K_M.gguf",
+            specialization = ModelSpecialization.CODING,
+            catalogStatus = ModelCatalogStatus.RECOMMENDED,
+        ),
+        ExtendedModelDescriptor(
+            // Fill-in-middle specialist; superseded for agentic use by Devstral
             id = "codestral-22b-q4",
             displayName = "Codestral 22B",
             quantization = "Q4_K_M",
@@ -187,12 +152,29 @@ object BuiltInModelCatalog {
             recommendedRamGb = 32.0,
             tier = ModelTier.TIER_3,
             useCases = listOf("Fill-in-middle", "Long context code"),
-            tradeoffs = "Exceptional coding model for larger machines and long-context code tasks.",
+            tradeoffs = "Proven FIM specialist for long-context code tasks; superseded by Devstral for agentic software engineering.",
             repositoryUrl = "https://huggingface.co/mistralai/Codestral-22B-v0.1",
             modelCardUrl = "https://huggingface.co/QuantFactory/Codestral-22B-v0.1-GGUF",
             downloadSourceUrl = "https://huggingface.co/paulie6us/Codestral-22B-v0.1-Q4_K_M-GGUF/resolve/main/codestral-22b-v0.1-q4_k_m.gguf?download=true",
             recommendedFileName = "Codestral-22B-v0.1.Q4_K_M.gguf",
             specialization = ModelSpecialization.CODING,
+            catalogStatus = ModelCatalogStatus.LEGACY,
+        ),
+        ExtendedModelDescriptor(
+            id = "glm-4.5-air-q4",
+            displayName = "GLM-4.5 Air",
+            quantization = "Q4_K_M",
+            diskSizeGb = 73.0,
+            minRamGb = 32.0,
+            recommendedRamGb = 64.0,
+            tier = ModelTier.TIER_3,
+            useCases = listOf("Hybrid reasoning", "Coding", "Tool use", "Agentic workflows"),
+            tradeoffs = "Strong balanced reasoning/coding model with thinking and non-thinking modes; heavier and less coding-specialized than Qwen3-Coder.",
+            repositoryUrl = "https://huggingface.co/zai-org/GLM-4.5-Air",
+            modelCardUrl = "https://huggingface.co/unsloth/GLM-4.5-Air-GGUF",
+            downloadSourceUrl = "https://huggingface.co/unsloth/GLM-4.5-Air-GGUF/resolve/main/Q4_K_M/GLM-4.5-Air-Q4_K_M-00001-of-00002.gguf?download=true",
+            recommendedFileName = "GLM-4.5-Air-Q4_K_M-00001-of-00002.gguf",
+            specialization = ModelSpecialization.BALANCED,
             catalogStatus = ModelCatalogStatus.RECOMMENDED,
         ),
         ExtendedModelDescriptor(
