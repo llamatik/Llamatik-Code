@@ -25,6 +25,10 @@ plugins {
 group = "com.llamatik.teammate"
 version = "1.9.0"
 
+kotlin {
+    jvmToolchain(21)
+}
+
 repositories {
     //mavenLocal()
     mavenCentral()
@@ -35,13 +39,14 @@ repositories {
 
 dependencies {
     intellijPlatform {
-        intellijIdea("2026.1")
-        //local("/Applications/Android Studio.app")
+        //intellijIdea("2026.1")
+        local("/Applications/Android Studio.app")
         testFramework(org.jetbrains.intellij.platform.gradle.TestFrameworkType.Platform)
+        bundledPlugin("com.intellij.java")
         bundledPlugin("org.jetbrains.kotlin")
     }
 
-    implementation("com.llamatik:library:1.8.1")
+    implementation("com.llamatik:core:2.0.0")
     testImplementation("junit:junit:4.13.2")
 }
 

@@ -3,8 +3,8 @@ package com.llamatik.teammate.llamatik
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.thisLogger
 import com.llamatik.teammate.ui.Strings
-import com.llamatik.library.platform.GenStream
-import com.llamatik.library.platform.LlamaSession
+import com.llamatik.core.platform.GenStream
+import com.llamatik.core.platform.LlamaSession
 import com.llamatik.teammate.backend.AssistantBackend
 import com.llamatik.teammate.backend.GenerationCallbacks
 import com.llamatik.teammate.backend.GenerationHandle
@@ -66,7 +66,7 @@ class LlamatikBackendService : AssistantBackend {
             synchronized(modelLock) {
                 closeSessionsLocked()
                 if (initializedModel != null) {
-                    runCatching { com.llamatik.library.platform.LlamaBridge.shutdown() }
+                    runCatching { com.llamatik.core.platform.LlamaBridge.shutdown() }
                     initializedModel = null
                     loadedFinetuneType = null
                 }
@@ -132,7 +132,7 @@ class LlamatikBackendService : AssistantBackend {
                 // Use the model's own embedded chat template via the native API.
                 // Falls back to PluginPromptRenderer if the template is unavailable
                 // (e.g. GGUF has no embedded template).
-                val nativePrompt = com.llamatik.library.platform.LlamaBridge
+                val nativePrompt = com.llamatik.core.platform.LlamaBridge
                     .applyChatTemplate(chatMessages, addAssistantPrefix = true)
                     ?.removePrefix("<s>")   // strip BOS — tokenizer adds it; double BOS corrupts model
                     ?.takeIf { it.isNotBlank() }
@@ -265,7 +265,7 @@ class LlamatikBackendService : AssistantBackend {
         val existing = sessionFor(tag)
         if (existing != null) return existing
 
-        val session = com.llamatik.library.platform.LlamaBridge.createSession()
+        val session = com.llamatik.core.platform.LlamaBridge.createSession()
         if (session != null) {
             when (tag) {
                 SessionTag.AGENT     -> agentSession     = session
@@ -345,7 +345,7 @@ class LlamatikBackendService : AssistantBackend {
 
             if (!paramsChanged && !modelChanged) {
                 // Nothing to do — update sampling params only.
-                com.llamatik.library.platform.LlamaBridge.updateGenerateParams(
+                com.llamatik.core.platform.LlamaBridge.updateGenerateParams(
                     temperature = config.temperature.toFloat(),
                     maxTokens = config.maxTokens,
                     topP = 0.95f,
@@ -367,7 +367,7 @@ class LlamatikBackendService : AssistantBackend {
             initializedModel = null
             loadedFinetuneType = null
 
-            com.llamatik.library.platform.LlamaBridge.updateGenerateParams(
+            com.llamatik.core.platform.LlamaBridge.updateGenerateParams(
                 temperature = config.temperature.toFloat(),
                 maxTokens = config.maxTokens,
                 topP = 0.95f,
@@ -381,12 +381,12 @@ class LlamatikBackendService : AssistantBackend {
                 gpuLayers = config.gpuLayers,
             )
 
-            val ok = com.llamatik.library.platform.LlamaBridge.initGenerateModel(normalizedModelPath)
+            val ok = com.llamatik.core.platform.LlamaBridge.initGenerateModel(normalizedModelPath)
             if (!ok) error("Failed to initialize Llamatik model: $normalizedModelPath")
 
             initializedModel = normalizedModelPath
             loadedFinetuneType = runCatching {
-                com.llamatik.library.platform.LlamaBridge.getModelFinetuneType()
+                com.llamatik.core.platform.LlamaBridge.getModelFinetuneType()
             }.getOrNull()
             lastContextLength = config.contextLength
             lastBatchSize = config.batchSize
@@ -454,7 +454,9 @@ class LlamatikBackendService : AssistantBackend {
  * Reads the persisted resourceMode and returns the Java thread priority to use for all
  * inference executor threads.
  *   BALANCED → NORM_PRIORITY (5) — default OS scheduling, half the available cores
- *   LOW      → MIN_PRIORITY  (1) — OS yields this thread whenever anything else wants CPU
+ *   LOW      → MIN_PRIORITY+1 (2) — yields to interactive threads but still makes progress;
+ *                MIN_PRIORITY (1) maps to macOS Background QoS, which is nearly never scheduled
+ *                when IntelliJ is active — causing multi-hour prompt prefill stalls on large models.
  *   FULL     → NORM_PRIORITY (5) — normal priority, user-configured thread count unchanged
  */
 private fun resolveThreadPriority(): Int {
@@ -462,7 +464,7 @@ private fun resolveThreadPriority(): Int {
         com.intellij.openapi.components.service<com.llamatik.teammate.settings.LlamatikAppSettings>()
             .data().resourceMode
     }.getOrDefault("BALANCED")
-    return if (mode == "LOW") Thread.MIN_PRIORITY else Thread.NORM_PRIORITY
+    return if (mode == "LOW") Thread.MIN_PRIORITY + 1 else Thread.NORM_PRIORITY
 }
 
 /**
@@ -481,7 +483,7 @@ private fun inferenceThreadFactory(namePrefix: String, priority: Int): ThreadFac
 
 /** Returns a human-readable error string if the native lib can't be loaded, null if it's fine. */
 private fun tryLoadNative(): String? = runCatching {
-    Class.forName("com.llamatik.library.platform.LlamaBridge")
+    Class.forName("com.llamatik.core.platform.LlamaBridge")
     null
 }.getOrElse { t ->
     val link = generateSequence(t) { it.cause }.firstOrNull { it is UnsatisfiedLinkError || it is LinkageError }

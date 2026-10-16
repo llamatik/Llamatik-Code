@@ -4,8 +4,8 @@ import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.thisLogger
 import com.llamatik.teammate.ui.Strings
-import com.llamatik.library.platform.GenStream
-import com.llamatik.library.platform.MultimodalBridge
+import com.llamatik.core.platform.GenStream
+import com.llamatik.core.platform.MultimodalBridge
 import com.llamatik.teammate.backend.GenerationCallbacks
 import com.llamatik.teammate.backend.GenerationHandle
 import com.llamatik.teammate.model.AttachedImage
@@ -299,7 +299,7 @@ class MultimodalBackendService {
 }
 
 private fun tryLoadNative(): String? = runCatching {
-    Class.forName("com.llamatik.library.platform.MultimodalBridge")
+    Class.forName("com.llamatik.core.platform.MultimodalBridge")
     null
 }.getOrElse { t ->
     val link = generateSequence(t) { it.cause }.firstOrNull { it is UnsatisfiedLinkError || it is LinkageError }
