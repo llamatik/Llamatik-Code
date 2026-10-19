@@ -32,7 +32,19 @@ class BuildFailureService(private val project: Project) {
     fun parse(rawOutput: String): List<BuildError> {
         val errors = mutableListOf<BuildError>()
 
-        // Kotlin compiler: e: /abs/path/File.kt: (10, 5): Unresolved reference: foo
+        // Kotlin compiler (modern Gradle/KMP): e: file:///abs/path/File.kt:10:5 Unresolved reference: foo
+        val ktNewRegex = Regex("""^e:\s+file:///([^\s:]+\.kt):(\d+):\d+\s+(.+)$""", RegexOption.MULTILINE)
+        val ktNewSeen = mutableSetOf<String>()
+        ktNewRegex.findAll(rawOutput).forEach { m ->
+            val key = "${m.groupValues[1]}:${m.groupValues[2]}"
+            if (ktNewSeen.add(key)) {
+                errors += BuildError(FailureKind.KOTLIN_COMPILE,
+                    relativize(m.groupValues[1]), m.groupValues[2].toIntOrNull() ?: 0,
+                    m.groupValues[3].trim(), m.value.trim())
+            }
+        }
+
+        // Kotlin compiler (legacy): e: /abs/path/File.kt: (10, 5): Unresolved reference: foo
         val ktRegex = Regex("""^e:\s*(.+?\.kt):\s*\((\d+),\s*\d+\):\s*(.+)$""", RegexOption.MULTILINE)
         ktRegex.findAll(rawOutput).forEach { m ->
             errors += BuildError(FailureKind.KOTLIN_COMPILE,
@@ -107,6 +119,12 @@ class BuildFailureService(private val project: Project) {
         }.trim()
 
         return BuildFailureSummary(errors, rootCause, affectedFiles, explanation)
+    }
+
+    /** Extracts the first failing Gradle task path, e.g. ":shared:compileDebugKotlinAndroid". */
+    fun extractFailingTask(rawOutput: String): String? {
+        val taskRegex = Regex(""">\s+Task\s+(:[^\s]+)\s+FAILED""")
+        return taskRegex.find(rawOutput)?.groupValues?.get(1)
     }
 
     private fun extractGradleFailureBanner(raw: String): String {

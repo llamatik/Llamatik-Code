@@ -53,6 +53,8 @@ class BuildFailureFixPlanTool(project: Project) : BaseProjectTool(project) {
             ?: return ToolResult(name, false, "No output provided")
         val svc = context.project.service<BuildFailureService>()
         val summary = svc.summarize(rawOutput)
+        val failingTask = svc.extractFailingTask(rawOutput)
+        val verifyCommand = if (failingTask != null) "./gradlew $failingTask" else "./gradlew build"
         val text = buildString {
             appendLine("Root cause: ${summary.rootCause}")
             if (summary.affectedFiles.isNotEmpty()) {
@@ -64,7 +66,7 @@ class BuildFailureFixPlanTool(project: Project) : BaseProjectTool(project) {
                 appendLine("${i+1}. Fix ${e.file}:${e.line} — ${e.message.take(100)}")
             }
             appendLine()
-            appendLine("After fixing: run terminal_run with './gradlew build' to verify.")
+            appendLine("After fixing: run terminal_run with '$verifyCommand' to verify.")
         }.trim()
         return ToolResult(name, true, text)
     }

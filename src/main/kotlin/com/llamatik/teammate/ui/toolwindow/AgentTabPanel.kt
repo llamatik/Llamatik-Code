@@ -846,7 +846,7 @@ class AgentTabPanel(
         rebuildFrozenHistory()
 
         currentPromptText = snapshot.prompt
-        promptLabel.text = snapshot.prompt
+        promptLabel.text = compactPromptForDisplay(snapshot.prompt)
         promptLabel.caretPosition = 0
         promptBubble.isVisible = snapshot.prompt.isNotEmpty()
         responseTextArea.text = snapshot.responseText
@@ -904,7 +904,7 @@ class AgentTabPanel(
         rebuildFrozenHistory()
 
         currentPromptText = prompt
-        promptLabel.text = prompt
+        promptLabel.text = compactPromptForDisplay(prompt)
         promptLabel.caretPosition = 0
         promptBubble.isVisible = true
         responseTextArea.text = accumulatedText
@@ -1007,7 +1007,8 @@ class AgentTabPanel(
     }
 
     private fun buildFrozenExchangeBlock(prompt: String, response: String): JPanel {
-        val userLabel = JBLabel("<html>${prompt.replace("\n", "<br>")}</html>").apply {
+        val displayPrompt = compactPromptForDisplay(prompt)
+        val userLabel = JBLabel("<html>${displayPrompt.replace("\n", "<br>")}</html>").apply {
             foreground = LlamatikTheme.onSurface
             font = font.deriveFont(Font.BOLD, font.size2D)
             border = JBUI.Borders.empty(0, 0, 6, 0)
@@ -1088,7 +1089,7 @@ class AgentTabPanel(
         genStartMs = System.currentTimeMillis()
 
         currentPromptText = prompt
-        promptLabel.text = prompt
+        promptLabel.text = compactPromptForDisplay(prompt)
         promptLabel.caretPosition = 0
         promptBubble.isVisible = true
 
@@ -1938,7 +1939,7 @@ class AgentTabPanel(
         }
 
     private fun buildToolCallRow(name: String, arg: String): JPanel {
-        val combined = if (arg.isNotBlank()) "$name  $arg" else name
+        val combined = if (arg.isNotBlank()) "$name  ${truncatePathArg(arg)}" else name
         val textArea = JBTextArea(combined).apply {
             isEditable = false
             isOpaque = false
@@ -1966,6 +1967,21 @@ class AgentTabPanel(
             add(textArea, BorderLayout.CENTER)
             border = JBUI.Borders.empty(2, 0)
         }
+    }
+
+    /** Keeps at most 3 path segments for display so long paths don't overflow the tool row. */
+    private fun truncatePathArg(arg: String): String {
+        val sep = if (arg.contains('/')) '/' else if (arg.contains('\\')) '\\' else return arg
+        val parts = arg.split(sep).filter { it.isNotEmpty() }
+        return if (parts.size <= 3) arg else "…/${parts.takeLast(3).joinToString("/")}"
+    }
+
+    private fun compactPromptForDisplay(prompt: String): String {
+        val lines = prompt.lines()
+        if (lines.size <= 8 && prompt.length <= 500) return prompt
+        val preview = lines.take(3).joinToString("\n").trimEnd()
+        val remaining = lines.size - 3
+        return "$preview\n[+$remaining lines]"
     }
 
     private fun buildProposalCard(
