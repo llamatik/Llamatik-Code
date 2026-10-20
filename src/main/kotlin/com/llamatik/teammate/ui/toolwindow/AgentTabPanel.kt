@@ -434,19 +434,6 @@ class AgentTabPanel(
         addActionListener { onAggressiveModeChanged(isSelected); updateRunOptionsButton() }
     }
     private val runOptionsPopup = JPopupMenu().apply {
-        val licensed = runCatching { LicenseChecker.isLicensed() == true }.getOrElse { false }
-        if (!licensed) {
-            val proLabel = JBLabel(Strings.Agent.RUN_OPTIONS_PRO_REQUIRED).apply {
-                foreground = LlamatikTheme.onSurfaceVariant
-                font = font.deriveFont(Font.BOLD, font.size2D - 1f)
-                border = JBUI.Borders.empty(6, 12, 4, 12)
-            }
-            add(proLabel)
-            addSeparator()
-            autoApproveItem.isEnabled = false
-            autoFixItem.isEnabled = false
-            aggressiveItem.isEnabled = false
-        }
         add(autoApproveItem)
         add(autoBuildItem)
         add(buildIdeItem)
@@ -650,11 +637,8 @@ class AgentTabPanel(
     private val isMultimodalEnabled: () -> Boolean = {
         runCatching { service<MultimodalBackendService>().isConfigured() }.getOrElse { false }
     }
-    private val isLicensed: () -> Boolean = {
-        runCatching { LicenseChecker.isLicensed() == true }.getOrElse { false }
-    }
     private val imageBar = project?.let {
-        ImageAttachmentBar(it, isMultimodalEnabled, { /* onChange — no-op, we read on send */ }, isLicensed)
+        ImageAttachmentBar(it, isMultimodalEnabled, { /* onChange — no-op, we read on send */ })
     }
 
     // ── Composer ──────────────────────────────────────────────────────────────
@@ -846,7 +830,7 @@ class AgentTabPanel(
         rebuildFrozenHistory()
 
         currentPromptText = snapshot.prompt
-        promptLabel.text = snapshot.prompt
+        promptLabel.text = compactPromptForDisplay(snapshot.prompt)
         promptLabel.caretPosition = 0
         promptBubble.isVisible = snapshot.prompt.isNotEmpty()
         responseTextArea.text = snapshot.responseText
@@ -904,7 +888,7 @@ class AgentTabPanel(
         rebuildFrozenHistory()
 
         currentPromptText = prompt
-        promptLabel.text = prompt
+        promptLabel.text = compactPromptForDisplay(prompt)
         promptLabel.caretPosition = 0
         promptBubble.isVisible = true
         responseTextArea.text = accumulatedText
@@ -1007,7 +991,8 @@ class AgentTabPanel(
     }
 
     private fun buildFrozenExchangeBlock(prompt: String, response: String): JPanel {
-        val userLabel = JBLabel("<html>${prompt.replace("\n", "<br>")}</html>").apply {
+        val displayPrompt = compactPromptForDisplay(prompt)
+        val userLabel = JBLabel("<html>${displayPrompt.replace("\n", "<br>")}</html>").apply {
             foreground = LlamatikTheme.onSurface
             font = font.deriveFont(Font.BOLD, font.size2D)
             border = JBUI.Borders.empty(0, 0, 6, 0)
@@ -1088,7 +1073,7 @@ class AgentTabPanel(
         genStartMs = System.currentTimeMillis()
 
         currentPromptText = prompt
-        promptLabel.text = prompt
+        promptLabel.text = compactPromptForDisplay(prompt)
         promptLabel.caretPosition = 0
         promptBubble.isVisible = true
 
@@ -1288,7 +1273,6 @@ class AgentTabPanel(
 
     fun showResponseActions(
         showFixIt: Boolean,
-        isLicensed: Boolean,
         onFixIt: () -> Unit,
         onCreatePlan: () -> Unit,
         onExplainMore: () -> Unit,
@@ -1938,7 +1922,7 @@ class AgentTabPanel(
         }
 
     private fun buildToolCallRow(name: String, arg: String): JPanel {
-        val combined = if (arg.isNotBlank()) "$name  $arg" else name
+        val combined = if (arg.isNotBlank()) "$name  ${truncatePathArg(arg)}" else name
         val textArea = JBTextArea(combined).apply {
             isEditable = false
             isOpaque = false
@@ -1966,6 +1950,21 @@ class AgentTabPanel(
             add(textArea, BorderLayout.CENTER)
             border = JBUI.Borders.empty(2, 0)
         }
+    }
+
+    /** Keeps at most 3 path segments for display so long paths don't overflow the tool row. */
+    private fun truncatePathArg(arg: String): String {
+        val sep = if (arg.contains('/')) '/' else if (arg.contains('\\')) '\\' else return arg
+        val parts = arg.split(sep).filter { it.isNotEmpty() }
+        return if (parts.size <= 3) arg else "…/${parts.takeLast(3).joinToString("/")}"
+    }
+
+    private fun compactPromptForDisplay(prompt: String): String {
+        val lines = prompt.lines()
+        if (lines.size <= 8 && prompt.length <= 500) return prompt
+        val preview = lines.take(3).joinToString("\n").trimEnd()
+        val remaining = lines.size - 3
+        return "$preview\n[+$remaining lines]"
     }
 
     private fun buildProposalCard(
@@ -2219,11 +2218,7 @@ class AgentTabPanel(
     private fun showInferenceDialog(anchor: java.awt.Component) {
         val settings = com.intellij.openapi.components.service<com.llamatik.teammate.settings.LlamatikAppSettings>()
         var dialog: com.intellij.openapi.ui.DialogWrapper? = null
-        val panel = com.llamatik.teammate.settings.InferenceSettingsPanel(onUpgrade = {
-            dialog?.close(com.intellij.openapi.ui.DialogWrapper.CANCEL_EXIT_CODE)
-            com.intellij.openapi.components.service<com.llamatik.teammate.licensing.TrialService>()
-                .requestLicense(com.llamatik.teammate.ui.Strings.Inference.UPGRADE_REQUIRED)
-        })
+        val panel = com.llamatik.teammate.settings.InferenceSettingsPanel()
         panel.loadFrom(settings.data())
         dialog = object : com.intellij.openapi.ui.DialogWrapper(false) {
             init {

@@ -6,8 +6,6 @@ import com.intellij.openapi.fileChooser.FileChooserDescriptor
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
 import com.intellij.util.ui.JBUI
-import com.llamatik.teammate.licensing.LicenseChecker
-import com.llamatik.teammate.licensing.TrialService
 import com.llamatik.teammate.model.AttachedImage
 import com.llamatik.teammate.ui.LlamatikTheme
 import com.llamatik.teammate.ui.Strings
@@ -46,7 +44,6 @@ class ImageAttachmentBar(
     private val project: Project,
     private val isMultimodalEnabled: () -> Boolean,
     private val onAttachmentsChanged: (List<AttachedImage>) -> Unit,
-    private val isLicensed: () -> Boolean = { runCatching { LicenseChecker.isLicensed() == true }.getOrElse { false } },
 ) : JPanel(BorderLayout()) {
 
     private val attachments = mutableListOf<AttachedImage>()
@@ -236,14 +233,6 @@ class ImageAttachmentBar(
 
     // Returns true if the user can attach an image; shows appropriate prompt otherwise.
     private fun checkAccess(): Boolean {
-        if (!isLicensed() && attachments.size >= FREE_DAILY_IMAGE_LIMIT) {
-            com.intellij.openapi.ui.Messages.showInfoMessage(
-                project,
-                "Free plan allows up to $FREE_DAILY_IMAGE_LIMIT image attachments per session. Upgrade to Pro for unlimited attachments.",
-                Strings.App.NAME,
-            )
-            return false
-        }
         if (!isMultimodalEnabled()) {
             com.intellij.openapi.ui.Messages.showInfoMessage(
                 project,
@@ -255,7 +244,4 @@ class ImageAttachmentBar(
         return true
     }
 
-    companion object {
-        private const val FREE_DAILY_IMAGE_LIMIT = 5
-    }
 }

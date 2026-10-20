@@ -30,18 +30,40 @@ class TerminalService(private val project: Project) {
     companion object {
         val ALLOWLIST = setOf(
             "./gradlew test", "./gradlew build", "./gradlew lint", "./gradlew check",
-            "./gradlew assemble", "./gradlew clean", "./gradlew ktlintCheck",
+            "./gradlew assemble", "./gradlew assembleDebug", "./gradlew assembleRelease",
+            "./gradlew clean", "./gradlew ktlintCheck",
             "./gradlew detekt", "./gradlew dependencies",
+            // KMM / Android-specific compile tasks (variants and module-qualified)
+            "./gradlew compileDebugKotlinAndroid", "./gradlew compileReleaseKotlinAndroid",
+            "./gradlew compileDebugKotlin", "./gradlew compileReleaseKotlin",
+            "./gradlew compileKotlin", "./gradlew compileCommonMainKotlinMetadata",
             "gradlew.bat test", "gradlew.bat build", "gradlew.bat lint",
             "npm test", "npm run build", "npm run lint", "npm run check",
             "ktlint", "detekt",
         )
 
+        private val SAFE_GRADLE_TASKS = setOf(
+            "build", "test", "check", "lint", "assemble", "assembleDebug", "assembleRelease",
+            "compileKotlin", "compileDebugKotlin", "compileReleaseKotlin",
+            "compileDebugKotlinAndroid", "compileReleaseKotlinAndroid",
+            "compileCommonMainKotlinMetadata", "clean", "ktlintCheck", "detekt", "dependencies",
+        )
+
         fun isAllowed(command: String): Boolean {
             val trimmed = command.trim()
-            return ALLOWLIST.any { allowed ->
+            if (ALLOWLIST.any { allowed ->
                 trimmed == allowed || trimmed.startsWith("$allowed ") || trimmed.startsWith("$allowed\t")
+            }) return true
+
+            // Also allow module-qualified Gradle tasks: ./gradlew :module:taskName
+            // This covers KMM/Android tasks like ./gradlew :shared:compileDebugKotlinAndroid
+            if (trimmed.startsWith("./gradlew ") || trimmed.startsWith("gradlew.bat ")) {
+                val afterGradlew = trimmed.removePrefix("./gradlew ").removePrefix("gradlew.bat ")
+                val firstTaskToken = afterGradlew.split(" ", "\t").firstOrNull { it.isNotBlank() } ?: return false
+                val taskName = firstTaskToken.substringAfterLast(':')
+                if (taskName in SAFE_GRADLE_TASKS) return true
             }
+            return false
         }
     }
 

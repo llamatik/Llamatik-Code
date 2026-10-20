@@ -23,6 +23,15 @@ data class ExtendedModelDescriptor(
     val mmprojDownloadUrl: String? = null,
     /** Absolute path to the companion mmproj GGUF file required for vision/multimodal inference. */
     val mmprojPath: String? = null,
+    /**
+     * Ordered list of shard URLs for split GGUF models (e.g. GLM-4.5-Air).
+     * When non-empty, [downloadSourceUrl] is ignored and shards are downloaded
+     * sequentially; the resulting files are left as individual shards — llama.cpp
+     * accepts the first shard path and auto-discovers the rest.
+     * When empty, [downloadSourceUrl] is used as the single download URL.
+     */
+    val shardDownloadUrls: List<String> = emptyList(),
 ) {
     val isVlm: Boolean get() = mmprojPath != null
+    val isMultiShard: Boolean get() = shardDownloadUrls.isNotEmpty()
 }

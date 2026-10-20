@@ -49,6 +49,7 @@ class DiagnosticsService(private val project: Project) {
             checkProjectIndexing(),
             checkWritePermissions(),
             checkSettings(),
+            checkGpuLayers(),
         )
         return DiagnosticsReport(
             checks = checks,
@@ -104,7 +105,7 @@ class DiagnosticsService(private val project: Project) {
 
     private fun checkNativeLib(): DiagnosticCheck {
         return try {
-            Class.forName("com.llamatik.library.platform.LlamaBridge")
+            Class.forName("com.llamatik.core.platform.LlamaBridge")
             DiagnosticCheck("Native library", CheckStatus.PASS, "LlamaBridge available")
         } catch (e: Exception) {
             val root = generateSequence(e as Throwable) { it.cause }
@@ -207,6 +208,23 @@ class DiagnosticsService(private val project: Project) {
         else DiagnosticCheck("Write permissions", CheckStatus.FAIL,
             "Project root is read-only: $base",
             "Check file system permissions — the agent cannot apply edits")
+    }
+
+    private fun checkGpuLayers(): DiagnosticCheck {
+        val s = service<LlamatikAppSettings>().data()
+        val gpuLayers = s.gpuLayers
+        return when {
+            gpuLayers == 0 -> DiagnosticCheck(
+                "GPU acceleration", CheckStatus.WARN,
+                "GPU layers = 0 — model runs entirely on CPU",
+                "Set GPU layers to -1 (all) in Settings → Inference to enable Metal acceleration. " +
+                    "CPU-only inference of large models (≥14B) with Low priority can stall for hours.",
+            )
+            gpuLayers < 0 -> DiagnosticCheck("GPU acceleration", CheckStatus.PASS,
+                "GPU layers = all (Metal acceleration enabled)")
+            else -> DiagnosticCheck("GPU acceleration", CheckStatus.PASS,
+                "GPU layers = $gpuLayers")
+        }
     }
 
     private fun checkSettings(): DiagnosticCheck {

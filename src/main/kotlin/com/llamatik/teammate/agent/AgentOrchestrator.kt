@@ -168,7 +168,10 @@ class AgentOrchestrator(private val project: Project) {
         // Rewrite vague "current file" / "this file" phrases to the actual filename so small
         // models don't search_code for the instruction text instead of reading the file.
         val (cleanInstruction, currentFileContext) = resolveCurrentFileReference(afterAtRefs, fileAttachmentMax)
-        val fileContext = listOf(atFileContext, currentFileContext).filter { it.isNotBlank() }.joinToString("\n\n")
+        // Auto-inject files referenced by file:/// URIs in pasted build error logs (e.g. Gradle/Kotlin
+        // compiler output). Without this the model sees the URI but cannot resolve it to project source.
+        val (buildErrorContext, buildErrorPaths) = resolveBuildErrorReferences(cleanInstruction, fileAttachmentMax)
+        val fileContext = listOf(atFileContext, currentFileContext, buildErrorContext).filter { it.isNotBlank() }.joinToString("\n\n")
 
         val contextHint = buildContextHint()
 
@@ -285,7 +288,16 @@ class AgentOrchestrator(private val project: Project) {
         Regex("""@\{([^}]+)}""").findAll(userPrompt).forEach { m ->
             executedToolKeys += TOOL_READ_FILE to m.groupValues[1].trim()
         }
-        contextService.getCurrentFile()?.let { executedToolKeys += TOOL_READ_FILE to it }
+        // Only pre-seed the current open file if its content was actually injected into
+        // effectiveFileContext. Without injection the model has no content to work from,
+        // and blocking read_file would leave it with no way to get the source.
+        if (currentFileContext.isNotBlank()) {
+            contextService.getCurrentFile()?.let { executedToolKeys += TOOL_READ_FILE to it }
+        }
+        // Pre-seed build-error files so the model doesn't waste a round re-reading them.
+        if (buildErrorContext.isNotBlank()) {
+            buildErrorPaths.forEach { path -> executedToolKeys += TOOL_READ_FILE to path }
+        }
 
         // Files read by the model across rounds — re-injected into every subsequent round so
         // the model always has the source it already read when it comes time to write.
@@ -315,7 +327,10 @@ class AgentOrchestrator(private val project: Project) {
         fun runRound(messages: List<ChatMessage>, round: Int, accumulatedProposals: List<EditProposal>, hasReadContent: Boolean = false, prefill: String = "", emptyRetry: Int = 0, toolErrorRetry: Int = 0) {
             if (cancelled.get()) return
             // Global wall-clock safety net — kills the session if the total time exceeds the cap.
-            if (System.currentTimeMillis() - sessionStartMs > AGENT_SESSION_TIMEOUT_MS) {
+            // Skip for the write pass: the model is actively generating file content and must not
+            // be interrupted; exploration rounds are the ones that can stall indefinitely.
+            val isWritePass = round >= MAX_ROUNDS - 1
+            if (!isWritePass && System.currentTimeMillis() - sessionStartMs > AGENT_SESSION_TIMEOUT_MS) {
                 val msg = ChatMessage(role = ChatRole.ASSISTANT, content = "Agent timed out after ${AGENT_SESSION_TIMEOUT_MS / 60_000} minutes. Try a shorter task or attach the file directly with @filename.")
                 session.messages += msg
                 onFinished(msg, accumulatedProposals)
@@ -547,7 +562,12 @@ class AgentOrchestrator(private val project: Project) {
                         // tool failed (even when read-only calls succeeded), feed errors back so the
                         // model can correct its arguments (wrong path, truncated content, etc.).
                         // Skip for duplicate-suppressed calls — those are informational, not errors.
-                        val failedMessages = toolMessages.filter { !it.content.startsWith("Already called") && (it.content.startsWith("Error") || it.content.startsWith("Missing") || it.content.contains("not found") || it.content.contains("failed:")) }
+                        val failedMessages = toolMessages.filter {
+                            val firstLine = it.content.lines().firstOrNull().orEmpty()
+                            !firstLine.startsWith("Already called") &&
+                                (firstLine.startsWith("Error") || firstLine.startsWith("Missing") ||
+                                    firstLine.contains("not found") || firstLine.contains("failed:"))
+                        }
                         val allToolsFailed = failedMessages.size == toolMessages.size && toolMessages.isNotEmpty() && !allCallsDuplicate
                         val anyWriteToolFailed = failedMessages.any { msg -> msg.toolName in EDIT_TOOL_NAMES }
                         if ((allToolsFailed || anyWriteToolFailed) && toolErrorRetry < MAX_TOOL_ERROR_RETRIES && round < MAX_ROUNDS) {
@@ -1005,6 +1025,48 @@ class AgentOrchestrator(private val project: Project) {
         }.trimEnd()
 
         return Pair(rewritten, context)
+    }
+
+    /**
+     * Detects Kotlin/Gradle build error lines containing `file:///absolute/path.kt:line:col`
+     * URIs, reads those files, and returns them as fenced attachments — identical to @{path}
+     * attachments but triggered automatically from build error output.
+     *
+     * Returns (fenced file content string, list of project-relative paths successfully read).
+     */
+    private fun resolveBuildErrorReferences(prompt: String, attachmentMax: Int = FILE_ATTACHMENT_MAX_CHARS): Pair<String, List<String>> {
+        val uriRegex = Regex("""file:///([^\s:]+\.(?:kt|java|swift|py|ts|js|go|rs|cpp|c|cs|rb|gradle|kts))""")
+        val matches = uriRegex.findAll(prompt).toList()
+        if (matches.isEmpty()) return Pair("", emptyList())
+
+        val projectRoot = contextService.rootPath().trimEnd('/')
+        val attachments = StringBuilder()
+        val resolvedPaths = mutableListOf<String>()
+        val seen = mutableSetOf<String>()
+
+        matches.forEach { match ->
+            val absolutePath = match.groupValues[1]
+            if (!seen.add(absolutePath)) return@forEach
+
+            val relPath = if (projectRoot.isNotBlank() && absolutePath.startsWith("$projectRoot/")) {
+                absolutePath.removePrefix("$projectRoot/")
+            } else {
+                absolutePath
+            }
+
+            val content = runCatching { contextService.readFile(absolutePath) }.getOrNull()
+                ?: runCatching { contextService.readFile(relPath) }.getOrNull()
+                ?: return@forEach
+
+            resolvedPaths += relPath
+            attachments.appendLine("$FILE_SECTION_PREFIX$relPath")
+            attachments.appendLine("```")
+            attachments.appendLine(content.take(attachmentMax))
+            attachments.appendLine("```")
+            attachments.appendLine()
+        }
+
+        return Pair(attachments.trimEnd().toString(), resolvedPaths)
     }
 
     // Matches path and summary in any order, with single or double quotes, arbitrary spacing.

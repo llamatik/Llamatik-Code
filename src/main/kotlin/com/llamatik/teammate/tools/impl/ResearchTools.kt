@@ -6,7 +6,6 @@ import com.llamatik.teammate.external.research.ResearchIntent
 import com.llamatik.teammate.external.research.ResearchOrchestratorService
 import com.llamatik.teammate.external.research.ResearchSourceRouter
 import com.llamatik.teammate.external.research.ResearchTask
-import com.llamatik.teammate.licensing.LicenseChecker
 import com.llamatik.teammate.settings.LlamatikAppSettings
 import com.llamatik.teammate.tools.LlamatikTool
 import com.llamatik.teammate.tools.ToolCall
@@ -23,7 +22,7 @@ class ResearchPlanTool(private val project: Project) : LlamatikTool {
         val question = call.arguments["question"] ?: return ToolResult(name, false, "Missing argument: question")
         val localContext = call.arguments["context"] ?: ""
         val orchestrator = service<ResearchOrchestratorService>()
-        val task = ResearchTask(question = question, localContextSummary = localContext, isPro = isPro())
+        val task = ResearchTask(question = question, localContextSummary = localContext, isPro = true)
         val plan = orchestrator.planResearch(task)
         val text = buildString {
             appendLine("Research plan:")
@@ -47,11 +46,10 @@ class ResearchExecuteTool(private val project: Project) : LlamatikTool {
         val question = call.arguments["question"] ?: return ToolResult(name, false, "Missing argument: question")
         val localContext = call.arguments["context"] ?: ""
         val orchestrator = service<ResearchOrchestratorService>()
-        val isPro = isPro()
-        if (!orchestrator.canRunResearch(isPro)) {
+        if (!orchestrator.canRunResearch(true)) {
             return ToolResult(name, false, Strings.ExternalKnowledge.DAILY_LIMIT_MSG)
         }
-        val task = ResearchTask(question = question, localContextSummary = localContext, isPro = isPro)
+        val task = ResearchTask(question = question, localContextSummary = localContext, isPro = true)
         val report = orchestrator.executeResearch(task)
         val text = buildString {
             appendLine(report.answer)
@@ -117,16 +115,15 @@ class ResearchFixPlanTool(private val project: Project) : LlamatikTool {
         if (!isEnabled()) return ToolResult(name, false, Strings.ExternalKnowledge.DISABLED_MSG)
         val error = call.arguments["error"] ?: return ToolResult(name, false, "Missing argument: error")
         val localContext = call.arguments["context"] ?: ""
-        val isPro = isPro()
         val orchestrator = service<ResearchOrchestratorService>()
-        if (!orchestrator.canRunResearch(isPro)) {
+        if (!orchestrator.canRunResearch(true)) {
             return ToolResult(name, false, Strings.ExternalKnowledge.DAILY_LIMIT_MSG)
         }
         val task = ResearchTask(
             question = "How to fix: ${error.take(200)}",
             localContextSummary = localContext,
             intent = ResearchIntent.BUG_ERROR,
-            isPro = isPro,
+            isPro = true,
         )
         val report = orchestrator.executeResearch(task)
         val plan = if (report.suggestedFixPlan.isNotBlank()) report.suggestedFixPlan else report.answer
@@ -137,5 +134,3 @@ class ResearchFixPlanTool(private val project: Project) : LlamatikTool {
 private fun isEnabled(): Boolean =
     runCatching { service<LlamatikAppSettings>().data().externalResearchEnabled }.getOrElse { false }
 
-private fun isPro(): Boolean =
-    runCatching { LicenseChecker.isLicensed() == true }.getOrElse { false }

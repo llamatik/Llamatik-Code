@@ -6,12 +6,10 @@ import com.llamatik.teammate.external.docs.DocsIndexerService
 import com.llamatik.teammate.external.docs.DocsSource
 import com.llamatik.teammate.external.docs.DocsSourceService
 import com.llamatik.teammate.external.docs.DocsSourceType
-import com.llamatik.teammate.licensing.LicenseChecker
 import com.llamatik.teammate.tools.LlamatikTool
 import com.llamatik.teammate.tools.ToolCall
 import com.llamatik.teammate.tools.ToolExecutionContext
 import com.llamatik.teammate.tools.ToolResult
-import com.llamatik.teammate.ui.Strings
 import java.util.UUID
 
 class DocsSourcesListTool(private val project: Project) : LlamatikTool {
@@ -44,11 +42,9 @@ class DocsSourceAddTool(private val project: Project) : LlamatikTool {
         val sourceType = runCatching { DocsSourceType.valueOf(typeStr) }.getOrElse {
             return ToolResult(this.name, false, "Invalid type '$typeStr'. Valid: URL, WEBSITE, GITHUB, LOCAL_FOLDER")
         }
-        val isPro = runCatching { LicenseChecker.isLicensed() == true }.getOrElse { false }
         val docsSvc = service<DocsSourceService>()
-        if (!docsSvc.canAddSource(isPro)) {
-            val limit = docsSvc.sourcesLimit(isPro)
-            return ToolResult(this.name, false, "Docs source limit reached ($limit). ${if (!isPro) Strings.ExternalKnowledge.DOCS_SOURCE_LIMIT_FREE else ""}")
+        if (!docsSvc.canAddSource(true)) {
+            return ToolResult(this.name, false, "Docs source limit reached (${docsSvc.sourcesLimit(true)}).")
         }
         val source = DocsSource(
             id = UUID.randomUUID().toString().take(8),
@@ -68,7 +64,6 @@ class DocsIndexRefreshTool(private val project: Project) : LlamatikTool {
 
     override fun execute(call: ToolCall, context: ToolExecutionContext): ToolResult {
         val sourceId = call.arguments["source_id"] ?: return ToolResult(name, false, "Missing argument: source_id")
-        val isPro = runCatching { LicenseChecker.isLicensed() == true }.getOrElse { false }
         val docsSvc = service<DocsSourceService>()
         val indexerSvc = service<DocsIndexerService>()
         val sources = if (sourceId.lowercase() == "all") docsSvc.listSources()
@@ -76,7 +71,7 @@ class DocsIndexRefreshTool(private val project: Project) : LlamatikTool {
         if (sources.isEmpty()) return ToolResult(name, false, "No source found with id: $sourceId")
         var total = 0
         val results = sources.map { source ->
-            val count = indexerSvc.indexSource(source, isPro)
+            val count = indexerSvc.indexSource(source, true)
             total += count
             "${source.name}: $count page(s) indexed"
         }

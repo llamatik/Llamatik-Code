@@ -19,7 +19,6 @@ import javax.swing.JPanel
  */
 class ModelLibraryPanel(
     private val project: Project?,
-    private val onRequestUpgrade: (() -> Unit)? = null,
 ) : JPanel(BorderLayout()) {
 
     private val contentPanel = JPanel().apply {
@@ -47,7 +46,7 @@ class ModelLibraryPanel(
             contentPanel.add(tierLabel)
 
             models.forEach { descriptor ->
-                val card = ModelCardPanel(project, descriptor, ::handleAction, onRequestUpgrade).apply {
+                val card = ModelCardPanel(project, descriptor, ::handleAction).apply {
                     alignmentX = LEFT_ALIGNMENT
                 }
                 contentPanel.add(card)

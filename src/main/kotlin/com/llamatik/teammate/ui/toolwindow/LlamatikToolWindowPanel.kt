@@ -297,26 +297,50 @@ class LlamatikToolWindowPanel(
 
         val logoButton = buildLogoButton()
 
-        val licensed = runCatching { com.llamatik.teammate.licensing.LicenseChecker.isLicensed() == true }.getOrElse { false }
-        val unlockProButton = JButton(Strings.Upgrade.UNLOCK_PRO_BUTTON).apply {
-            toolTipText = Strings.Upgrade.UNLOCK_PRO_TOOLTIP
+        val supportButton = JButton(Strings.Support.BUTTON).apply {
             isFocusPainted = false
             isContentAreaFilled = false
-            isOpaque = false
-            foreground = LlamatikTheme.primary
-            font = font.deriveFont(Font.BOLD, font.size2D - 1f)
-            border = JBUI.Borders.compound(
-                BorderFactory.createLineBorder(LlamatikTheme.primary, 1, true),
-                JBUI.Borders.empty(3, 8),
-            )
+            isBorderPainted = false
             cursor = java.awt.Cursor(java.awt.Cursor.HAND_CURSOR)
-            isVisible = !licensed
-            addActionListener { trialService.requestLicense(Strings.Upgrade.UNLOCK_PRO_TOOLTIP) }
+            foreground = LlamatikTheme.primary
+            font = font.deriveFont(Font.PLAIN, font.size2D - 1f)
+            toolTipText = Strings.Support.TOOLTIP
+            addActionListener {
+                val messagePane = javax.swing.JEditorPane("text/html", Strings.Support.DIALOG_MESSAGE).apply {
+                    isEditable = false
+                    isOpaque = false
+                    border = null
+                    putClientProperty(javax.swing.JEditorPane.HONOR_DISPLAY_PROPERTIES, true)
+                    font = javax.swing.UIManager.getFont("Label.font")
+                    preferredSize = Dimension(500, 260)
+                }
+                val options = arrayOf(
+                    Strings.Support.BUTTON_SUBSCRIBE,
+                    Strings.Support.BUTTON_SPONSOR,
+                    Strings.Support.BUTTON_REVIEW,
+                    Strings.Support.BUTTON_CANCEL,
+                )
+                val choice = javax.swing.JOptionPane.showOptionDialog(
+                    null,
+                    messagePane,
+                    Strings.Support.DIALOG_TITLE,
+                    javax.swing.JOptionPane.DEFAULT_OPTION,
+                    javax.swing.JOptionPane.INFORMATION_MESSAGE,
+                    null,
+                    options,
+                    options[0],
+                )
+                when (choice) {
+                    0 -> BrowserUtil.browse(Strings.Support.MARKETPLACE_SUBSCRIBE_URL)
+                    1 -> BrowserUtil.browse(Strings.Support.GITHUB_SPONSORS_URL)
+                    2 -> BrowserUtil.browse(Strings.Support.MARKETPLACE_REVIEW_URL)
+                }
+            }
         }
 
         val rightPanel = JPanel(FlowLayout(FlowLayout.RIGHT, 6, 0)).apply {
             isOpaque = false
-            add(unlockProButton)
+            add(supportButton)
             add(logoButton)
         }
 
@@ -438,11 +462,6 @@ class LlamatikToolWindowPanel(
     }
 
     private fun startNewTask() {
-        val licensed = runCatching { com.llamatik.teammate.licensing.LicenseChecker.isLicensed() == true }.getOrElse { false }
-        if (!licensed && taskHistory.isNotEmpty()) {
-            trialService.requestLicense(Strings.TaskQueue.PRO_REQUIRED_MSG)
-            return
-        }
         // Save snapshot of current task before opening blank canvas
         if (selectedTaskId != null) {
             val snap = agentTabPanel.getSnapshot()
@@ -557,16 +576,6 @@ class LlamatikToolWindowPanel(
                 project,
                 Strings.App.NO_MODEL_CONFIGURED_MSG,
                 Strings.App.NO_MODEL_CONFIGURED_TITLE,
-            )
-            return
-        }
-
-        val licensed = runCatching { com.llamatik.teammate.licensing.LicenseChecker.isLicensed() == true }.getOrElse { false }
-        if (isAgent && !licensed && selectedTaskId == null && taskHistory.isNotEmpty()) {
-            Messages.showInfoMessage(
-                project,
-                Strings.TaskQueue.PRO_REQUIRED_MSG,
-                Strings.TaskQueue.PRO_REQUIRED_TITLE,
             )
             return
         }

@@ -2,7 +2,6 @@ package com.llamatik.teammate.model
 
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
-import com.llamatik.teammate.licensing.LicenseChecker
 import com.llamatik.teammate.settings.LlamatikAppSettings
 
 @Service(Service.Level.APP)
@@ -12,9 +11,8 @@ class ModelCapabilityService {
         val level: Level,
         val message: String,
         val suggestion: String = "",
-        val showUpgradePrompt: Boolean = false,
     ) {
-        enum class Level { INFO, WARNING, UPGRADE }
+        enum class Level { INFO, WARNING }
     }
 
     enum class TaskComplexity { SIMPLE, MODERATE, COMPLEX, VERY_COMPLEX }
@@ -42,7 +40,6 @@ class ModelCapabilityService {
         val modelId = settings.modelPath.substringAfterLast('/').lowercase()
             .ifBlank { settings.modelIdentifier.lowercase() }
         val contextSize = settings.contextSize
-        val isLicensed = runCatching { LicenseChecker.isLicensed() == true }.getOrElse { false }
         val complexity = estimateComplexity(prompt, fileCount)
 
         // Context too small
@@ -51,16 +48,6 @@ class ModelCapabilityService {
                 level = CapabilityHint.Level.WARNING,
                 message = "Context size ($contextSize tokens) may be too small for this task.",
                 suggestion = "Increase Context Size to at least 8192 in Settings → Inference.",
-            )
-        }
-
-        // Multi-file task on free tier
-        if (!isLicensed && fileCount > 1) {
-            return CapabilityHint(
-                level = CapabilityHint.Level.UPGRADE,
-                message = "Multi-file changes require Llamatik Code Pro.",
-                suggestion = "Upgrade to apply changes across multiple files automatically.",
-                showUpgradePrompt = true,
             )
         }
 

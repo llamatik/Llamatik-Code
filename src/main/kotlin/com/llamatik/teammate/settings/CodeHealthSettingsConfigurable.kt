@@ -2,7 +2,6 @@ package com.llamatik.teammate.settings
 
 import com.intellij.openapi.components.service
 import com.intellij.openapi.options.Configurable
-import com.llamatik.teammate.licensing.LicenseChecker
 import java.awt.GridBagConstraints
 import java.awt.GridBagLayout
 import java.awt.Insets
@@ -10,7 +9,6 @@ import javax.swing.JCheckBox
 import javax.swing.JComboBox
 import javax.swing.JComponent
 import javax.swing.JLabel
-import javax.swing.JOptionPane
 import javax.swing.JPanel
 import javax.swing.JTextField
 
@@ -24,12 +22,10 @@ class CodeHealthSettingsConfigurable : Configurable {
     private val maxCallsField = JTextField(8)
     private val liveSuggestCb = JCheckBox("Enable live suggestions")
     private val testAwarenessCb = JCheckBox("Enable test awareness")
-    private val regressionCb = JCheckBox("Enable regression detection (Pro)")
+    private val regressionCb = JCheckBox("Enable regression detection")
     private val dashboardCb = JCheckBox("Enable code health dashboard")
     private val beforeCommitCb = JCheckBox("Enable before-commit assistant")
     private var panel: JPanel? = null
-
-    private fun isPro() = runCatching { LicenseChecker.isLicensed() == true }.getOrElse { false }
 
     override fun getDisplayName() = "Code Health Monitor"
 
@@ -53,11 +49,6 @@ class CodeHealthSettingsConfigurable : Configurable {
         }
 
         addFull(0, enabledCb)
-
-        if (!isPro()) {
-            addFull(1, JLabel("<html><i>BALANCED and AGGRESSIVE modes require Pro. Free tier: LIGHT + manual refresh only.</i></html>"))
-        }
-
         addRow(2, "Analysis mode:", modeCombo)
         addRow(3, "Run analysis:", runOnCombo)
         addRow(4, "Max files per scan:", maxFilesField)
@@ -68,22 +59,6 @@ class CodeHealthSettingsConfigurable : Configurable {
         addFull(9, regressionCb)
         addFull(10, dashboardCb)
         addFull(11, beforeCommitCb)
-
-        if (!isPro()) {
-            modeCombo.addActionListener {
-                val selected = modeCombo.selectedItem as? String ?: return@addActionListener
-                if (selected in listOf("BALANCED", "AGGRESSIVE")) {
-                    modeCombo.selectedItem = "LIGHT"
-                    JOptionPane.showMessageDialog(
-                        p,
-                        "BALANCED and AGGRESSIVE modes require a Pro subscription.",
-                        "Pro Required",
-                        JOptionPane.INFORMATION_MESSAGE,
-                    )
-                }
-            }
-            regressionCb.isEnabled = false
-        }
 
         panel = p
         return p

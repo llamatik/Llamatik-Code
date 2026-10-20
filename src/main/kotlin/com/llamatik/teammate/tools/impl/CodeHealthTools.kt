@@ -16,7 +16,6 @@ import com.llamatik.teammate.codehealth.RegressionRiskAnalyzer
 import com.llamatik.teammate.codehealth.RunTrigger
 import com.llamatik.teammate.codehealth.WatchedAreaService
 import com.llamatik.teammate.codehealth.WatchedAreaType
-import com.llamatik.teammate.licensing.LicenseChecker
 import com.llamatik.teammate.tools.LlamatikTool
 import com.llamatik.teammate.tools.ToolCall
 import com.llamatik.teammate.tools.ToolExecutionContext
@@ -30,8 +29,6 @@ private fun Project.insightStore() = service<CodeHealthInsightStore>()
 private fun Project.scheduler() = service<CodeHealthScheduler>()
 private fun Project.watchSvc() = service<WatchedAreaService>()
 private fun Project.contextSvc() = service<CurrentWorkContextService>()
-private fun isPro(): Boolean = runCatching { LicenseChecker.isLicensed() == true }.getOrElse { false }
-
 class CodeHealthStatusTool(private val project: Project) : LlamatikTool {
     override val name = "code_health_status"
     override val description = "Get the Code Health Monitor status: enabled state, mode, last run, total insights"
@@ -44,7 +41,6 @@ class CodeHealthStatusTool(private val project: Project) : LlamatikTool {
         return ToolResult(name, true, buildString {
             appendLine("Enabled: ${svc.isEnabled()}")
             appendLine("Mode: ${svc.effectiveMode()}")
-            appendLine("Pro: ${svc.isPro()}")
             appendLine("Total insights: ${store.totalInsights()}")
             appendLine("Last analysis: $agoSec")
             appendLine("Last duration: ${store.lastDurationMs()}ms")
@@ -137,10 +133,6 @@ class CodeHealthCreateFixPlanTool(private val project: Project) : LlamatikTool {
                 appendLine()
                 appendLine("Action: ${insight.suggestedAction}")
             }
-            if (!isPro() && insight.canAutoFix) {
-                appendLine()
-                append("Note: Auto-apply requires a Pro subscription.")
-            }
         }.trim())
     }
 }
@@ -168,7 +160,7 @@ class WatchAreaAddTool(private val project: Project) : LlamatikTool {
         val area = project.watchSvc().addArea(path, type)
             ?: return ToolResult(
                 name, false,
-                "Cannot add watched area: limit reached.${if (!isPro()) " Pro allows up to 20 watched areas." else ""}",
+                "Cannot add watched area: limit reached.",
             )
         return ToolResult(name, true, "Now watching: $path (ID: ${area.id})")
     }

@@ -22,10 +22,9 @@ object Strings {
         const val NO_MODEL_CONFIGURED_MSG =
             "No model is configured. Go to Settings → Llamatik Code and set a model path."
         const val NO_MODEL_CONFIGURED_TITLE = "No model loaded"
-        const val TRIAL_EXPIRED_MSG = "Upgrade to Pro to unlock advanced Agent features."
         const val BASE_MODEL_WARNING =
             "Base model detected. For best results, use an instruction-tuned model (e.g. Qwen3, Gemma-it, Phi3-instruct)."
-        fun trialDaysLeft(days: Int) = "$days days left in trial. Upgrade to Pro to keep Agent features."
+        fun trialDaysLeft(days: Int) = "$days days remaining in your licence period."
     }
 
     // ── Composer / tool window ────────────────────────────────────────────────
@@ -65,7 +64,6 @@ object Strings {
         const val BACK = "← Back"
         const val STATUS_ANALYZING = "Analyzing…"
         const val TASK_HEADER = "Agent task"
-        const val OVERLAY_TRIAL_EXPIRED = "Upgrade to Pro to unlock advanced Agent features."
         const val OVERLAY_NO_MODEL = "Configure a model to use Agent mode."
         const val OVERLAY_LOADING_MODEL = "Loading model…"
         const val OVERLAY_DOWNLOADING_TITLE = "Downloading model"
@@ -80,7 +78,6 @@ object Strings {
         const val AUTO_BUILD_BG_NEXT = "  Build in background (Gradle)"
         const val AUTO_FIX_NEXT = "Auto-fix build errors"
         const val AGGRESSIVE_MODE_NEXT = "Aggressive mode"
-        const val RUN_OPTIONS_PRO_REQUIRED = "Requires Pro"
         const val SCROLL_TO_BOTTOM = "↓  Scroll to bottom"
         fun brewedFor(elapsed: String) = "brewed for $elapsed"
 
@@ -171,7 +168,7 @@ object Strings {
         const val VIEW_DIFF = "Diff"
         const val ACCEPTED_LABEL = "✓ Applied"
         const val REJECTED_LABEL = "✕ Rejected"
-        const val FREE_PLAN_LIMIT = "Free plan supports 1 file change. Upgrade to apply all."
+        const val FREE_PLAN_LIMIT = ""
     }
 
     // ── Diff viewer ───────────────────────────────────────────────────────────
@@ -209,8 +206,8 @@ object Strings {
         const val TIER_3 = "Tier 3 — High-performance (15 GB+)"
         const val TIER_BADGE_1 = "🟢 Best for quick tasks"
         const val TIER_BADGE_2 = "🟡 Best for real projects"
-        const val TIER_BADGE_3 = "🔴 Best for large codebases (Pro)"
-        const val TIER_3_PAYWALL_TITLE = "Pro model"
+        const val TIER_BADGE_3 = "🔴 Best for large codebases"
+        const val TIER_3_PAYWALL_TITLE = "High-performance"
     }
 
     // ── Empty state panel ─────────────────────────────────────────────────────
@@ -319,8 +316,7 @@ object Strings {
         const val TEMPERATURE_TOOLTIP  = "Sampling temperature (0 = deterministic, higher = more creative)"
         const val MAX_TOKENS               = "Max tokens:"
         const val MAX_TOKENS_TOOLTIP       = "Maximum number of tokens to generate per response"
-        const val MAX_TOKENS_FREE_TOOLTIP  = "Maximum tokens per response (free tier capped at 4096 — upgrade for higher limits)"
-        const val PRO_REQUIRED             = "Requires Pro"
+        const val MAX_TOKENS_FREE_TOOLTIP  = "Maximum number of tokens to generate per response"
         const val CONTEXT_SIZE         = "Context size (tokens):"
         const val CONTEXT_SIZE_TOOLTIP = "KV cache size — larger allows longer conversations but uses more VRAM"
         const val BATCH_SIZE           = "Batch size:"
@@ -343,8 +339,6 @@ object Strings {
         const val GPU_LAYERS           = "GPU offload (all layers)"
         const val GPU_LAYERS_TOOLTIP   = "Offload all model layers to the GPU (sets n_gpu_layers = -1). Faster inference but requires enough VRAM to fit the model. Leave off to run on CPU only."
         const val RESET_DEFAULTS       = "Reset to defaults"
-        const val UPGRADE_REQUIRED     = "Context size requires a Pro licence. Upgrade to unlock advanced settings."
-        const val UPGRADE_BUTTON       = "Upgrade"
     }
 
     // ── Onboarding ────────────────────────────────────────────────────────────
@@ -356,6 +350,8 @@ object Strings {
         const val STEP1_BODY2 =
             "Powered by local GGUF models. Run guided coding missions: Review → Plan → Patch → Verify → Audit — completely offline."
         const val STEP1_BODY3 = "<b>Privacy guarantee:</b> Your code stays on your hardware, always. No cloud, no telemetry, no source upload."
+        const val STEP1_BODY4 =
+            "<b>Free for individual developers</b> — every feature, no paywalls. Using it at work? An organization subscription on the JetBrains Marketplace is the right way to support development."
         const val STEP1_NEXT = "I just want it to work →"
         // Setup presets
         const val PRESET_FAST = "Fast local coding"
@@ -363,7 +359,7 @@ object Strings {
         const val PRESET_QUALITY = "Best local quality"
         const val PRESET_LOW_MEM = "Low-memory machine"
         const val PRESET_ENTERPRISE = "Enterprise / private mode"
-        const val PRESET_FAST_DESC = "Qwen2.5 Coder 7B — quick responses, lower RAM (~8 GB)"
+        const val PRESET_FAST_DESC = "Devstral Small 1.1 — agentic coding, ~16 GB RAM"
         const val PRESET_BALANCED_DESC = "Qwen3 14B — strong reasoning and coding (~16 GB RAM)"
         const val PRESET_QUALITY_DESC = "DeepSeek R1 Distill 32B — best quality, needs 32 GB+ RAM"
         const val PRESET_LOW_MEM_DESC = "Gemma 4 E4B — runs on 8 GB or less"
@@ -437,7 +433,7 @@ object Strings {
         const val ACTION_DELETE = "Delete"
         const val SECTION_SETTINGS = "<html><b>Skills</b></html>"
         fun activeCount(n: Int) = if (n == 0) "No skills active" else "$n skill${if (n == 1) "" else "s"} active"
-        const val FREE_PLAN_SKILL_LIMIT = "Free plan supports 3 active skills. Upgrade to activate all."
+        const val FREE_PLAN_SKILL_LIMIT = ""
         const val ADD_SKILL_BUTTON = "+ Add Skill"
         const val ADD_SKILL_DIALOG_TITLE = "Add Custom Skill"
         const val ADD_SKILL_TAB_PASTE = "Paste Markdown"
@@ -470,12 +466,6 @@ object Strings {
         const val RETRY_LIMIT = "Auto-fix limit reached — please fix manually"
     }
 
-    // ── Upgrade ───────────────────────────────────────────────────────────────
-    object Upgrade {
-        const val UNLOCK_PRO_BUTTON = "Unlock PRO"
-        const val UNLOCK_PRO_TOOLTIP = "Upgrade to Llamatik Code Pro"
-    }
-
     // ── Task queue panel ──────────────────────────────────────────────────────
     object TaskQueue {
         const val PANEL_TITLE = "Tasks"
@@ -492,12 +482,8 @@ object Strings {
         const val RERUN_TOOLTIP = "Re-run task"
         const val DELETE_TOOLTIP = "Remove task"
         const val TOGGLE_TOOLTIP = "Task queue"
-        const val PRO_REQUIRED_TITLE = "Pro feature"
-        const val PRO_REQUIRED_MSG =
-            "Running multiple tasks in parallel requires a Llamatik Code Pro subscription."
         const val BUSY_TITLE = "Task in progress"
-        const val BUSY_MSG =
-            "A task is already running. Upgrade to Pro to run multiple tasks in parallel."
+        const val BUSY_MSG = "A task is already running."
     }
 
     // ── Chat list panel ───────────────────────────────────────────────────────
@@ -507,6 +493,30 @@ object Strings {
         const val NEW_CHAT_TOOLTIP = "Start a new chat"
         const val DELETE_TOOLTIP = "Remove chat"
         const val TOGGLE_TOOLTIP = "Chat list"
+    }
+
+    // ── Support / Sponsorship ─────────────────────────────────────────────────
+    object Support {
+        const val BUTTON = "Support ♥"
+        const val TOOLTIP = "Free for individuals. If your team or company uses Llamatik Code, consider an organization subscription."
+        const val DIALOG_TITLE = "Support Llamatik Code"
+        const val DIALOG_MESSAGE =
+            "<html><body style='width:460px'>" +
+            "<b>Llamatik Code is free for individual developers</b> — every feature, no paywalls, forever.<br><br>" +
+            "<b>Using it at work or in a team?</b> An organization subscription on the JetBrains Marketplace is the right way to support continued development. " +
+            "It funds maintenance, new features, and model catalog updates — and it is a legitimate procurement line item for most companies.<br><br>" +
+            "<b>💳 Organization subscription</b> — \$15/month or \$150/year per seat on the JetBrains Marketplace.<br><br>" +
+            "<b>❤ Individual sponsor</b> — if you are an individual and want to contribute, GitHub Sponsors accepts any amount.<br><br>" +
+            "<b>⭐ Leave a review</b> — a short review on the Marketplace helps others discover the plugin and costs nothing.<br><br>" +
+            "Thank you for using Llamatik Code." +
+            "</body></html>"
+        const val GITHUB_SPONSORS_URL = "https://github.com/sponsors/ferranpons"
+        const val MARKETPLACE_SUBSCRIBE_URL = "https://plugins.jetbrains.com/plugin/31304-llamatik-code/pricing"
+        const val MARKETPLACE_REVIEW_URL = "https://plugins.jetbrains.com/plugin/31304-llamatik-code/reviews"
+        const val BUTTON_SUBSCRIBE = "Organization Subscription 💳"
+        const val BUTTON_SPONSOR = "Individual Sponsor ❤"
+        const val BUTTON_REVIEW = "Leave a Review ⭐"
+        const val BUTTON_CANCEL = "Maybe Later"
     }
 
     // ── About ─────────────────────────────────────────────────────────────────
@@ -529,8 +539,7 @@ object Strings {
         const val REMOVE_IMAGE_TOOLTIP = "Remove"
         const val FILE_CHOOSER_TITLE = "Select Image"
         const val FILE_FILTER_DESC = "Image files (PNG, JPG, BMP, WebP, GIF)"
-        const val UPGRADE_MESSAGE =
-            "Image attachments require a Llamatik Code Pro licence. Upgrade to attach images and use multimodal models."
+        const val UPGRADE_MESSAGE = ""
         const val NO_VLM_CONFIGURED =
             "Multimodal inference requires a vision model (VLM). Configure the model and mmproj paths in Settings → Llamatik Code."
         const val IMAGES_LABEL = "Attached images"
@@ -554,7 +563,7 @@ object Strings {
         const val SEARCH_PROVIDER = "Search provider:"
         const val PROVIDER_DEFAULT = "DuckDuckGo (default)"
         const val AUTO_USE = "Allow agent to use web automatically"
-        const val AUTO_USE_PRO_ONLY = "Auto-use requires Pro"
+        const val AUTO_USE_PRO_ONLY = ""
         const val PREFERRED_SOURCES = "Preferred sources (domains, comma-separated):"
         const val BLOCKED_DOMAINS = "Blocked domains (comma-separated):"
         const val SHOW_CITATIONS = "Always show sources and citations"
@@ -564,7 +573,7 @@ object Strings {
         const val ADD_DOCS_SOURCE = "Add docs source"
         const val REMOVE_DOCS_SOURCE = "Remove selected"
         const val REFRESH_DOCS_SOURCE = "Re-index selected"
-        const val DOCS_SOURCE_LIMIT_FREE = "Free plan: 1 docs source. Upgrade to add more."
+        const val DOCS_SOURCE_LIMIT_FREE = ""
         const val PRIVACY_NOTICE = "External research sends queries and URLs to the configured search provider. No source files are sent."
         const val DISABLED_MSG = "External research is disabled. Enable it in Settings → Llamatik Code → External Knowledge."
         const val DAILY_LIMIT_MSG = "Daily search limit reached. Resets tomorrow."
@@ -576,7 +585,7 @@ object Strings {
         const val CONFIDENCE_LOW = "Community (lower confidence)"
         const val SOURCES_HEADER = "Sources:"
         const val NO_RELIABLE_SOURCE = "No reliable source found for this claim."
-        const val PRO_REQUIRED_AUTO_USE = "Requires Pro subscription"
+        const val PRO_REQUIRED_AUTO_USE = ""
     }
 
     // ── MCP ───────────────────────────────────────────────────────────────────
@@ -590,8 +599,8 @@ object Strings {
         const val REFRESH_TOOLS = "Refresh tools"
         const val VIEW_LOGS = "View logs"
         const val TESTING = "Testing…"
-        const val FREE_TIER_NOTE = "Free plan: only one active server allowed. Upgrade to Pro for multiple servers and auto-approval."
-        const val AUTO_APPROVAL_PRO_REQUIRED = "Auto-approval rules require Pro."
+        const val FREE_TIER_NOTE = ""
+        const val AUTO_APPROVAL_PRO_REQUIRED = ""
         const val SECURITY_NOTE = "MCP servers are local processes but may access external services."
         const val FIELD_NAME = "Name:"
         const val FIELD_COMMAND = "Command:"
@@ -618,9 +627,9 @@ object Strings {
         const val APPROVAL_TITLE = "MCP Tool Approval Required"
         const val APPROVAL_ALLOW_ONCE = "Allow once"
         const val APPROVAL_DENY = "Deny"
-        const val APPROVAL_ALLOW_ALWAYS_TOOL = "Allow always for this tool (Pro)"
-        const val APPROVAL_ALLOW_ALWAYS_SERVER = "Allow always for this server (Pro)"
-        const val APPROVAL_PRO_HINT = "Auto-approval requires Pro."
+        const val APPROVAL_ALLOW_ALWAYS_TOOL = "Allow always for this tool"
+        const val APPROVAL_ALLOW_ALWAYS_SERVER = "Allow always for this server"
+        const val APPROVAL_PRO_HINT = ""
     }
 
     // ── Review / Feedback ─────────────────────────────────────────────────────
@@ -648,7 +657,7 @@ object Strings {
         const val EXPLAIN = "Explain"
         const val CREATE_FIX_PLAN = "Create Fix Plan"
         const val IGNORE = "Ignore"
-        const val PRO_REQUIRED = "Pro subscription required for this mode"
+        const val PRO_REQUIRED = ""
         const val BEFORE_COMMIT_TITLE = "Before-Commit Review"
         const val WATCH_ADD = "Watch This Area"
         const val WATCH_REMOVE = "Stop Watching"
