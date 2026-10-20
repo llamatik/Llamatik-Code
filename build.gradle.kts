@@ -23,7 +23,7 @@ plugins {
 }
 
 group = "com.llamatik.teammate"
-version = "1.10.0"
+version = "2026.1.1"
 
 kotlin {
     jvmToolchain(21)
