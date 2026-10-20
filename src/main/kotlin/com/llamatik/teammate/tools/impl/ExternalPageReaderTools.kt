@@ -6,7 +6,6 @@ import com.llamatik.teammate.external.ExternalKnowledgeLimits
 import com.llamatik.teammate.external.reader.ExternalPageReaderService
 import com.llamatik.teammate.external.reader.PageContent
 import com.llamatik.teammate.external.reader.PageReadRequest
-import com.llamatik.teammate.licensing.LicenseChecker
 import com.llamatik.teammate.settings.LlamatikAppSettings
 import com.llamatik.teammate.tools.LlamatikTool
 import com.llamatik.teammate.tools.ToolCall
@@ -37,10 +36,7 @@ class ExternalReadPagesTool(private val project: Project) : LlamatikTool {
         if (!isExternalEnabled()) return ToolResult(name, false, Strings.ExternalKnowledge.DISABLED_MSG)
         val urlsArg = call.arguments["urls"] ?: return ToolResult(name, false, "Missing argument: urls")
         val maxChars = call.arguments["maxChars"]?.toIntOrNull() ?: 4000
-        val isPro = runCatching { LicenseChecker.isLicensed() == true }.getOrElse { false }
-        val pageLimit = ExternalKnowledgeLimits.pagesPerTask(isPro)
-
-        val urls = urlsArg.split(",").map { it.trim() }.filter { it.isNotBlank() }.take(pageLimit)
+        val urls = urlsArg.split(",").map { it.trim() }.filter { it.isNotBlank() }.take(ExternalKnowledgeLimits.pagesPerTask())
         if (urls.isEmpty()) return ToolResult(name, false, "No valid URLs provided")
 
         val readerSvc = service<ExternalPageReaderService>()

@@ -31,14 +31,15 @@
         <p><b>🚀 Key Features</b></p>
         <ul>
             <li><b>Project-aware chat</b> – Ask questions about your codebase with persistent, multi-session support</li>
-            <li><b>Local AI models</b> – Run models fully offline; your code never leaves your machine</li>
+            <li><b>Local AI models</b> – Run models fully offline using any GGUF file or URL; your code never leaves your machine</li>
             <li><b>AI agent for code editing</b> – Generate and modify code using natural language with safe diff previews</li>
             <li><b>Context-aware assistance</b> – Understands the current file, selection, git state, and project structure</li>
-            <li><b>Multi-file workflows</b> – Perform coordinated changes across multiple files (Pro)</li>
-            <li><b>MCP server support</b> – Connect any MCP-compatible tool server and let the agent call its tools directly</li>
-            <li><b>Multi-task agent</b> – Run multiple agent tasks in parallel with a live task queue panel (Pro)</li>
+            <li><b>Multi-file workflows</b> – Perform coordinated changes across multiple files</li>
+            <li><b>MCP server support</b> – Connect any MCP-compatible tool server and let the agent call its tools directly, with per-tool auto-approval rules</li>
+            <li><b>Multi-task agent</b> – Run multiple agent tasks in parallel with a live task queue panel</li>
             <li><b>Parallel chat sessions</b> – Switch between multiple simultaneous conversations in Ask mode</li>
-            <li><b>Aggressive mode</b> – Instruct the agent to act more decisively and apply fixes without hesitation (Pro)</li>
+            <li><b>Aggressive mode</b> – Instruct the agent to act more decisively and apply fixes without hesitation</li>
+            <li><b>Build error auto-injection</b> – Paste a Gradle/KMP build log and the agent automatically reads the referenced source files before starting</li>
             <li><b>External Knowledge</b> – Let the agent search the web, read official docs, and research errors in real time, with citations</li>
             <li><b>Code Health Monitor</b> – Proactive background analysis that surfaces regression risks, complexity issues, and refactor opportunities before they become problems</li>
         </ul>
@@ -46,17 +47,17 @@
         <br/>
 
         <p><b>🔌 IDE-native MCP host</b><br/>
-        Configure local MCP servers under <b>Settings → Llamatik Code → MCP Servers</b>. The agent discovers their tools, resources, and prompts automatically and calls them through the same approval pipeline as built-in tools. Free users get one active server with manual approval on every call; Pro users get unlimited servers with optional per-tool and per-server auto-approval rules.</p>
+        Configure local MCP servers under <b>Settings → Llamatik Code → MCP Servers</b>. The agent discovers their tools, resources, and prompts automatically and calls them through the same approval pipeline as built-in tools. Set per-tool and per-server auto-approval rules to skip confirmation prompts for trusted tools.</p>
 
         <br/>
 
         <p><b>🌐 Context-Aware External Knowledge</b><br/>
-        The agent can search the web via DuckDuckGo, read documentation pages, route queries to the right source (kotlinlang.org, developer.android.com, GitHub Issues, and more), analyse compiler errors, and build fix plans — all without leaving the IDE. Every answer backed by external content includes structured citations. Enable under <b>Settings → Llamatik Code → External Knowledge</b>. Free: 5 searches/day, 1 docs source. Pro: 50 searches/day, 10 docs sources.</p>
+        The agent can search the web via DuckDuckGo, read documentation pages, route queries to the right source (kotlinlang.org, developer.android.com, GitHub Issues, and more), analyse compiler errors, and build fix plans — all without leaving the IDE. Every answer backed by external content includes structured citations. Enable under <b>Settings → Llamatik Code → External Knowledge</b>.</p>
 
         <br/>
 
         <p><b>🩺 Code Health Monitor</b><br/>
-        An opt-in background analysis layer that continuously monitors your codebase for structural problems and regression risks. Detects long files, TODO/FIXME accumulation, empty catch blocks, deprecated APIs, removed public declarations, deleted tests, and dependency changes — without a model call for the fast checks. Includes a before-commit assistant, watched areas, refactor opportunity detection, and 14 dedicated agent tools. Enable under <b>Settings → Llamatik Code → Code Health Monitor</b>. Free: LIGHT mode with manual trigger. Pro: BALANCED and AGGRESSIVE modes with on-save, idle, and before-commit scheduling.</p>
+        An opt-in background analysis layer that continuously monitors your codebase for structural problems and regression risks. Detects long files, TODO/FIXME accumulation, empty catch blocks, deprecated APIs, removed public declarations, deleted tests, and dependency changes — without a model call for the fast checks. Includes a before-commit assistant, watched areas, refactor opportunity detection, and 14 dedicated agent tools. Enable under <b>Settings → Llamatik Code → Code Health Monitor</b>. Choose between LIGHT, BALANCED, and AGGRESSIVE analysis modes with on-save, idle, and before-commit scheduling.</p>
 
         <br/>
 
@@ -76,11 +77,11 @@
 
         <br/>
 
-        <p><b>💡 Free &amp; Pro</b></p>
-        <ul>
-            <li><b>Free</b> – Chat, single-session agent, 1 active MCP server with manual approval, External Knowledge (5 searches/day), Code Health Monitor (LIGHT / manual)</li>
-            <li><b>Pro</b> – Multi-task agent, unlimited MCP servers, auto-approval rules, aggressive mode, multi-file apply, auto-build, auto-fix, External Knowledge (50 searches/day, 10 docs sources), Code Health Monitor (BALANCED + AGGRESSIVE modes, background scheduling)</li>
-        </ul>
+        <p><b>💡 Free for individuals — Organization subscription available</b></p>
+        <p>Every feature is available to individual developers with no subscription, no paywalls, and no feature tiers. External Knowledge, Code Health Monitor, MCP servers, multi-file workflows, and image support are all fully accessible from day one.</p>
+        <p><b>Using Llamatik Code at work or in a team?</b> An organization subscription on the JetBrains Marketplace is the right way to support continued development. It funds maintenance, new features, and model catalog updates — and it is a legitimate procurement line item for most companies ($15/month or $150/year per seat).</p>
+        <p>Individual developers who want to contribute voluntarily can also <a href="https://github.com/sponsors/ferranpons">sponsor on GitHub</a> or leave a review.</p>
+        <p>The "Support ♥" button in the plugin header makes all of this easy to find.</p>
 
         <br/>
 

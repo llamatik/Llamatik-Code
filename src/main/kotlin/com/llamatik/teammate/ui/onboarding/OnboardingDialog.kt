@@ -86,6 +86,7 @@ class OnboardingDialog(private val project: Project) : DialogWrapper(project, tr
                 "<p style='width:420px;'>${Strings.Onboarding.STEP1_BODY1}</p>" +
                 "<p style='width:420px; margin-top:10px;'>${Strings.Onboarding.STEP1_BODY2}</p>" +
                 "<p style='width:420px; margin-top:10px;'>${Strings.Onboarding.STEP1_BODY3}</p>" +
+                "<p style='width:420px; margin-top:10px;'>${Strings.Onboarding.STEP1_BODY4}</p>" +
                 "</html>",
         )
 

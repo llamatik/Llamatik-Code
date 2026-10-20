@@ -3,7 +3,6 @@ package com.llamatik.teammate.ui.skills
 import com.intellij.openapi.components.service
 import com.intellij.openapi.ui.Messages
 import com.intellij.ui.DocumentAdapter
-import com.llamatik.teammate.licensing.LicenseChecker
 import com.intellij.ui.SearchTextField
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
@@ -109,15 +108,8 @@ class SkillLibraryDialog(
                 alignmentX = LEFT_ALIGNMENT
             })
         } else {
-            val licensed = runCatching { LicenseChecker.isLicensed() == true }.getOrElse { false }
-            val activeCount = skillService.activeSkills().size
-            val freeTierPaywall = !licensed
-            val lockFunctions = mutableListOf<() -> Unit>()
             filtered.forEach { skill ->
-                val status = skillService.skillStatus(skill.id)
-                val locked = freeTierPaywall && status != SkillStatus.ACTIVE && activeCount >= 3
-                val (card, lockActivate) = buildSkillCard(skill, locked)
-                lockFunctions.add(lockActivate)
+                val (card, _) = buildSkillCard(skill)
                 listPanel.add(card)
                 listPanel.add(Box.createVerticalStrut(8))
             }
@@ -127,7 +119,7 @@ class SkillLibraryDialog(
         listPanel.repaint()
     }
 
-    private fun buildSkillCard(skill: SkillDescriptor, locked: Boolean = false): Pair<JPanel, () -> Unit> {
+    private fun buildSkillCard(skill: SkillDescriptor): Pair<JPanel, () -> Unit> {
         val status = skillService.skillStatus(skill.id)
 
         val card = JPanel(BorderLayout(0, 6)).apply {
@@ -175,7 +167,7 @@ class SkillLibraryDialog(
                 "</span></html>",
         )
 
-        val (actionButtons, lockActivate) = buildActionButtons(skill, status, locked)
+        val (actionButtons, lockActivate) = buildActionButtons(skill, status)
 
         val footerRow = JPanel(BorderLayout()).apply {
             isOpaque = false
@@ -224,7 +216,7 @@ class SkillLibraryDialog(
             )
         }
 
-    private fun buildActionButtons(skill: SkillDescriptor, status: SkillStatus, locked: Boolean = false): Pair<JPanel, () -> Unit> {
+    private fun buildActionButtons(skill: SkillDescriptor, status: SkillStatus): Pair<JPanel, () -> Unit> {
         val activateButton: JButton? = when (status) {
             SkillStatus.NOT_DOWNLOADED -> buildButton(Strings.Skills.ACTION_ACTIVATE, primary = true) {
                 skillService.download(skill.id)
@@ -263,35 +255,14 @@ class SkillLibraryDialog(
             }
         } else null
 
-        val upgradeLabel = JBLabel(Strings.Skills.FREE_PLAN_SKILL_LIMIT).apply {
-            foreground = LlamatikTheme.onSurfaceVariant
-            font = font.deriveFont(Font.ITALIC, font.size2D - 1f)
-            isVisible = locked
-        }
-
-        if (locked) activateButton?.isEnabled = false
-
-        val lockActivate: () -> Unit = {
-            activateButton?.isEnabled = false
-            upgradeLabel.isVisible = true
-        }
-
-        val panel = JPanel().apply {
-            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+        val panel = JPanel(FlowLayout(FlowLayout.RIGHT, 6, 0)).apply {
             isOpaque = false
-            val buttonsRow = JPanel(FlowLayout(FlowLayout.RIGHT, 6, 0)).apply {
-                isOpaque = false
-                deleteButton?.let { add(it) }
-                deactivateButton?.let { add(it) }
-                activateButton?.let { add(it) }
-            }
-            buttonsRow.alignmentX = RIGHT_ALIGNMENT
-            upgradeLabel.alignmentX = RIGHT_ALIGNMENT
-            add(buttonsRow)
-            add(upgradeLabel)
+            deleteButton?.let { add(it) }
+            deactivateButton?.let { add(it) }
+            activateButton?.let { add(it) }
         }
 
-        return Pair(panel, lockActivate)
+        return Pair(panel, {})
     }
 
     private fun buildButton(text: String, primary: Boolean, onClick: () -> Unit): JButton =

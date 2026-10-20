@@ -8,7 +8,6 @@ import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTextArea
 import com.intellij.util.ui.JBUI
 import com.llamatik.teammate.diff.DiffPreviewService
-import com.llamatik.teammate.licensing.LicenseChecker
 import com.llamatik.teammate.llamatik.MultimodalBackendService
 import com.llamatik.teammate.model.AttachedImage
 import com.llamatik.teammate.model.ChatSession
@@ -104,10 +103,7 @@ class ChatTabPanel(
     private val isMultimodalEnabled: () -> Boolean = {
         runCatching { service<MultimodalBackendService>().isConfigured() }.getOrElse { false }
     }
-    private val isLicensed: () -> Boolean = {
-        runCatching { LicenseChecker.isLicensed() == true }.getOrElse { false }
-    }
-    private val imageBar = ImageAttachmentBar(project, isMultimodalEnabled, { /* onChange — read on send */ }, isLicensed)
+    private val imageBar = ImageAttachmentBar(project, isMultimodalEnabled, { /* onChange — read on send */ })
 
     // ── Composer ──────────────────────────────────────────────────────────────
     private val composerInput = object : JBTextArea(3, 40) {
@@ -695,11 +691,7 @@ class ChatTabPanel(
     private fun showInferenceDialog() {
         val settings = com.intellij.openapi.components.service<com.llamatik.teammate.settings.LlamatikAppSettings>()
         var dialog: com.intellij.openapi.ui.DialogWrapper? = null
-        val panel = com.llamatik.teammate.settings.InferenceSettingsPanel(onUpgrade = {
-            dialog?.close(com.intellij.openapi.ui.DialogWrapper.CANCEL_EXIT_CODE)
-            com.intellij.openapi.components.service<com.llamatik.teammate.licensing.TrialService>()
-                .requestLicense(Strings.Inference.UPGRADE_REQUIRED)
-        })
+        val panel = com.llamatik.teammate.settings.InferenceSettingsPanel()
         panel.loadFrom(settings.data())
         dialog = object : com.intellij.openapi.ui.DialogWrapper(false) {
             init {

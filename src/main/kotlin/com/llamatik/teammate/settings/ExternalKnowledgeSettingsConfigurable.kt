@@ -11,7 +11,6 @@ import com.llamatik.teammate.external.ExternalKnowledgeLimits
 import com.llamatik.teammate.external.docs.DocsSource
 import com.llamatik.teammate.external.docs.DocsSourceService
 import com.llamatik.teammate.external.docs.DocsSourceType
-import com.llamatik.teammate.licensing.LicenseChecker
 import com.llamatik.teammate.ui.Strings
 import java.awt.BorderLayout
 import java.awt.Dimension
@@ -36,12 +35,9 @@ class ExternalKnowledgeSettingsConfigurable : Configurable {
     private lateinit var blockedDomainsArea: JBTextArea
     private lateinit var docsSourcesListModel: DefaultListModel<String>
     private lateinit var docsSourcesList: JList<String>
-    private lateinit var docsLimitLabel: JBLabel
-
     override fun getDisplayName(): String = "External Knowledge"
 
     override fun createComponent(): JComponent {
-        val isPro = runCatching { LicenseChecker.isLicensed() == true }.getOrElse { false }
         val s = settings.data()
 
         enableResearchCheck = JBCheckBox(Strings.ExternalKnowledge.ENABLE_RESEARCH)
@@ -49,10 +45,6 @@ class ExternalKnowledgeSettingsConfigurable : Configurable {
 
         autoUseCheck = JBCheckBox(Strings.ExternalKnowledge.AUTO_USE)
         autoUseCheck.isSelected = s.externalResearchAutoUse
-        if (!isPro) {
-            autoUseCheck.isEnabled = false
-            autoUseCheck.toolTipText = Strings.ExternalKnowledge.AUTO_USE_PRO_ONLY
-        }
 
         showCitationsCheck = JBCheckBox(Strings.ExternalKnowledge.SHOW_CITATIONS)
         showCitationsCheck.isSelected = s.externalResearchShowCitations
@@ -66,13 +58,6 @@ class ExternalKnowledgeSettingsConfigurable : Configurable {
         docsSourcesListModel = DefaultListModel()
         docsSourcesList = JList(docsSourcesListModel)
         reloadDocsSources()
-
-        val docsLimit = ExternalKnowledgeLimits.docsSourceLimit(isPro)
-        docsLimitLabel = if (isPro) JBLabel("")
-        else JBLabel(Strings.ExternalKnowledge.DOCS_SOURCE_LIMIT_FREE).apply {
-            foreground = com.llamatik.teammate.ui.LlamatikTheme.onSurfaceVariant
-            font = font.deriveFont(Font.ITALIC, font.size2D - 1f)
-        }
 
         val addDocsButton = JButton(Strings.ExternalKnowledge.ADD_DOCS_SOURCE).apply {
             addActionListener {
@@ -94,7 +79,7 @@ class ExternalKnowledgeSettingsConfigurable : Configurable {
                 )
                 val added = docsSvc.addSource(source)
                 if (!added) {
-                    JOptionPane.showMessageDialog(null, Strings.ExternalKnowledge.DOCS_SOURCE_LIMIT_FREE, "Limit reached", JOptionPane.WARNING_MESSAGE)
+                    JOptionPane.showMessageDialog(null, "Docs source limit reached.", "Limit reached", JOptionPane.WARNING_MESSAGE)
                 }
                 reloadDocsSources()
             }
@@ -117,8 +102,8 @@ class ExternalKnowledgeSettingsConfigurable : Configurable {
             }, BorderLayout.SOUTH)
         }
 
-        val dailyLimit = ExternalKnowledgeLimits.dailySearchLimit(isPro)
-        val pagesPerTask = ExternalKnowledgeLimits.pagesPerTask(isPro)
+        val dailyLimit = ExternalKnowledgeLimits.dailySearchLimit()
+        val pagesPerTask = ExternalKnowledgeLimits.pagesPerTask()
 
         val proNoteFont = Font(Font.DIALOG, Font.ITALIC, 11)
 
@@ -134,11 +119,6 @@ class ExternalKnowledgeSettingsConfigurable : Configurable {
         val privacyLabel = JBLabel("<html><i>${Strings.ExternalKnowledge.PRIVACY_NOTICE}</i></html>").apply {
             font = font.deriveFont(Font.ITALIC, font.size2D - 1f)
         }
-        val autoUseProLabel = if (!isPro) JBLabel(Strings.ExternalKnowledge.PRO_REQUIRED_AUTO_USE).apply {
-            foreground = com.llamatik.teammate.ui.LlamatikTheme.onSurfaceVariant
-            font = font.deriveFont(Font.ITALIC, font.size2D - 1f)
-        } else null
-
         return FormBuilder.createFormBuilder()
             .addLabeledComponent(JBLabel(Strings.ExternalKnowledge.SECTION_TITLE), JBLabel(""))
             .addComponent(enableResearchCheck)
@@ -149,12 +129,11 @@ class ExternalKnowledgeSettingsConfigurable : Configurable {
             .addSeparator()
             .addComponent(showCitationsCheck)
             .addComponent(autoUseCheck)
-            .apply { if (autoUseProLabel != null) addComponent(autoUseProLabel) }
             .addSeparator()
             .addLabeledComponent(JBLabel(Strings.ExternalKnowledge.PREFERRED_SOURCES), JBScrollPane(preferredSourcesArea))
             .addLabeledComponent(JBLabel(Strings.ExternalKnowledge.BLOCKED_DOMAINS), JBScrollPane(blockedDomainsArea))
             .addSeparator()
-            .addLabeledComponent(JBLabel(Strings.ExternalKnowledge.SECTION_DOCS_SOURCES), docsLimitLabel)
+            .addLabeledComponent(JBLabel(Strings.ExternalKnowledge.SECTION_DOCS_SOURCES), JBLabel(""))
             .addComponent(docsPanel)
             .addSeparator()
             .addComponent(privacyLabel)

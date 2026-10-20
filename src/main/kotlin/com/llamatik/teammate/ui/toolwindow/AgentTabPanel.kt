@@ -434,19 +434,6 @@ class AgentTabPanel(
         addActionListener { onAggressiveModeChanged(isSelected); updateRunOptionsButton() }
     }
     private val runOptionsPopup = JPopupMenu().apply {
-        val licensed = runCatching { LicenseChecker.isLicensed() == true }.getOrElse { false }
-        if (!licensed) {
-            val proLabel = JBLabel(Strings.Agent.RUN_OPTIONS_PRO_REQUIRED).apply {
-                foreground = LlamatikTheme.onSurfaceVariant
-                font = font.deriveFont(Font.BOLD, font.size2D - 1f)
-                border = JBUI.Borders.empty(6, 12, 4, 12)
-            }
-            add(proLabel)
-            addSeparator()
-            autoApproveItem.isEnabled = false
-            autoFixItem.isEnabled = false
-            aggressiveItem.isEnabled = false
-        }
         add(autoApproveItem)
         add(autoBuildItem)
         add(buildIdeItem)
@@ -650,11 +637,8 @@ class AgentTabPanel(
     private val isMultimodalEnabled: () -> Boolean = {
         runCatching { service<MultimodalBackendService>().isConfigured() }.getOrElse { false }
     }
-    private val isLicensed: () -> Boolean = {
-        runCatching { LicenseChecker.isLicensed() == true }.getOrElse { false }
-    }
     private val imageBar = project?.let {
-        ImageAttachmentBar(it, isMultimodalEnabled, { /* onChange — no-op, we read on send */ }, isLicensed)
+        ImageAttachmentBar(it, isMultimodalEnabled, { /* onChange — no-op, we read on send */ })
     }
 
     // ── Composer ──────────────────────────────────────────────────────────────
@@ -1289,7 +1273,6 @@ class AgentTabPanel(
 
     fun showResponseActions(
         showFixIt: Boolean,
-        isLicensed: Boolean,
         onFixIt: () -> Unit,
         onCreatePlan: () -> Unit,
         onExplainMore: () -> Unit,
@@ -2235,11 +2218,7 @@ class AgentTabPanel(
     private fun showInferenceDialog(anchor: java.awt.Component) {
         val settings = com.intellij.openapi.components.service<com.llamatik.teammate.settings.LlamatikAppSettings>()
         var dialog: com.intellij.openapi.ui.DialogWrapper? = null
-        val panel = com.llamatik.teammate.settings.InferenceSettingsPanel(onUpgrade = {
-            dialog?.close(com.intellij.openapi.ui.DialogWrapper.CANCEL_EXIT_CODE)
-            com.intellij.openapi.components.service<com.llamatik.teammate.licensing.TrialService>()
-                .requestLicense(com.llamatik.teammate.ui.Strings.Inference.UPGRADE_REQUIRED)
-        })
+        val panel = com.llamatik.teammate.settings.InferenceSettingsPanel()
         panel.loadFrom(settings.data())
         dialog = object : com.intellij.openapi.ui.DialogWrapper(false) {
             init {

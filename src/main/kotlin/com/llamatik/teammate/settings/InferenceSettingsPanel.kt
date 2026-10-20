@@ -5,9 +5,6 @@ import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
 import com.intellij.util.ui.FormBuilder
 import com.intellij.util.ui.JBUI
-import com.llamatik.teammate.licensing.LicenseChecker
-import com.llamatik.teammate.licensing.TrialService
-import com.llamatik.teammate.ui.LlamatikTheme
 import com.llamatik.teammate.ui.Strings
 import java.awt.BorderLayout
 import java.awt.Font
@@ -18,11 +15,9 @@ import javax.swing.JRadioButton
 import javax.swing.JSpinner
 import javax.swing.SpinnerNumberModel
 
-class InferenceSettingsPanel(private val onUpgrade: (() -> Unit)? = null) {
+class InferenceSettingsPanel {
 
-    private val licensed = runCatching { LicenseChecker.isLicensed() == true }.getOrElse { false }
-
-    // ── Free tier controls ────────────────────────────────────────────────────
+    // ── Controls ──────────────────────────────────────────────────────────────
     val temperatureSpinner = JSpinner(SpinnerNumberModel(0.7, 0.0, 2.0, 0.05))
     private val maxTokensMax = 65536
     val maxTokensSpinner = JSpinner(SpinnerNumberModel(
@@ -42,18 +37,10 @@ class InferenceSettingsPanel(private val onUpgrade: (() -> Unit)? = null) {
         it.add(resourceBalancedRadio); it.add(resourceLowRadio); it.add(resourceFullRadio)
     }
 
-    // ── Pro-only controls ─────────────────────────────────────────────────────
     val contextSizeSpinner = JSpinner(SpinnerNumberModel(16384, 512, 131072, 512))
     val batchSizeSpinner   = JSpinner(SpinnerNumberModel(2048, 64, 65536, 64))
     val flashAttentionCheck = JBCheckBox(Strings.Inference.FLASH_ATTENTION)
     val gpuOffloadCheck     = JBCheckBox(Strings.Inference.GPU_LAYERS)
-
-    private val freeControls: List<java.awt.Component> get() = listOf(
-        temperatureSpinner, maxTokensSpinner, numThreadsSpinner, useMmapCheck, batchSizeSpinner, flashAttentionCheck, gpuOffloadCheck,
-    )
-    private val proControls: List<java.awt.Component> get() = listOf(
-        contextSizeSpinner,
-    )
 
     val panel: JPanel by lazy {
         val resetButton = JButton(Strings.Inference.RESET_DEFAULTS).apply {

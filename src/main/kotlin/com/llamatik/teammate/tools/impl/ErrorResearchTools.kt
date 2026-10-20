@@ -4,7 +4,6 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.llamatik.teammate.external.research.ErrorResearchService
 import com.llamatik.teammate.external.research.ResearchOrchestratorService
-import com.llamatik.teammate.licensing.LicenseChecker
 import com.llamatik.teammate.settings.LlamatikAppSettings
 import com.llamatik.teammate.tools.LlamatikTool
 import com.llamatik.teammate.tools.ToolCall
@@ -19,14 +18,13 @@ class ErrorResearchAnalyzeTool(private val project: Project) : LlamatikTool {
     override fun execute(call: ToolCall, context: ToolExecutionContext): ToolResult {
         if (!isEnabled()) return ToolResult(name, false, Strings.ExternalKnowledge.DISABLED_MSG)
         val error = call.arguments["error"] ?: return ToolResult(name, false, "Missing argument: error")
-        val isPro = isPro()
         val orchestrator = service<ResearchOrchestratorService>()
-        if (!orchestrator.canRunResearch(isPro)) {
+        if (!orchestrator.canRunResearch(true)) {
             return ToolResult(name, false, Strings.ExternalKnowledge.DAILY_LIMIT_MSG)
         }
         val errorSvc = service<ErrorResearchService>()
         val errorContext = errorSvc.parseErrorContext(error)
-        val report = errorSvc.researchError(errorContext, isPro)
+        val report = errorSvc.researchError(errorContext, true)
         val text = buildString {
             appendLine("Error analysis:")
             if (errorContext.tool.isNotBlank()) appendLine("Tool: ${errorContext.tool}")
@@ -55,37 +53,19 @@ class ErrorResearchFixTool(private val project: Project) : LlamatikTool {
         if (!isEnabled()) return ToolResult(name, false, Strings.ExternalKnowledge.DISABLED_MSG)
         val error = call.arguments["error"] ?: return ToolResult(name, false, "Missing argument: error")
         val projectContext = call.arguments["context"] ?: ""
-        val isPro = isPro()
         val orchestrator = service<ResearchOrchestratorService>()
-        if (!orchestrator.canRunResearch(isPro)) {
+        if (!orchestrator.canRunResearch(true)) {
             return ToolResult(name, false, Strings.ExternalKnowledge.DAILY_LIMIT_MSG)
         }
         val errorSvc = service<ErrorResearchService>()
         val errorContext = errorSvc.parseErrorContext(error)
-        val report = errorSvc.researchError(errorContext, isPro)
+        val report = errorSvc.researchError(errorContext, true)
 
-        return if (!isPro) {
-            // Free: preview only
-            val preview = buildString {
-                appendLine("Fix plan preview (upgrade to Pro for full plan):")
-                appendLine()
-                appendLine(report.answer.take(200))
-                if (report.sources.isNotEmpty()) {
-                    appendLine()
-                    appendLine("Source: ${report.sources.first().url}")
-                }
-            }.trim()
-            ToolResult(name, true, preview)
-        } else {
-            // Pro: full fix plan
-            val fixPlan = errorSvc.buildFixPlan(errorContext, report)
-            ToolResult(name, true, fixPlan)
-        }
+        val fixPlan = errorSvc.buildFixPlan(errorContext, report)
+        return ToolResult(name, true, fixPlan)
     }
 }
 
 private fun isEnabled(): Boolean =
     runCatching { service<LlamatikAppSettings>().data().externalResearchEnabled }.getOrElse { false }
 
-private fun isPro(): Boolean =
-    runCatching { LicenseChecker.isLicensed() == true }.getOrElse { false }

@@ -23,7 +23,7 @@ plugins {
 }
 
 group = "com.llamatik.teammate"
-version = "1.9.0"
+version = "1.10.0"
 
 kotlin {
     jvmToolchain(21)
@@ -56,6 +56,40 @@ intellijPlatform {
             sinceBuild = "252"
         }
         changeNotes = """
+            <h2>1.10.0 — Open Access, Build Error Auto-Injection &amp; Model Improvements</h2>
+
+            <h3>Free for Individuals — Organization Subscription</h3>
+            <ul>
+                <li><b>Free for individual developers</b> — every feature is available with no paywalls. Model selection, multi-task agent, run options, skills, image attachments, inference settings, Code Health modes, External Knowledge (50 searches/day, 10 docs sources, auto-use), MCP auto-approval, and multi-file apply are all unrestricted.</li>
+                <li><b>Organization subscription</b> — teams and companies using Llamatik Code can support continued development via the JetBrains Marketplace organization subscription ($15/month or $150/year per seat). No features are gated — subscribing is the right way for organizations to legitimately procure and fund the plugin.</li>
+                <li><b>Support ♥ button</b> — the header now has a "Support ♥" button in place of the old Unlock PRO button. It opens a dialog that explains the model and links to the organization subscription, GitHub Sponsors (for individual contributors), and a Marketplace review.</li>
+            </ul>
+
+            <h3>Agent — Build Error Auto-Injection</h3>
+            <ul>
+                <li><b>Automatic file injection from build errors</b> — when you paste a Gradle/KMP build error log, the agent now automatically extracts <code>file:///</code> paths and reads the referenced source files into the system prompt before starting. No need to manually attach files with <code>@filename</code> when fixing build failures.</li>
+                <li><b>Modern Gradle error format support</b> — <code>BuildFailureService</code> now recognises the modern <code>e: file:///path.kt:line:col</code> error format used by Kotlin/KMP, in addition to the legacy format. Previously, pasting modern errors incorrectly reported "Build OK".</li>
+                <li><b>KMM/Android task allowlist</b> — the terminal allowlist is extended to cover module-qualified Gradle tasks such as <code>./gradlew :shared:compileDebugKotlinAndroid</code>, so the agent can verify the exact failing task rather than a full build.</li>
+                <li><b>Specific verify command</b> — the build fix plan now extracts the exact failing task from the build output and uses that as the verify command instead of defaulting to <code>./gradlew build</code>.</li>
+            </ul>
+
+            <h3>Chat Panel — Pasted Content Compaction</h3>
+            <ul>
+                <li><b>Long pasted text is compacted</b> — content over 8 lines or 500 characters is shown as a preview of the first 3 lines followed by a <code>[+N lines]</code> badge in the conversation panel, keeping the chat readable without scrolling through raw build logs.</li>
+            </ul>
+
+            <h3>Model Library Improvements</h3>
+            <ul>
+                <li><b>Multi-part download support</b> — large model files split across multiple URLs can now be downloaded and assembled automatically.</li>
+                <li><b>Updated suggested models</b> — the built-in catalog has been refreshed with current recommended models and download URLs.</li>
+            </ul>
+
+            <h3>Generation &amp; Backend</h3>
+            <ul>
+                <li><b>Improved generation reliability</b> — backend service updates for more stable model loading and inference.</li>
+                <li><b>Diagnostics improvements</b> — extended diagnostic output to help identify configuration issues.</li>
+            </ul>
+
             <h2>1.9.0 — Statistics, Resource Modes, Qwen 3.6 &amp; Agent Improvements</h2>
 
             <h3>Usage Statistics</h3>
