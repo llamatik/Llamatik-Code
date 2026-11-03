@@ -114,7 +114,7 @@ class DiagnosticsService(private val project: Project) {
             DiagnosticCheck(
                 "Native library", CheckStatus.FAIL,
                 "LlamaBridge not available: $detail",
-                "Reinstall the plugin. If the problem persists, report it at github.com/ferranpons/Llamatik-Code-Issue-Tracker",
+                "Reinstall the plugin. If the problem persists, report it at github.com/llamatik/Llamatik-Code-Issue-Tracker",
             )
         }
     }

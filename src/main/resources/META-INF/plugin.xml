@@ -2,7 +2,7 @@
 <idea-plugin>
     <id>com.llamatik.teammate.LlamatikTeammate</id>
     <name>Llamatik Code</name>
-    <vendor url="https://www.llamatik.com" email="info@multiplatformkickstarter.com">Llamatik AI</vendor>
+    <vendor url="https://www.llamatik.com" email="info@llamatik.com">Llamatik AI</vendor>
 
     <!--
         Paid plugin parameters required by JetBrains Marketplace.

@@ -398,7 +398,7 @@ object Strings {
         const val LABEL_NATIVE_UNAVAILABLE = "Native lib unavailable"
         const val LABEL_NO_MODEL = "No model loaded"
         fun errorNativeLib(err: String) =
-            "Llamatik native library could not be loaded: $err\n\nTry reinstalling the plugin. If the problem persists, please report it at github.com/ferranpons/Llamatik-Code-Issue-Tracker"
+            "Llamatik native library could not be loaded: $err\n\nTry reinstalling the plugin. If the problem persists, please report it at github.com/llamatik/Llamatik-Code-Issue-Tracker"
     }
 
     // ── Download / model setup ────────────────────────────────────────────────
@@ -641,7 +641,7 @@ object Strings {
         const val REVIEW_LATER = "Maybe Later"
         const val REVIEW_NO_THANKS = "No, Thanks"
         const val FEEDBACK_BUTTON = "Give Feedback"
-        const val FEEDBACK_URL = "https://github.com/Llamatik-AI/Llamatik-Code-Issue-Tracker/issues"
+        const val FEEDBACK_URL = "https://github.com/llamatik/Llamatik-Code-Issue-Tracker/issues"
     }
 
     // ── Code Health Monitor ───────────────────────────────────────────────────
