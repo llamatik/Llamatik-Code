@@ -303,17 +303,18 @@ Companies: purchasing an organization subscription is the right way to support t
 
 ## 🤝 Contributing
 
-Llamatik Code is open-source and welcomes contributions.
+Llamatik Code is open-source and welcomes contributions. Please read [CONTRIBUTING.md](./CONTRIBUTING.md) before opening a PR — it documents the dev setup, how to run tests and benchmarks, and a table of **known intentional stubs** you should be aware of before diving in.
 
-- 🐛 **Bug reports** → [GitHub Issues](https://github.com/Llamatik-AI/Llamatik-Code-Issue-Tracker/issues)
-- 💡 **Feature requests** → [GitHub Issues](https://github.com/Llamatik-AI/Llamatik-Code-Issue-Tracker/issues)
+- 🐛 **Bug reports** → [GitHub Issues](https://github.com/llamatik/Llamatik-Teammate/issues)
+- 💡 **Feature requests** → [GitHub Issues](https://github.com/llamatik/Llamatik-Teammate/issues)
 - 📖 **Documentation** → [docs.llamatik.com](https://docs.llamatik.com)
 - 💬 **Community** → [Discord](https://discord.gg/bNpzawZqq)
+- 🤝 **Code of Conduct** → [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md)
 
 ### Building from source
 
 ```bash
-git clone https://github.com/Llamatik-AI/Llamatik-Teammate.git
+git clone https://github.com/llamatik/Llamatik-Teammate.git
 cd Llamatik-Teammate
 ./gradlew buildPlugin
 ```
