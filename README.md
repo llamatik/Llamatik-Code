@@ -5,17 +5,18 @@
 <h1 align="center">Llamatik Code</h1>
 
 <p align="center">
-  <b>Local-first AI coding assistant for IntelliJ-based IDEs — local by default, distributed by choice.</b>
+  <b>The AI pair programmer built for Kotlin Multiplatform — works with every language and project in your JetBrains IDE.</b>
 </p>
 
 <p align="center">
-  Local by default · Distributed by choice · Agent-driven
+  Kotlin Multiplatform · Local by default · Distributed by choice
 </p>
 
 <p align="center">
   <a href="https://plugins.jetbrains.com/plugin/31304"><img src="https://img.shields.io/jetbrains/plugin/v/31304" alt="JetBrains Plugin version"/></a>
   <a href="https://plugins.jetbrains.com/plugin/31304"><img src="https://img.shields.io/jetbrains/plugin/d/31304" alt="JetBrains Plugin downloads"/></a>
-  <img src="https://img.shields.io/badge/Platform-IntelliJ%20%7C%20Android%20Studio%20%7C%20GoLand%20%7C%20CLion-blue" alt="platforms badge"/>
+  <img src="https://img.shields.io/badge/Focus-Kotlin%20Multiplatform-blueviolet" alt="kotlin multiplatform badge"/>
+  <img src="https://img.shields.io/badge/Platform-IntelliJ%20%7C%20Android%20Studio%20%7C%20GoLand%20%7C%20CLion%20%7C%20PyCharm-blue" alt="platforms badge"/>
   <img src="https://img.shields.io/badge/Inference-llama.cpp-orange" alt="llama.cpp badge"/>
   <img src="https://img.shields.io/badge/Models-GGUF-green" alt="gguf badge"/>
   <img src="https://img.shields.io/badge/License-Apache%202.0-lightgrey" alt="license badge"/>
@@ -25,14 +26,17 @@
 
 ## ✨ What is Llamatik Code?
 
-**Llamatik Code** is an open-source AI coding assistant for IntelliJ-based IDEs powered entirely by local inference. It wraps the [Llamatik](https://github.com/llamatik/Llamatik) on-device AI SDK and gives you a project-aware agent that reads your code, writes diffs, runs builds, and produces audit reports — without ever sending a byte to the cloud.
+**Llamatik Code** is an open-source AI coding assistant built specifically for Kotlin Multiplatform development, running entirely on local inference. It wraps the [Llamatik](https://github.com/llamatik/Llamatik) on-device AI SDK and gives you a KMP-aware agent that understands your shared/platform source sets, diagnoses native compilation errors, plans cross-platform refactors, and applies safe diffs — all inside your JetBrains IDE with no cloud dependency.
 
+It works equally well for any JVM, Android, iOS, or general-purpose project — the KMP tooling is additive, not restrictive.
+
+- 🎯 **KMP-native** — dedicated tools for diagnosing and fixing Kotlin Multiplatform native compilation issues (`kmp_diagnose`, `kmp_fix_plan`)
 - 🤖 **Agent-driven** — a tool-calling loop with 70+ built-in tools for git, PSI, file I/O, search, build, and more
 - 🔒 **Privacy-first** — inference runs locally by default via GGUF models and llama.cpp; you control what connects to the outside world
 - 🧩 **MCP-compatible** — connect any Model Context Protocol server and let the agent call its tools
 - 🩺 **Code Health Monitor** — background analysis for regressions, complexity, and refactor opportunities
-- 🌐 **External Knowledge** — web search, docs research, and error analysis from inside the IDE
-- 🚀 **Autonomous Local Development** — mission-driven coding: plan → patch → verify → audit, entirely offline
+- 🌐 **External Knowledge** — web search, docs research, and error analysis from inside the IDE with smart routing to kotlinlang.org, developer.android.com, and developer.apple.com
+- 🚀 **Autonomous Local Development** — mission-driven coding: plan → patch → verify → audit, entirely on-device
 
 ---
 
@@ -228,13 +232,15 @@ Rules are injected into every agent session automatically.
 
 ## 🔍 Why Llamatik Code?
 
-- ✅ Fully offline — no cloud, no telemetry, no data exfiltration
+- ✅ **Built for Kotlin Multiplatform** — dedicated KMP tools, smart routing to KMP docs, awareness of shared/platform source sets
+- ✅ Local by default — no cloud, no telemetry, no data exfiltration
 - ✅ Built on [Llamatik](https://github.com/llamatik/Llamatik) and llama.cpp
 - ✅ 70+ built-in tools including git, PSI, build, and MCP
-- ✅ Open-source (MIT)
+- ✅ Open-source (Apache 2.0)
 - ✅ MCP-compatible — extend the agent with any tool server
 - ✅ Structured mission workflow with plan approval and audit trail
 - ✅ Works with any GGUF model — no vendor lock-in
+- ✅ Works for any language or project in IntelliJ-based IDEs
 
 ---
 

@@ -22,9 +22,9 @@
                         optional="true"/>
 
     <description><![CDATA[
-        <p><b>Llamatik Code</b> is a local-first AI coding assistant for IntelliJ-based IDEs, designed to help you understand, modify, and generate code directly inside your project.</p>
+        <p><b>Llamatik Code</b> is a local-first AI coding assistant built for <b>Kotlin Multiplatform development</b> — and every language and project in your JetBrains IDE.</p>
 
-        <p>Built for developers who value <b>privacy, performance, and control</b>, Llamatik Code runs AI models locally by default and provides an agent-based workflow similar to tools like Claude Code or Cursor — local by default, distributed by choice.</p>
+        <p>Built for developers who value <b>privacy, performance, and control</b>, Llamatik Code runs AI models locally by default and provides an agent-based workflow similar to tools like Claude Code or Cursor — local by default, distributed by choice. It ships with dedicated KMP tools to diagnose native compilation errors, plan cross-platform refactors, and route documentation searches to kotlinlang.org, developer.android.com, and developer.apple.com automatically.</p>
 
         <br/>
 
