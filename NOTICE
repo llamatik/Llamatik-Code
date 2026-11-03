@@ -1,0 +1,30 @@
+Llamatik Code
+Copyright 2026 Llamatik AI
+
+This product is licensed under the Apache License, Version 2.0.
+You may obtain a copy of the License at:
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+---
+
+ASSET LICENSE EXCEPTION
+
+The visual assets in this repository (logos, icons, illustrations, and graphic
+files located in assets/ and src/main/resources/icons/) are proprietary and are
+NOT covered by the Apache License 2.0. They are subject to the terms in the
+LICENSE-assets file.
+
+---
+
+THIRD-PARTY COMPONENTS
+
+This product includes software developed by third parties.
+
+llama.cpp — MIT License
+  Copyright (c) 2023 Georgi Gerganov
+  https://github.com/ggerganov/llama.cpp
+
+JetBrains Marketplace License Verification (public root certificates)
+  Copyright (c) JetBrains s.r.o.
+  https://github.com/JetBrains/marketplace-makemecoffee-plugin

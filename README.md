@@ -18,7 +18,7 @@
   <img src="https://img.shields.io/badge/Platform-IntelliJ%20%7C%20Android%20Studio%20%7C%20GoLand%20%7C%20CLion-blue" alt="platforms badge"/>
   <img src="https://img.shields.io/badge/Inference-llama.cpp-orange" alt="llama.cpp badge"/>
   <img src="https://img.shields.io/badge/Models-GGUF-green" alt="gguf badge"/>
-  <img src="https://img.shields.io/badge/License-MIT-lightgrey" alt="license badge"/>
+  <img src="https://img.shields.io/badge/License-Apache%202.0-lightgrey" alt="license badge"/>
 </p>
 
 ---
@@ -318,8 +318,11 @@ The built plugin `.zip` is written to `build/distributions/`. Install it via **S
 
 ## 📜 License
 
-This project is licensed under the **MIT License**.  
-See [LICENSE](./LICENSE) for details.
+The source code is licensed under the **[Apache License 2.0](./LICENSE)**.
+
+The visual assets (logos, icons, and illustrations in `assets/` and `src/main/resources/icons/`) are proprietary — see **[LICENSE-assets](./LICENSE-assets)** for the terms that apply to them.
+
+See [NOTICE](./NOTICE) for third-party attributions.
 
 ---
 

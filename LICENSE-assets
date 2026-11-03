@@ -1,0 +1,32 @@
+Llamatik Code — Proprietary Asset License
+Copyright 2026 Llamatik AI. All Rights Reserved.
+
+The visual assets contained in this repository — including but not limited to
+logos, icons, illustrations, screenshots, and other graphic files located in
+the following paths — are proprietary and protected by copyright:
+
+  assets/
+  src/main/resources/icons/
+  src/main/resources/META-INF/pluginIcon.svg
+  src/main/resources/META-INF/pluginIcon_dark.svg
+
+These assets are NOT covered by the Apache License 2.0 that governs the
+source code of this project.
+
+PERMITTED USE
+You may use these assets solely to identify the Llamatik Code product when
+referring to it (e.g. in a blog post, review, or compatibility notice),
+provided you do not alter them and you include a caption or attribution
+crediting Llamatik AI.
+
+PROHIBITED USE
+Without explicit prior written permission from Llamatik AI, you may NOT:
+
+  - Copy, reproduce, or redistribute these assets in any form
+  - Use these assets in any product, service, or derivative work
+  - Modify, adapt, or create derivative works based on these assets
+  - Use these assets in any manner that implies endorsement by Llamatik AI
+  - Remove or alter any copyright or trademark notices
+
+CONTACT
+For licensing inquiries or permission requests: info@llamatik.com
