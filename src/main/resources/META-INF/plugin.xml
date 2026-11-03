@@ -24,14 +24,14 @@
     <description><![CDATA[
         <p><b>Llamatik Code</b> is a local-first AI coding assistant for IntelliJ-based IDEs, designed to help you understand, modify, and generate code directly inside your project.</p>
 
-        <p>Built for developers who value <b>privacy, performance, and control</b>, Llamatik Code runs AI models locally on your machine and provides an agent-based workflow similar to tools like Claude Code or Cursor — without relying on the cloud.</p>
+        <p>Built for developers who value <b>privacy, performance, and control</b>, Llamatik Code runs AI models locally by default and provides an agent-based workflow similar to tools like Claude Code or Cursor — local by default, distributed by choice.</p>
 
         <br/>
 
         <p><b>🚀 Key Features</b></p>
         <ul>
             <li><b>Project-aware chat</b> – Ask questions about your codebase with persistent, multi-session support</li>
-            <li><b>Local AI models</b> – Run models fully offline using any GGUF file or URL; your code never leaves your machine</li>
+            <li><b>Local AI models</b> – Run models locally by default using any GGUF file; inference stays on your machine unless you explicitly connect external services</li>
             <li><b>AI agent for code editing</b> – Generate and modify code using natural language with safe diff previews</li>
             <li><b>Context-aware assistance</b> – Understands the current file, selection, git state, and project structure</li>
             <li><b>Multi-file workflows</b> – Perform coordinated changes across multiple files</li>

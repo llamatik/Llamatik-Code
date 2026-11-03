@@ -5,11 +5,11 @@
 <h1 align="center">Llamatik Code</h1>
 
 <p align="center">
-  <b>Local-first AI coding assistant for IntelliJ-based IDEs — your code never leaves your machine.</b>
+  <b>Local-first AI coding assistant for IntelliJ-based IDEs — local by default, distributed by choice.</b>
 </p>
 
 <p align="center">
-  Offline-first · Privacy-preserving · Agent-driven
+  Local by default · Distributed by choice · Agent-driven
 </p>
 
 <p align="center">
@@ -28,7 +28,7 @@
 **Llamatik Code** is an open-source AI coding assistant for IntelliJ-based IDEs powered entirely by local inference. It wraps the [Llamatik](https://github.com/llamatik/Llamatik) on-device AI SDK and gives you a project-aware agent that reads your code, writes diffs, runs builds, and produces audit reports — without ever sending a byte to the cloud.
 
 - 🤖 **Agent-driven** — a tool-calling loop with 70+ built-in tools for git, PSI, file I/O, search, build, and more
-- 🔒 **Privacy-first** — all inference runs on your machine via GGUF models and llama.cpp
+- 🔒 **Privacy-first** — inference runs locally by default via GGUF models and llama.cpp; you control what connects to the outside world
 - 🧩 **MCP-compatible** — connect any Model Context Protocol server and let the agent call its tools
 - 🩺 **Code Health Monitor** — background analysis for regressions, complexity, and refactor opportunities
 - 🌐 **External Knowledge** — web search, docs research, and error analysis from inside the IDE
