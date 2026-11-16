@@ -2,6 +2,7 @@ package com.llamatik.teammate.ui.toolwindow
 
 import com.intellij.openapi.components.service
 import com.llamatik.teammate.model.PluginReadinessState
+import com.llamatik.teammate.server.ServerConnectionService
 import com.llamatik.teammate.settings.LlamatikAppSettings
 
 /**
@@ -16,8 +17,10 @@ class PluginStateController {
 
     fun currentState(isActivelyLoading: Boolean, isIndexing: Boolean): PluginReadinessState {
         val modelPath = settings.data().modelPath
-        if (modelPath.isBlank()) return PluginReadinessState.NO_MODEL
-        if (isActivelyLoading) return PluginReadinessState.LOADING_MODEL
+        // A connected Llamatik server provides the model, so no local model file is required.
+        val serverReady = service<ServerConnectionService>().status().isUsable
+        if (modelPath.isBlank() && !serverReady) return PluginReadinessState.NO_MODEL
+        if (isActivelyLoading && !serverReady) return PluginReadinessState.LOADING_MODEL
         if (isIndexing) return PluginReadinessState.INDEXING
         return PluginReadinessState.READY
     }

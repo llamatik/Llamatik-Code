@@ -122,6 +122,10 @@
         <applicationService
                 serviceImplementation="com.llamatik.teammate.llamatik.MultimodalBackendService"/>
         <applicationService
+                serviceImplementation="com.llamatik.teammate.server.ServerConnectionService"/>
+        <applicationService
+                serviceImplementation="com.llamatik.teammate.server.LlamatikRouter"/>
+        <applicationService
                 serviceImplementation="com.llamatik.teammate.licensing.TrialService"/>
         <applicationService
                 serviceImplementation="com.llamatik.teammate.infrastructure.ModelDownloadManager"/>
@@ -252,6 +256,11 @@
                 id="llamatik.code.settings.inference"
                 parentId="llamatik.code.settings"
                 instance="com.llamatik.teammate.settings.InferenceSettingsConfigurable"/>
+        <applicationConfigurable
+                displayName="Llamatik Server"
+                id="llamatik.code.settings.server"
+                parentId="llamatik.code.settings"
+                instance="com.llamatik.teammate.settings.ServerSettingsConfigurable"/>
         <applicationConfigurable
                 displayName="MCP Servers"
                 id="llamatik.code.settings.mcp"

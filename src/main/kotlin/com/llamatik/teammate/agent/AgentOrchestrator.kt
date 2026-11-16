@@ -10,7 +10,7 @@ import com.llamatik.teammate.backend.GenerationHandle
 import com.llamatik.teammate.backend.GenerationRequest
 import com.llamatik.teammate.backend.SessionTag
 import com.llamatik.teammate.context.ProjectContextService
-import com.llamatik.teammate.llamatik.LlamatikBackendService
+import com.llamatik.teammate.server.LlamatikRouter
 import com.llamatik.teammate.llamatik.MultimodalBackendService
 import com.llamatik.teammate.model.AttachedImage
 import com.llamatik.teammate.model.ChatMessage
@@ -30,7 +30,8 @@ import java.util.concurrent.atomic.AtomicReference
 
 @Service(Service.Level.PROJECT)
 class AgentOrchestrator(private val project: Project) {
-    private val backend: AssistantBackend = service<LlamatikBackendService>()
+    // Routes each request to the connected Llamatik server or the local model.
+    private val backend: AssistantBackend = service<LlamatikRouter>()
     private val multimodalBackend = service<MultimodalBackendService>()
     private val toolRegistry = project.service<ToolRegistry>()
     private val contextService = ProjectContextService(project)

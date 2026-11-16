@@ -1,5 +1,16 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- **Connect to a Llamatik server** — new *Settings → Tools → Llamatik Code → Llamatik Server* page. The agent and chat can run inference on a Llamatik server (e.g. the Llamatik app with *Share this device* on) instead of the local model. Supports per-device approval, shows the server's loaded model and capabilities (text / vision / image / audio).
+- **Connection banner** in the tool window shows which server is serving requests, and a warning when the connection is interrupted or lost.
+- **Automatic fallback and recovery** — when the server becomes unreachable the plugin switches back to the local model (configurable) and returns to the server by itself once it answers again.
+- **Resumable generations** — if the connection drops mid-generation the request is resumed with the server (no lost or duplicated text); if the server can no longer resume, the request is restarted or re-run locally.
+
+### Changed
+- Llamatik library updated to 2.3.0.
+
 ## [1.7.0] - 2026-05-27
 
 ### Added

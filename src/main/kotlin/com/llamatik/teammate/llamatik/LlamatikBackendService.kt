@@ -114,20 +114,7 @@ class LlamatikBackendService : AssistantBackend {
 
                 // Build message list for the native chat template.
                 // System prompt is prepended as a "system" turn if non-blank.
-                val chatMessages = buildList {
-                    if (request.systemPrompt.isNotBlank()) {
-                        add("system" to request.systemPrompt)
-                    }
-                    request.messages.forEach { msg ->
-                        val role = when (msg.role) {
-                            com.llamatik.teammate.model.ChatRole.SYSTEM -> "system"
-                            com.llamatik.teammate.model.ChatRole.USER -> "user"
-                            com.llamatik.teammate.model.ChatRole.ASSISTANT -> "assistant"
-                            com.llamatik.teammate.model.ChatRole.TOOL -> "user"
-                        }
-                        add(role to msg.content)
-                    }
-                }
+                val chatMessages = ChatPromptSupport.chatPairs(request.systemPrompt, request.messages)
 
                 // Use the model's own embedded chat template via the native API.
                 // Falls back to PluginPromptRenderer if the template is unavailable
@@ -144,17 +131,8 @@ class LlamatikBackendService : AssistantBackend {
                     // continues generating from that point (e.g. mid-tool-call for write pass).
                     val withThink = if (request.noThink) nativePrompt + "<think>\n\n</think>\n" else nativePrompt
                     val finalPrompt = if (request.assistantPrefill.isNotBlank()) withThink + request.assistantPrefill else withThink
-                    // Infer stop sequences from the format of the native prompt so we only enforce
-                    // turn-boundary markers that this model actually uses. Applying ChatML stops to
-                    // a model that uses a different template (e.g. Mellum's <user>/<assistant> format)
-                    // would halt generation at the first response turn before any tool calls are made.
-                    val stops = when {
-                        nativePrompt.contains("<|im_end|>") -> listOf("<|im_end|>", "<|endoftext|>")
-                        nativePrompt.contains("<end_of_turn>") -> listOf("<end_of_turn>", "<eos>")
-                        nativePrompt.contains("<|end|>") -> listOf("<|end|>", "<|endoftext|>")
-                        else -> emptyList() // Unknown/base model format — rely on native EOS only
-                    }
-                    finalPrompt to stops
+                    // Stop sequences are inferred from the native prompt's format (see ChatPromptSupport).
+                    finalPrompt to ChatPromptSupport.stopSequencesFor(nativePrompt)
                 } else {
                     val rendered = PluginPromptRenderer.renderForModel(
                         system = request.systemPrompt,
@@ -291,20 +269,11 @@ class LlamatikBackendService : AssistantBackend {
 
     // ── Internal helpers ──────────────────────────────────────────────────────
 
-    private fun shouldStop(sb: StringBuilder, stops: List<String>): Boolean {
-        if (stops.isEmpty()) return false
-        val tail = sb.takeLast(minOf(64, sb.length))
-        return stops.any { tail.endsWith(it) }
-    }
+    private fun shouldStop(sb: StringBuilder, stops: List<String>): Boolean =
+        ChatPromptSupport.shouldStop(sb, stops)
 
-    private fun trimAtStop(text: String, stops: List<String>): String {
-        var out = text
-        for (s in stops) {
-            val idx = out.lastIndexOf(s)
-            if (idx >= 0) { out = out.substring(0, idx); break }
-        }
-        return out
-    }
+    private fun trimAtStop(text: String, stops: List<String>): String =
+        ChatPromptSupport.trimAtStop(text, stops)
 
     private fun validateConfig(config: com.llamatik.teammate.backend.BackendConfig) {
         require(config.contextLength >= 512) {

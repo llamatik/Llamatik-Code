@@ -16,7 +16,9 @@ import com.intellij.util.ui.JBUI
 import com.llamatik.teammate.agent.AgentOrchestrator
 import com.llamatik.teammate.agent.AgentTrace
 import com.llamatik.teammate.agent.BuildVerificationService
-import com.llamatik.teammate.llamatik.LlamatikBackendService
+import com.llamatik.teammate.server.LlamatikRouter
+import com.llamatik.teammate.server.ServerConnectionService
+import com.llamatik.teammate.server.ServerConnectionState
 import com.llamatik.teammate.backend.GenerationHandle
 import com.llamatik.teammate.diff.DiffPreviewService
 import com.llamatik.teammate.infrastructure.ModelDownloadManager
@@ -135,6 +137,22 @@ class LlamatikToolWindowPanel(
     }
     private val baseModelBannerLabel = JBLabel(Strings.App.BASE_MODEL_WARNING)
 
+    private val serverBannerPanel = JPanel(BorderLayout(8, 0)).apply {
+        isVisible = false
+    }
+    private val serverBannerLabel = JBLabel()
+    private val serverSettingsBtn = JButton(Strings.Server.OPEN_SETTINGS).apply {
+        isContentAreaFilled = false
+        isFocusPainted = false
+        border = JBUI.Borders.empty(2, 6)
+        addActionListener {
+            com.intellij.openapi.options.ShowSettingsUtil.getInstance()
+                .showSettingsDialog(project, com.llamatik.teammate.settings.ServerSettingsConfigurable::class.java)
+        }
+    }
+    private val serverConnection = service<ServerConnectionService>()
+    private var removeServerListener: (() -> Unit)? = null
+
     private val errorBanner = ErrorBannerPanel()
 
     private val contentLayout = CardLayout()
@@ -242,6 +260,59 @@ class LlamatikToolWindowPanel(
             .subscribe(LafManagerListener.TOPIC, LafManagerListener { refreshTheme() })
     }
 
+    override fun addNotify() {
+        super.addNotify()
+        if (removeServerListener == null) {
+            serverConnection.start()
+            removeServerListener = serverConnection.addListener {
+                // Listener fires on the monitor thread: hop to the EDT, then re-evaluate readiness
+                // (a server can make the plugin usable without a local model, and vice versa).
+                ApplicationManager.getApplication().invokeLater { syncState() }
+            }
+            syncState()
+        }
+    }
+
+    override fun removeNotify() {
+        removeServerListener?.invoke()
+        removeServerListener = null
+        super.removeNotify()
+    }
+
+    /** Shows which backend is serving requests: the connected server, or a notice that we fell back to local. */
+    private fun updateServerBanner() {
+        val st = serverConnection.status()
+        val localAvailable = settings.data().modelPath.isNotBlank()
+        val fallback = settings.data().serverFallbackToLocal && localAvailable
+        val warn = st.state == ServerConnectionState.RECONNECTING ||
+            st.state == ServerConnectionState.LOST ||
+            st.state == ServerConnectionState.APPROVAL_REQUIRED ||
+            (st.state == ServerConnectionState.CONNECTED && !st.capabilities.hasText)
+        val text = when (st.state) {
+            ServerConnectionState.DISABLED -> null
+            ServerConnectionState.CONNECTING, ServerConnectionState.PAIRING -> Strings.Server.bannerConnecting(st.displayName)
+            ServerConnectionState.CONNECTED ->
+                if (st.capabilities.hasText) Strings.Server.bannerConnected(st.displayName, st.capabilities.textModel)
+                else Strings.Server.bannerNoModel(st.displayName, fallback)
+            ServerConnectionState.RECONNECTING -> Strings.Server.bannerReconnecting(st.displayName)
+            ServerConnectionState.LOST -> Strings.Server.bannerLost(st.displayName, fallback)
+            ServerConnectionState.APPROVAL_REQUIRED -> Strings.Server.bannerApproval(st.displayName)
+        }
+        if (text == null) {
+            serverBannerPanel.isVisible = false
+            return
+        }
+        serverBannerPanel.background = if (warn) LlamatikTheme.warningBackground else LlamatikTheme.surfaceVariant
+        serverBannerPanel.border = JBUI.Borders.compound(
+            BorderFactory.createLineBorder(if (warn) LlamatikTheme.warningBorder else LlamatikTheme.statusGreen, 1, true),
+            JBUI.Borders.empty(6, 12),
+        )
+        serverBannerLabel.foreground = LlamatikTheme.onSurface
+        serverBannerLabel.text = text
+        serverBannerLabel.toolTipText = st.message
+        serverBannerPanel.isVisible = true
+    }
+
     private fun refreshTheme() {
         SwingUtilities.invokeLater {
             val agentSelected = agentToggle.isSelected
@@ -271,6 +342,8 @@ class LlamatikToolWindowPanel(
 
         baseModelBannerLabel.foreground = LlamatikTheme.onSurface
         baseModelBannerPanel.add(baseModelBannerLabel, BorderLayout.CENTER)
+        serverBannerPanel.add(serverBannerLabel, BorderLayout.CENTER)
+        serverBannerPanel.add(serverSettingsBtn, BorderLayout.EAST)
 
         val modeGroup = ButtonGroup().apply {
             add(agentToggle)
@@ -362,6 +435,7 @@ class LlamatikToolWindowPanel(
             isOpaque = false
             layout = javax.swing.BoxLayout(this, javax.swing.BoxLayout.Y_AXIS)
             add(trialBannerPanel)
+            add(serverBannerPanel)
             add(baseModelBannerPanel)
         }
 
@@ -820,8 +894,9 @@ class LlamatikToolWindowPanel(
             trialBannerPanel.isVisible = false
         }
 
-        val backend = service<LlamatikBackendService>()
+        val backend = service<LlamatikRouter>()
         baseModelBannerPanel.isVisible = backend.isModelLoaded() && backend.isBaseModel()
+        updateServerBanner()
 
         if (state == PluginReadinessState.NO_MODEL || state == PluginReadinessState.LOADING_MODEL) {
             val downloadManager = service<ModelDownloadManager>()

@@ -393,6 +393,50 @@ object Strings {
         fun numberedTitle(n: Int) = "Chat $n"
     }
 
+    // ── Llamatik Server (remote inference) ───────────────────────────────────
+    object Server {
+        const val PAGE_NAME = "Llamatik Server"
+        const val INTRO =
+            "<html>Run inference on a <b>Llamatik server</b> (for example another device running the Llamatik app " +
+                "with <i>Share this device</i> turned on) instead of on this machine. " +
+                "The agent uses the model loaded on the server; if the connection is lost it switches back to the local model " +
+                "and returns to the server automatically when it is reachable again.</html>"
+        const val SECURITY_NOTE =
+            "Traffic to the server is not encrypted (plain HTTP). Your prompts and project context are sent to it — " +
+                "only connect to servers you trust on a network you trust."
+        const val FIELD_NAME = "Name:"
+        const val FIELD_HOST = "Address (host or IP):"
+        const val FIELD_PORT = "Port:"
+        const val FALLBACK_TO_LOCAL = "Switch back to the local model when the server is unreachable"
+        const val CONNECT = "Connect"
+        const val DISCONNECT = "Disconnect"
+        const val CANCEL_APPROVAL = "Cancel"
+        const val STATUS_LABEL = "Status:"
+        const val CAPABILITIES_LABEL = "Server capabilities:"
+        const val MODEL_LABEL = "Loaded model:"
+        const val INVALID_PORT = "Enter a valid port (1–65535)."
+        const val OPEN_SETTINGS = "Server settings"
+
+        const val STATUS_DISCONNECTED = "Not connected — running locally"
+        fun statusConnecting(name: String) = "Connecting to $name…"
+        const val STATUS_PAIRING = "Waiting for approval on the server…"
+        fun statusConnected(name: String) = "Connected to $name"
+        fun statusReconnecting(name: String) = "Connection to $name interrupted — retrying…"
+        fun statusLost(name: String) = "Connection to $name lost"
+        fun statusApprovalRequired(name: String) = "$name no longer accepts this device"
+        const val NO_CAPABILITIES = "none (no model loaded on the server)"
+
+        fun bannerConnected(name: String, model: String?) =
+            "● Connected to $name" + (model?.let { " — running on $it" } ?: "")
+        fun bannerReconnecting(name: String) = "Connection to $name interrupted — retrying…"
+        fun bannerLost(name: String, usingLocal: Boolean) =
+            "Connection to $name lost — " + if (usingLocal) "switched back to the local model" else "waiting for the server to come back"
+        fun bannerApproval(name: String) = "$name no longer accepts this device — reconnect in Server settings"
+        fun bannerNoModel(name: String, usingLocal: Boolean) =
+            "Connected to $name, but no model is loaded on it" + if (usingLocal) " — using the local model" else ""
+        fun bannerConnecting(name: String) = "Connecting to $name…"
+    }
+
     // ── Backend / model labels ────────────────────────────────────────────────
     object Backend {
         const val LABEL_NATIVE_UNAVAILABLE = "Native lib unavailable"
