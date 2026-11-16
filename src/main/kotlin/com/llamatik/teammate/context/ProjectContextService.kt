@@ -7,29 +7,15 @@ import com.intellij.openapi.project.guessProjectDir
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.VfsUtilCore
+import com.llamatik.agent.core.host.WorkspacePolicy
 import com.llamatik.teammate.persistence.ChatSessionStore
 import com.llamatik.teammate.settings.LlamatikAppSettings
 import java.nio.charset.StandardCharsets
-import java.nio.file.FileSystems
 
 class ProjectContextService(private val project: Project) {
-    private val defaultDeniedGlobs = listOf(
-        "**/local.properties",
-        "**/*.keystore",
-        "**/*.jks",
-        "**/.env*",
-        "**/google-services.json",
-        "**/*secrets*",
-    )
-
-    // Always-ignored directory names regardless of user settings — compiler caches,
-    // generated outputs, and hidden toolchain folders that are never user-authored source.
-    private val alwaysIgnoredDirs = setOf(
-        ".git", ".idea", ".gradle", ".gradle-cache", ".kotlin", ".cxx", ".cache",
-        "build", "out", "target", "node_modules", "__pycache__", ".tox",
-        "generated", "intermediates", "dist", ".dart_tool", ".pub-cache",
-        ".intellijPlatform",
-    )
+    // Safety rules (denylist, always-ignored dirs) are shared with headless hosts: see WorkspacePolicy.
+    private val defaultDeniedGlobs = WorkspacePolicy.DEFAULT_DENIED_GLOBS
+    private val alwaysIgnoredDirs = WorkspacePolicy.ALWAYS_IGNORED_DIRS
 
     fun projectName(): String = project.name
     fun rootPath(): String = project.basePath ?: ""
@@ -119,20 +105,8 @@ class ProjectContextService(private val project: Project) {
 
     companion object {
         /** Pure ranking logic — exposed for testing without a real Project. */
-        fun rankFilenames(files: List<String>, query: String): List<String> {
-            if (query.isBlank()) return emptyList()
-            val q = query.lowercase()
-            return files
-                .filter { it.contains(q, ignoreCase = true) }
-                .sortedWith(compareBy(
-                    // Tier 1: filename starts with query
-                    { !it.substringAfterLast('/').lowercase().startsWith(q) },
-                    // Tier 2: filename contains query (but doesn't start with it)
-                    { !it.substringAfterLast('/').lowercase().contains(q) },
-                    // Tier 3: alphabetical by filename within each tier
-                    { it.substringAfterLast('/').lowercase() }
-                ))
-        }
+        fun rankFilenames(files: List<String>, query: String): List<String> =
+            WorkspacePolicy.rankFilenames(files, query)
     }
 
     fun searchCode(query: String): List<String> {
@@ -198,7 +172,13 @@ class ProjectContextService(private val project: Project) {
         return defaultDeniedGlobs.none { globMatches(relative, it) }
     }
 
-    private fun globMatches(path: String, glob: String): Boolean {
-        return FileSystems.getDefault().getPathMatcher("glob:$glob").matches(java.nio.file.Path.of(path))
+    private fun globMatches(path: String, glob: String): Boolean = WorkspacePolicy.globMatches(path, glob)
+
+    /** True when [path] is inside an ignored directory (build output, VCS metadata, user-ignored). */
+    fun isPathIgnored(path: String): Boolean {
+        resolveFile(path)?.let { return isIgnored(it) }
+        val userIgnored = service<LlamatikAppSettings>().data().ignoredDirectories
+            .split(',').map { it.trim() }.filter { it.isNotBlank() }
+        return path.split('/', '\\').any { it in alwaysIgnoredDirs || it in userIgnored }
     }
 }

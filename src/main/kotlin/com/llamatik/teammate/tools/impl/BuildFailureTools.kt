@@ -4,9 +4,9 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.llamatik.teammate.build.BuildFailureService
 import com.llamatik.teammate.terminal.TerminalService
-import com.llamatik.teammate.tools.LlamatikTool
+import com.llamatik.agent.core.tools.LlamatikTool
 import com.llamatik.agent.core.tools.ToolCall
-import com.llamatik.teammate.tools.ToolExecutionContext
+import com.llamatik.agent.core.tools.ToolExecutionContext
 import com.llamatik.agent.core.tools.ToolResult
 
 class BuildFailureParseTool(project: Project) : BaseProjectTool(project) {
@@ -15,7 +15,7 @@ class BuildFailureParseTool(project: Project) : BaseProjectTool(project) {
 
     override fun execute(call: ToolCall, context: ToolExecutionContext): ToolResult {
         val output = call.arguments["output"] ?: return ToolResult(name, false, "Missing output")
-        val svc = context.project.service<BuildFailureService>()
+        val svc = project.service<BuildFailureService>()
         val errors = svc.parse(output)
         if (errors.isEmpty()) return ToolResult(name, true, "No structured errors found in output")
         val text = errors.take(20).joinToString("\n") { e ->
@@ -31,11 +31,11 @@ class BuildFailureExplainTool(project: Project) : BaseProjectTool(project) {
 
     override fun execute(call: ToolCall, context: ToolExecutionContext): ToolResult {
         val rawOutput = call.arguments["output"]
-            ?: context.project.service<TerminalService>().lastOutputAny()?.let {
+            ?: project.service<TerminalService>().lastOutputAny()?.let {
                 "${it.stdout}\n${it.stderr}"
             }
             ?: return ToolResult(name, false, "No output provided and no terminal history. Run a build first.")
-        val svc = context.project.service<BuildFailureService>()
+        val svc = project.service<BuildFailureService>()
         val summary = svc.summarize(rawOutput)
         return ToolResult(name, true, summary.plainExplanation)
     }
@@ -47,11 +47,11 @@ class BuildFailureFixPlanTool(project: Project) : BaseProjectTool(project) {
 
     override fun execute(call: ToolCall, context: ToolExecutionContext): ToolResult {
         val rawOutput = call.arguments["output"]
-            ?: context.project.service<TerminalService>().lastOutputAny()?.let {
+            ?: project.service<TerminalService>().lastOutputAny()?.let {
                 "${it.stdout}\n${it.stderr}"
             }
             ?: return ToolResult(name, false, "No output provided")
-        val svc = context.project.service<BuildFailureService>()
+        val svc = project.service<BuildFailureService>()
         val summary = svc.summarize(rawOutput)
         val failingTask = svc.extractFailingTask(rawOutput)
         val verifyCommand = if (failingTask != null) "./gradlew $failingTask" else "./gradlew build"

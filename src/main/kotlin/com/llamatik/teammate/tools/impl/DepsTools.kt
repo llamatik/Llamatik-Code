@@ -3,9 +3,9 @@ package com.llamatik.teammate.tools.impl
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.llamatik.teammate.deps.DependencyService
-import com.llamatik.teammate.tools.LlamatikTool
+import com.llamatik.agent.core.tools.LlamatikTool
 import com.llamatik.agent.core.tools.ToolCall
-import com.llamatik.teammate.tools.ToolExecutionContext
+import com.llamatik.agent.core.tools.ToolExecutionContext
 import com.llamatik.agent.core.tools.ToolResult
 
 class DepsListTool(project: Project) : BaseProjectTool(project) {
@@ -13,7 +13,7 @@ class DepsListTool(project: Project) : BaseProjectTool(project) {
     override val description = "List project dependencies. No arguments."
 
     override fun execute(call: ToolCall, context: ToolExecutionContext): ToolResult {
-        val svc = context.project.service<DependencyService>()
+        val svc = project.service<DependencyService>()
         return ToolResult(name, true, svc.formatForContext())
     }
 }
@@ -23,7 +23,7 @@ class DepsCheckUpdatesTool(project: Project) : BaseProjectTool(project) {
     override val description = "Show current dependency versions and system. Use this before planning upgrades. No arguments."
 
     override fun execute(call: ToolCall, context: ToolExecutionContext): ToolResult {
-        val svc = context.project.service<DependencyService>()
+        val svc = project.service<DependencyService>()
         val system = svc.detectSystem()
             ?: return ToolResult(name, false, "No dependency system detected (no build.gradle.kts/pom.xml/package.json)")
         val deps = svc.listDependencies()
@@ -50,7 +50,7 @@ class DepsPlanUpgradeTool(project: Project) : BaseProjectTool(project) {
     override fun execute(call: ToolCall, context: ToolExecutionContext): ToolResult {
         val dep = call.arguments["dep"] ?: return ToolResult(name, false, "Missing dep")
         val targetVersion = call.arguments["target_version"] ?: return ToolResult(name, false, "Missing target_version")
-        val svc = context.project.service<DependencyService>()
+        val svc = project.service<DependencyService>()
         val system = svc.detectSystem()
             ?: return ToolResult(name, false, "No dependency system detected")
         val existing = svc.listDependencies().find { d ->

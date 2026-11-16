@@ -3,9 +3,9 @@ package com.llamatik.teammate.tools.impl
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.llamatik.teammate.memory.ProjectMemoryService
-import com.llamatik.teammate.tools.LlamatikTool
+import com.llamatik.agent.core.tools.LlamatikTool
 import com.llamatik.agent.core.tools.ToolCall
-import com.llamatik.teammate.tools.ToolExecutionContext
+import com.llamatik.agent.core.tools.ToolExecutionContext
 import com.llamatik.agent.core.tools.ToolResult
 
 class ProjectMemoryGetTool(project: Project) : BaseProjectTool(project) {
@@ -13,7 +13,7 @@ class ProjectMemoryGetTool(project: Project) : BaseProjectTool(project) {
     override val description = "Get all active project memory entries. No arguments."
 
     override fun execute(call: ToolCall, context: ToolExecutionContext): ToolResult {
-        val svc = context.project.service<ProjectMemoryService>()
+        val svc = project.service<ProjectMemoryService>()
         if (!svc.isEnabled()) return ToolResult(name, true, "Project memory is disabled")
         val entries = svc.getAll()
         if (entries.isEmpty()) return ToolResult(name, true, "No project memories stored")
@@ -29,7 +29,7 @@ class ProjectMemoryAddTool(project: Project) : BaseProjectTool(project) {
     override fun execute(call: ToolCall, context: ToolExecutionContext): ToolResult {
         val content = call.arguments["content"] ?: return ToolResult(name, false, "Missing content")
         val tags = call.arguments["tags"]?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() } ?: emptyList()
-        val svc = context.project.service<ProjectMemoryService>()
+        val svc = project.service<ProjectMemoryService>()
         val entry = svc.add(content, tags)
         return ToolResult(name, true, "Memory added [${entry.id}]: ${entry.content}")
     }
@@ -42,7 +42,7 @@ class ProjectMemoryUpdateTool(project: Project) : BaseProjectTool(project) {
     override fun execute(call: ToolCall, context: ToolExecutionContext): ToolResult {
         val id = call.arguments["id"] ?: return ToolResult(name, false, "Missing id")
         val content = call.arguments["content"] ?: return ToolResult(name, false, "Missing content")
-        context.project.service<ProjectMemoryService>().update(id, content)
+        project.service<ProjectMemoryService>().update(id, content)
         return ToolResult(name, true, "Memory [$id] updated")
     }
 }
@@ -53,7 +53,7 @@ class ProjectMemoryDeleteTool(project: Project) : BaseProjectTool(project) {
 
     override fun execute(call: ToolCall, context: ToolExecutionContext): ToolResult {
         val id = call.arguments["id"] ?: return ToolResult(name, false, "Missing id")
-        context.project.service<ProjectMemoryService>().delete(id)
+        project.service<ProjectMemoryService>().delete(id)
         return ToolResult(name, true, "Memory [$id] deleted")
     }
 }
@@ -64,7 +64,7 @@ class ProjectMemorySearchTool(project: Project) : BaseProjectTool(project) {
 
     override fun execute(call: ToolCall, context: ToolExecutionContext): ToolResult {
         val query = call.arguments["query"] ?: return ToolResult(name, false, "Missing query")
-        val svc = context.project.service<ProjectMemoryService>()
+        val svc = project.service<ProjectMemoryService>()
         val results = svc.search(query)
         if (results.isEmpty()) return ToolResult(name, true, "No memories match '$query'")
         return ToolResult(name, true, results.joinToString("\n") { "[${it.id}] ${it.content}" })

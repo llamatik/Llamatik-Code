@@ -1,11 +1,11 @@
-package com.llamatik.teammate.tools.impl
+package com.llamatik.agent.core.tools.builtin
 
-import com.intellij.openapi.project.Project
+import com.llamatik.agent.core.tools.LlamatikTool
 import com.llamatik.agent.core.tools.ToolCall
-import com.llamatik.teammate.tools.ToolExecutionContext
+import com.llamatik.agent.core.tools.ToolExecutionContext
 import com.llamatik.agent.core.tools.ToolResult
 
-class ReplaceInFileTool(project: Project) : BaseProjectTool(project) {
+class ReplaceInFileTool : LlamatikTool {
     override val name: String = "replace_in_file"
     override val description: String = "Prepare a string replacement in an existing file. Arguments: path, oldText, newText"
 
@@ -13,7 +13,7 @@ class ReplaceInFileTool(project: Project) : BaseProjectTool(project) {
         val path = call.arguments["path"] ?: return ToolResult(name, false, "Missing path")
         val oldText = call.arguments["oldText"] ?: return ToolResult(name, false, "Missing oldText")
         val newText = call.arguments["newText"] ?: return ToolResult(name, false, "Missing newText")
-        val oldContent = contextService.readFile(path)
+        val oldContent = context.env.files.read(path)
 
         // Exact match — fast path
         if (oldContent.contains(oldText)) {

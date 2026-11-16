@@ -3,9 +3,9 @@ package com.llamatik.teammate.mcp
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
-import com.llamatik.teammate.tools.LlamatikTool
+import com.llamatik.agent.core.tools.LlamatikTool
 import com.llamatik.agent.core.tools.ToolCall
-import com.llamatik.teammate.tools.ToolExecutionContext
+import com.llamatik.agent.core.tools.ToolExecutionContext
 import com.llamatik.agent.core.tools.ToolResult
 import com.llamatik.teammate.util.PluginLogger
 import java.util.concurrent.ConcurrentHashMap

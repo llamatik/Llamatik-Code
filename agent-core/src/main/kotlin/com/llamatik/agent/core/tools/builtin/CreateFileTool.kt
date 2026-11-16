@@ -1,11 +1,11 @@
-package com.llamatik.teammate.tools.impl
+package com.llamatik.agent.core.tools.builtin
 
-import com.intellij.openapi.project.Project
+import com.llamatik.agent.core.tools.LlamatikTool
 import com.llamatik.agent.core.tools.ToolCall
-import com.llamatik.teammate.tools.ToolExecutionContext
+import com.llamatik.agent.core.tools.ToolExecutionContext
 import com.llamatik.agent.core.tools.ToolResult
 
-class CreateFileTool(project: Project) : BaseProjectTool(project) {
+class CreateFileTool : LlamatikTool {
     override val name: String = "create_file"
     override val description: String = "Prepare a new file creation. Arguments: path, content"
 

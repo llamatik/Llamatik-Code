@@ -1,11 +1,11 @@
-package com.llamatik.teammate.tools.impl
+package com.llamatik.agent.core.tools.builtin
 
-import com.intellij.openapi.project.Project
+import com.llamatik.agent.core.tools.LlamatikTool
 import com.llamatik.agent.core.tools.ToolCall
-import com.llamatik.teammate.tools.ToolExecutionContext
+import com.llamatik.agent.core.tools.ToolExecutionContext
 import com.llamatik.agent.core.tools.ToolResult
 
-class ShowDiffTool(project: Project) : BaseProjectTool(project) {
+class ShowDiffTool : LlamatikTool {
     override val name: String = "show_diff"
     override val description: String = "Prepare a diff payload. Arguments: path, oldContent, newContent"
 

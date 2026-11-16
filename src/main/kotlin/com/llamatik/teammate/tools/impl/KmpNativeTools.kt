@@ -3,9 +3,9 @@ package com.llamatik.teammate.tools.impl
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.llamatik.teammate.kmp.KmpNativeDiagnosticService
-import com.llamatik.teammate.tools.LlamatikTool
+import com.llamatik.agent.core.tools.LlamatikTool
 import com.llamatik.agent.core.tools.ToolCall
-import com.llamatik.teammate.tools.ToolExecutionContext
+import com.llamatik.agent.core.tools.ToolExecutionContext
 import com.llamatik.agent.core.tools.ToolResult
 
 class KmpNativeDiagnoseTool(project: Project) : BaseProjectTool(project) {
@@ -14,7 +14,7 @@ class KmpNativeDiagnoseTool(project: Project) : BaseProjectTool(project) {
 
     override fun execute(call: ToolCall, context: ToolExecutionContext): ToolResult {
         val buildLog = call.arguments["build_log"] ?: ""
-        val svc = context.project.service<KmpNativeDiagnosticService>()
+        val svc = project.service<KmpNativeDiagnosticService>()
         val report = runCatching { svc.diagnose(buildLog) }.getOrElse { e ->
             return ToolResult(name, false, "KMP diagnostic failed: ${e.message}")
         }

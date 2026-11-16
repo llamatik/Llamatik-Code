@@ -2,9 +2,9 @@ package com.llamatik.teammate.tools.impl
 
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
-import com.llamatik.teammate.tools.LlamatikTool
+import com.llamatik.agent.core.tools.LlamatikTool
 import com.llamatik.agent.core.tools.ToolCall
-import com.llamatik.teammate.tools.ToolExecutionContext
+import com.llamatik.agent.core.tools.ToolExecutionContext
 import com.llamatik.agent.core.tools.ToolResult
 import com.llamatik.teammate.ui_repair.UiRepairService
 
@@ -14,7 +14,7 @@ class UiImageAnalyzeTool(project: Project) : BaseProjectTool(project) {
 
     override fun execute(call: ToolCall, context: ToolExecutionContext): ToolResult {
         val hint = call.arguments["screen_hint"] ?: ""
-        val svc = context.project.service<UiRepairService>()
+        val svc = project.service<UiRepairService>()
         val framework = svc.detectFramework()
         val candidates = svc.findCandidateFiles(hint)
         val text = buildString {
@@ -38,7 +38,7 @@ class UiFindCandidateFilesTool(project: Project) : BaseProjectTool(project) {
 
     override fun execute(call: ToolCall, context: ToolExecutionContext): ToolResult {
         val hint = call.arguments["screen_hint"] ?: ""
-        val svc = context.project.service<UiRepairService>()
+        val svc = project.service<UiRepairService>()
         val candidates = svc.findCandidateFiles(hint)
         if (candidates.isEmpty()) return ToolResult(name, true, "No UI files found matching '$hint'")
         return ToolResult(name, true, candidates.joinToString("\n") { c ->
@@ -54,7 +54,7 @@ class UiGeneratePatchPlanTool(project: Project) : BaseProjectTool(project) {
     override fun execute(call: ToolCall, context: ToolExecutionContext): ToolResult {
         val description = call.arguments["description"] ?: return ToolResult(name, false, "Missing description")
         val hint = call.arguments["screen_hint"] ?: ""
-        val svc = context.project.service<UiRepairService>()
+        val svc = project.service<UiRepairService>()
         val analysisContext = svc.buildAnalysisPrompt(hint)
         val prompt = buildString {
             appendLine("UI change description from image:")

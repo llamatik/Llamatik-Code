@@ -3,9 +3,9 @@ package com.llamatik.teammate.tools.impl
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.llamatik.teammate.search.SmartSearchService
-import com.llamatik.teammate.tools.LlamatikTool
+import com.llamatik.agent.core.tools.LlamatikTool
 import com.llamatik.agent.core.tools.ToolCall
-import com.llamatik.teammate.tools.ToolExecutionContext
+import com.llamatik.agent.core.tools.ToolExecutionContext
 import com.llamatik.agent.core.tools.ToolResult
 
 class SmartSearchTool(project: Project) : BaseProjectTool(project) {
@@ -14,7 +14,7 @@ class SmartSearchTool(project: Project) : BaseProjectTool(project) {
 
     override fun execute(call: ToolCall, context: ToolExecutionContext): ToolResult {
         val query = call.arguments["query"] ?: return ToolResult(name, false, "Missing query")
-        val svc = context.project.service<SmartSearchService>()
+        val svc = project.service<SmartSearchService>()
         val result = svc.search(query)
 
         if (result.hits.isEmpty()) {

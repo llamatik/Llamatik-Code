@@ -3,9 +3,9 @@ package com.llamatik.teammate.tools.impl
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.llamatik.teammate.rules.CodebaseRulesService
-import com.llamatik.teammate.tools.LlamatikTool
+import com.llamatik.agent.core.tools.LlamatikTool
 import com.llamatik.agent.core.tools.ToolCall
-import com.llamatik.teammate.tools.ToolExecutionContext
+import com.llamatik.agent.core.tools.ToolExecutionContext
 import com.llamatik.agent.core.tools.ToolResult
 
 class CodebaseRulesGetTool(project: Project) : BaseProjectTool(project) {
@@ -13,7 +13,7 @@ class CodebaseRulesGetTool(project: Project) : BaseProjectTool(project) {
     override val description = "Get active project conventions and coding rules. No arguments needed."
 
     override fun execute(call: ToolCall, context: ToolExecutionContext): ToolResult {
-        val svc = context.project.service<CodebaseRulesService>()
+        val svc = project.service<CodebaseRulesService>()
         val rules = svc.getRules()
         if (rules.isEmpty()) return ToolResult(name, true, "No rules yet — call codebase_rules_refresh to detect conventions")
         val text = rules.joinToString("\n") { r ->
@@ -28,7 +28,7 @@ class CodebaseRulesRefreshTool(project: Project) : BaseProjectTool(project) {
     override val description = "Scan project to detect conventions and update rules. No arguments needed."
 
     override fun execute(call: ToolCall, context: ToolExecutionContext): ToolResult {
-        val svc = context.project.service<CodebaseRulesService>()
+        val svc = project.service<CodebaseRulesService>()
         svc.refresh()
         val rules = svc.getAllRules()
         val text = if (rules.isEmpty()) "No conventions detected"
@@ -43,7 +43,7 @@ class CodebaseRulesExplainTool(project: Project) : BaseProjectTool(project) {
 
     override fun execute(call: ToolCall, context: ToolExecutionContext): ToolResult {
         val id = call.arguments["id"] ?: return ToolResult(name, false, "Missing id")
-        val svc = context.project.service<CodebaseRulesService>()
+        val svc = project.service<CodebaseRulesService>()
         val rule = svc.getAllRules().find { it.id == id }
             ?: return ToolResult(name, false, "Rule '$id' not found")
         val text = buildString {

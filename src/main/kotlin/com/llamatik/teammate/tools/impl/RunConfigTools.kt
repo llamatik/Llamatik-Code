@@ -3,9 +3,9 @@ package com.llamatik.teammate.tools.impl
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.llamatik.teammate.run.RunConfigService
-import com.llamatik.teammate.tools.LlamatikTool
+import com.llamatik.agent.core.tools.LlamatikTool
 import com.llamatik.agent.core.tools.ToolCall
-import com.llamatik.teammate.tools.ToolExecutionContext
+import com.llamatik.agent.core.tools.ToolExecutionContext
 import com.llamatik.agent.core.tools.ToolResult
 
 class RunConfigListTool(project: Project) : BaseProjectTool(project) {
@@ -13,7 +13,7 @@ class RunConfigListTool(project: Project) : BaseProjectTool(project) {
     override val description = "List available IDE run configurations. No arguments needed."
 
     override fun execute(call: ToolCall, context: ToolExecutionContext): ToolResult {
-        val svc = context.project.service<RunConfigService>()
+        val svc = project.service<RunConfigService>()
         val configs = svc.listConfigs()
         if (configs.isEmpty()) return ToolResult(name, true, "No run configurations found in this project")
         val text = configs.joinToString("\n") { c -> "- ${c.name}  [${c.type}]" }
@@ -27,7 +27,7 @@ class RunConfigLastOutputTool(project: Project) : BaseProjectTool(project) {
 
     override fun execute(call: ToolCall, context: ToolExecutionContext): ToolResult {
         val name_ = call.arguments["name"] ?: return ToolResult(name, false, "Missing name")
-        val svc = context.project.service<RunConfigService>()
+        val svc = project.service<RunConfigService>()
         val output = svc.getLastOutput(name_)
             ?: return ToolResult(name, false, "No recorded output for '$name_'. Run it first with run_config_execute.")
         val text = buildString {
@@ -46,7 +46,7 @@ class RunConfigAnalyzeFailureTool(project: Project) : BaseProjectTool(project) {
 
     override fun execute(call: ToolCall, context: ToolExecutionContext): ToolResult {
         val configName = call.arguments["name"] ?: return ToolResult(name, false, "Missing name")
-        val svc = context.project.service<RunConfigService>()
+        val svc = project.service<RunConfigService>()
         val output = svc.getLastOutput(configName)
             ?: return ToolResult(name, false, "No recorded output for '$configName'")
         return ToolResult(name, true, svc.analyzeFailure(output))

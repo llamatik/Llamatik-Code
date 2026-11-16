@@ -16,9 +16,9 @@ import com.llamatik.teammate.codehealth.RegressionRiskAnalyzer
 import com.llamatik.teammate.codehealth.RunTrigger
 import com.llamatik.teammate.codehealth.WatchedAreaService
 import com.llamatik.teammate.codehealth.WatchedAreaType
-import com.llamatik.teammate.tools.LlamatikTool
+import com.llamatik.agent.core.tools.LlamatikTool
 import com.llamatik.agent.core.tools.ToolCall
-import com.llamatik.teammate.tools.ToolExecutionContext
+import com.llamatik.agent.core.tools.ToolExecutionContext
 import com.llamatik.agent.core.tools.ToolResult
 
 private const val DISABLED_MSG =

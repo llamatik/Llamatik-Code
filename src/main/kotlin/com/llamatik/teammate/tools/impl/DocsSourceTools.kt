@@ -6,9 +6,9 @@ import com.llamatik.teammate.external.docs.DocsIndexerService
 import com.llamatik.teammate.external.docs.DocsSource
 import com.llamatik.teammate.external.docs.DocsSourceService
 import com.llamatik.teammate.external.docs.DocsSourceType
-import com.llamatik.teammate.tools.LlamatikTool
+import com.llamatik.agent.core.tools.LlamatikTool
 import com.llamatik.agent.core.tools.ToolCall
-import com.llamatik.teammate.tools.ToolExecutionContext
+import com.llamatik.agent.core.tools.ToolExecutionContext
 import com.llamatik.agent.core.tools.ToolResult
 import java.util.UUID
 

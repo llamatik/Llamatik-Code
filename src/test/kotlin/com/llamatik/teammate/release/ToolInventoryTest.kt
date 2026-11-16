@@ -9,7 +9,7 @@ import java.io.File
  *
  * Run via: ./gradlew toolContractTest
  *
- * Scans all *.kt files under src/main for `override val name = "..."` declarations
+ * Scans all *.kt files under src/main and agent-core/src/main for `override val name = "..."` declarations
  * and checks them against [EXPECTED_BUILTIN_TOOLS]. Fails if any expected tool name
  * is missing, catching accidental renames or removals before a Marketplace release.
  */
@@ -69,13 +69,14 @@ class ToolInventoryTest {
     private fun discoverToolNamesFromSource(): Set<String> = discoverAllToolNameDeclarations().toSet()
 
     private fun discoverAllToolNameDeclarations(): List<String> {
-        val srcMain = File("src/main/kotlin")
-        if (!srcMain.isDirectory) return emptyList()
+        // Portable tools live in :agent-core, IDE-only tools in the plugin.
+        val srcRoots = listOf(File("src/main/kotlin"), File("agent-core/src/main/kotlin")).filter { it.isDirectory }
+        if (srcRoots.isEmpty()) return emptyList()
 
         val pattern = Regex("""override val name[^=]*=\s*"([a-z][a-z0-9_]*)" """)
         val patternNoSpace = Regex("""override val name[^=]*=\s*"([a-z][a-z0-9_]*)"$""", RegexOption.MULTILINE)
 
-        return srcMain.walkTopDown()
+        return srcRoots.asSequence().flatMap { it.walkTopDown() }
             .filter { it.isFile && it.extension == "kt" }
             .flatMap { file ->
                 val text = file.readText()

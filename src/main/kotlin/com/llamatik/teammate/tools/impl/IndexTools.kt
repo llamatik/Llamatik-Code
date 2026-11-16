@@ -3,9 +3,9 @@ package com.llamatik.teammate.tools.impl
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.llamatik.teammate.index.ProjectIndexService
-import com.llamatik.teammate.tools.LlamatikTool
+import com.llamatik.agent.core.tools.LlamatikTool
 import com.llamatik.agent.core.tools.ToolCall
-import com.llamatik.teammate.tools.ToolExecutionContext
+import com.llamatik.agent.core.tools.ToolExecutionContext
 import com.llamatik.agent.core.tools.ToolResult
 
 class IndexSearchTool(project: Project) : BaseProjectTool(project) {
@@ -14,7 +14,7 @@ class IndexSearchTool(project: Project) : BaseProjectTool(project) {
 
     override fun execute(call: ToolCall, context: ToolExecutionContext): ToolResult {
         val query = call.arguments["query"] ?: return ToolResult(name, false, "Missing query")
-        val svc = context.project.service<ProjectIndexService>()
+        val svc = project.service<ProjectIndexService>()
         if (!svc.isReady()) return ToolResult(name, false, "Index not ready — call index_refresh first (status: ${svc.status()})")
         val results = svc.search(query)
         if (results.isEmpty()) return ToolResult(name, true, "No results for: $query")
@@ -32,7 +32,7 @@ class IndexRelevantFilesTool(project: Project) : BaseProjectTool(project) {
     override fun execute(call: ToolCall, context: ToolExecutionContext): ToolResult {
         val query = call.arguments["query"] ?: return ToolResult(name, false, "Missing query")
         val max = call.arguments["max"]?.toIntOrNull() ?: 8
-        val svc = context.project.service<ProjectIndexService>()
+        val svc = project.service<ProjectIndexService>()
         if (!svc.isReady()) return ToolResult(name, false, "Index not ready — call index_refresh first")
         val results = svc.search(query, maxResults = max)
         if (results.isEmpty()) return ToolResult(name, true, "No relevant files found for: $query")
@@ -45,7 +45,7 @@ class IndexRefreshTool(project: Project) : BaseProjectTool(project) {
     override val description = "Build or rebuild the project semantic index. No arguments needed."
 
     override fun execute(call: ToolCall, context: ToolExecutionContext): ToolResult {
-        val svc = context.project.service<ProjectIndexService>()
+        val svc = project.service<ProjectIndexService>()
         svc.build()
         return ToolResult(name, true, "Index build started in background. Use index_status to check progress.")
     }
@@ -56,7 +56,7 @@ class IndexStatusTool(project: Project) : BaseProjectTool(project) {
     override val description = "Check project index status. No arguments needed."
 
     override fun execute(call: ToolCall, context: ToolExecutionContext): ToolResult {
-        val svc = context.project.service<ProjectIndexService>()
+        val svc = project.service<ProjectIndexService>()
         return ToolResult(name, true, svc.status())
     }
 }

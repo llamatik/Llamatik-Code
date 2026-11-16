@@ -7,9 +7,9 @@ import com.llamatik.teammate.codehealth.CodeHealthInsightStore
 import com.llamatik.teammate.diagnostics.DiagnosticsService
 import com.llamatik.teammate.git.GitContextService
 import com.llamatik.teammate.snapshot.ProjectSnapshotService
-import com.llamatik.teammate.tools.LlamatikTool
+import com.llamatik.agent.core.tools.LlamatikTool
 import com.llamatik.agent.core.tools.ToolCall
-import com.llamatik.teammate.tools.ToolExecutionContext
+import com.llamatik.agent.core.tools.ToolExecutionContext
 import com.llamatik.agent.core.tools.ToolResult
 import com.llamatik.teammate.workflows.enterprise.EnterpriseMissionReport
 import com.llamatik.teammate.workflows.enterprise.EnterpriseMissionType

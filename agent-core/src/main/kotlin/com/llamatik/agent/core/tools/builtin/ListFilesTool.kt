@@ -1,16 +1,16 @@
-package com.llamatik.teammate.tools.impl
+package com.llamatik.agent.core.tools.builtin
 
-import com.intellij.openapi.project.Project
+import com.llamatik.agent.core.tools.LlamatikTool
 import com.llamatik.agent.core.tools.ToolCall
-import com.llamatik.teammate.tools.ToolExecutionContext
+import com.llamatik.agent.core.tools.ToolExecutionContext
 import com.llamatik.agent.core.tools.ToolResult
 
-class ListFilesTool(project: Project) : BaseProjectTool(project) {
+class ListFilesTool : LlamatikTool {
     override val name: String = "list_files"
     override val description: String = "List project files under a relative path. Arguments: path"
 
     override fun execute(call: ToolCall, context: ToolExecutionContext): ToolResult {
-        val files = contextService.listFiles(call.arguments["path"])
+        val files = context.env.files.list(call.arguments["path"])
         return ToolResult(name, true, files.joinToString("\n"))
     }
 }

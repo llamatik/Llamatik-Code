@@ -8,9 +8,9 @@ import com.llamatik.teammate.external.search.ExternalSearchService
 import com.llamatik.teammate.external.search.SearchIntent
 import com.llamatik.teammate.external.search.SearchQuery
 import com.llamatik.teammate.settings.LlamatikAppSettings
-import com.llamatik.teammate.tools.LlamatikTool
+import com.llamatik.agent.core.tools.LlamatikTool
 import com.llamatik.agent.core.tools.ToolCall
-import com.llamatik.teammate.tools.ToolExecutionContext
+import com.llamatik.agent.core.tools.ToolExecutionContext
 import com.llamatik.agent.core.tools.ToolResult
 import com.llamatik.teammate.ui.Strings
 

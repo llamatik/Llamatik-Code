@@ -1,11 +1,11 @@
-package com.llamatik.teammate.tools.impl
+package com.llamatik.agent.core.tools.builtin
 
-import com.intellij.openapi.project.Project
+import com.llamatik.agent.core.tools.LlamatikTool
 import com.llamatik.agent.core.tools.ToolCall
-import com.llamatik.teammate.tools.ToolExecutionContext
+import com.llamatik.agent.core.tools.ToolExecutionContext
 import com.llamatik.agent.core.tools.ToolResult
 
-class ApplyPatchTool(project: Project) : BaseProjectTool(project) {
+class ApplyPatchTool : LlamatikTool {
     override val name: String = "apply_patch"
     override val description: String = "Reserved safe apply tool. Returns a pending approval notice in MVP. Arguments: path, content"
 

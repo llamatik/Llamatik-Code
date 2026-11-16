@@ -3,9 +3,9 @@ package com.llamatik.teammate.tools.impl
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.llamatik.teammate.psi.PsiCodeInsightService
-import com.llamatik.teammate.tools.LlamatikTool
+import com.llamatik.agent.core.tools.LlamatikTool
 import com.llamatik.agent.core.tools.ToolCall
-import com.llamatik.teammate.tools.ToolExecutionContext
+import com.llamatik.agent.core.tools.ToolExecutionContext
 import com.llamatik.agent.core.tools.ToolResult
 
 class PsiFileStructureTool(project: Project) : BaseProjectTool(project) {
@@ -15,7 +15,7 @@ class PsiFileStructureTool(project: Project) : BaseProjectTool(project) {
     override fun execute(call: ToolCall, context: ToolExecutionContext): ToolResult {
         val path = call.arguments["path"] ?: return ToolResult(name, false, "Missing path")
         return try {
-            val svc = context.project.service<PsiCodeInsightService>()
+            val svc = project.service<PsiCodeInsightService>()
             val structure = svc.fileStructure(path)
             if (structure.declarations.isEmpty()) return ToolResult(name, true, "No declarations found in $path (language: ${structure.language})")
             val text = buildString {
@@ -38,7 +38,7 @@ class PsiFindSymbolTool(project: Project) : BaseProjectTool(project) {
     override fun execute(call: ToolCall, context: ToolExecutionContext): ToolResult {
         val symbol = call.arguments["symbol"] ?: return ToolResult(name, false, "Missing symbol")
         return try {
-            val svc = context.project.service<PsiCodeInsightService>()
+            val svc = project.service<PsiCodeInsightService>()
             val decl = svc.findDeclaration(symbol)
                 ?: return ToolResult(name, true, "Symbol '$symbol' not found in project")
             ToolResult(name, true, "${decl.kind} '${decl.name}' declared at line ${decl.line}")
@@ -55,7 +55,7 @@ class PsiFindUsagesTool(project: Project) : BaseProjectTool(project) {
     override fun execute(call: ToolCall, context: ToolExecutionContext): ToolResult {
         val symbol = call.arguments["symbol"] ?: return ToolResult(name, false, "Missing symbol")
         return try {
-            val svc = context.project.service<PsiCodeInsightService>()
+            val svc = project.service<PsiCodeInsightService>()
             val usages = svc.findUsages(symbol)
             if (usages.isEmpty()) return ToolResult(name, true, "No usages found for '$symbol'")
             val text = usages.joinToString("\n") { u -> "${u.file}:${u.line}  ${u.snippet}" }

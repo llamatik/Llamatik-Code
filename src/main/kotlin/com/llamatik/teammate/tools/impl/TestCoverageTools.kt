@@ -3,9 +3,9 @@ package com.llamatik.teammate.tools.impl
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.llamatik.teammate.testing.TestCoverageHeuristicService
-import com.llamatik.teammate.tools.LlamatikTool
+import com.llamatik.agent.core.tools.LlamatikTool
 import com.llamatik.agent.core.tools.ToolCall
-import com.llamatik.teammate.tools.ToolExecutionContext
+import com.llamatik.agent.core.tools.ToolExecutionContext
 import com.llamatik.agent.core.tools.ToolResult
 
 class TestsMissingAnalyzeTool(project: Project) : BaseProjectTool(project) {
@@ -13,7 +13,7 @@ class TestsMissingAnalyzeTool(project: Project) : BaseProjectTool(project) {
     override val description = "Heuristic analysis of which source files lack test coverage. No arguments required."
 
     override fun execute(call: ToolCall, context: ToolExecutionContext): ToolResult {
-        val svc = context.project.service<TestCoverageHeuristicService>()
+        val svc = project.service<TestCoverageHeuristicService>()
         val report = runCatching { svc.analyze() }.getOrElse { e ->
             return ToolResult(name, false, "Test analysis failed: ${e.message}")
         }

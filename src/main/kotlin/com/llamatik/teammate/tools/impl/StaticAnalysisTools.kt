@@ -3,9 +3,9 @@ package com.llamatik.teammate.tools.impl
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.llamatik.teammate.analysis.StaticAnalysisService
-import com.llamatik.teammate.tools.LlamatikTool
+import com.llamatik.agent.core.tools.LlamatikTool
 import com.llamatik.agent.core.tools.ToolCall
-import com.llamatik.teammate.tools.ToolExecutionContext
+import com.llamatik.agent.core.tools.ToolExecutionContext
 import com.llamatik.agent.core.tools.ToolResult
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -15,7 +15,7 @@ class StaticAnalysisDetectToolsTool(project: Project) : BaseProjectTool(project)
     override val description = "Detect available static analysis tools in this project. No arguments."
 
     override fun execute(call: ToolCall, context: ToolExecutionContext): ToolResult {
-        val svc = context.project.service<StaticAnalysisService>()
+        val svc = project.service<StaticAnalysisService>()
         val tools = svc.detectTools()
         if (tools.isEmpty()) return ToolResult(name, true, "No static analysis tools detected")
         val text = "Detected tools:\n" + tools.joinToString("\n") { "  ${it.id}: ${it.displayName} → ${it.command}" }
@@ -29,7 +29,7 @@ class StaticAnalysisRunTool(project: Project) : BaseProjectTool(project) {
 
     override fun execute(call: ToolCall, context: ToolExecutionContext): ToolResult {
         val toolId = call.arguments["tool_id"] ?: return ToolResult(name, false, "Missing tool_id")
-        val svc = context.project.service<StaticAnalysisService>()
+        val svc = project.service<StaticAnalysisService>()
         val detected = svc.detectTools().find { it.id == toolId }
             ?: return ToolResult(name, false, "Tool '$toolId' not detected. Call static_analysis_detect_tools first.")
         val latch = CountDownLatch(1)
@@ -56,7 +56,7 @@ class StaticAnalysisParseResultsTool(project: Project) : BaseProjectTool(project
     override fun execute(call: ToolCall, context: ToolExecutionContext): ToolResult {
         val toolId = call.arguments["tool_id"] ?: return ToolResult(name, false, "Missing tool_id")
         val output = call.arguments["output"] ?: return ToolResult(name, false, "Missing output")
-        val svc = context.project.service<StaticAnalysisService>()
+        val svc = project.service<StaticAnalysisService>()
         val findings = svc.parseFindings(toolId, output)
         if (findings.isEmpty()) return ToolResult(name, true, "No findings parsed from output")
         val text = findings.take(30).joinToString("\n") { f ->

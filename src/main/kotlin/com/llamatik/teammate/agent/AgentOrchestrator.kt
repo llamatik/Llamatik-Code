@@ -15,6 +15,7 @@ import com.llamatik.agent.core.backend.GenerationHandle
 import com.llamatik.agent.core.backend.GenerationRequest
 import com.llamatik.agent.core.backend.SessionTag
 import com.llamatik.teammate.context.ProjectContextService
+import com.llamatik.teammate.ide.IdeAgentEnvironment
 import com.llamatik.teammate.server.LlamatikRouter
 import com.llamatik.teammate.llamatik.MultimodalBackendService
 import com.llamatik.agent.core.model.AttachedImage
@@ -27,7 +28,7 @@ import com.llamatik.teammate.memory.ProjectMemoryService
 import com.llamatik.teammate.rules.CodebaseRulesService
 import com.llamatik.teammate.skills.SkillService
 import com.llamatik.agent.core.tools.ToolCallParser
-import com.llamatik.teammate.tools.ToolExecutionContext
+import com.llamatik.agent.core.tools.ToolExecutionContext
 import com.llamatik.teammate.tools.ToolRegistry
 import com.llamatik.agent.core.tools.ToolResult
 import java.util.concurrent.atomic.AtomicBoolean
@@ -38,6 +39,7 @@ class AgentOrchestrator(private val project: Project) {
     // Routes each request to the connected Llamatik server or the local model.
     private val backend: AssistantBackend = service<LlamatikRouter>()
     private val multimodalBackend = service<MultimodalBackendService>()
+    private val environment = IdeAgentEnvironment.create(project)
     private val toolRegistry = project.service<ToolRegistry>()
     private val contextService = ProjectContextService(project)
     private val skillService = service<SkillService>()
@@ -471,7 +473,7 @@ class AgentOrchestrator(private val project: Project) {
                                     val editMessages = editCalls.map { call ->
                                         val mainArg = call.arguments.values.firstOrNull().orEmpty().take(TOOL_ARG_DISPLAY_MAX_CHARS)
                                         if (!cancelled.get()) onToken("${TOOL_PREFIX}${call.name}:$mainArg")
-                                        val result = toolRegistry.execute(call, ToolExecutionContext(project))
+                                        val result = toolRegistry.execute(call, ToolExecutionContext(environment))
                                         agentTrace.add(AgentTraceStep(
                                             type = AgentTraceStep.Type.VERIFICATION,
                                             title = "${call.name}($mainArg)",
@@ -539,7 +541,7 @@ class AgentOrchestrator(private val project: Project) {
                             val result = if (isDuplicateReadOnly) {
                                 ToolResult(name = call.name, success = true, content = "Already called ${call.name}(${call.arguments.values.firstOrNull().orEmpty()}) in a previous round. Use the result you already received — do not call this tool again.")
                             } else {
-                                toolRegistry.execute(call, ToolExecutionContext(project))
+                                toolRegistry.execute(call, ToolExecutionContext(environment))
                             }
                             val elapsed = System.currentTimeMillis() - t0
                             val traceType = when {

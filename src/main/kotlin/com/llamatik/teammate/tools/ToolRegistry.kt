@@ -1,5 +1,24 @@
 package com.llamatik.teammate.tools
 
+import com.llamatik.agent.core.tools.ToolExecutionContext
+import com.llamatik.agent.core.tools.LlamatikTool
+import com.llamatik.agent.core.tools.builtin.ListFilesTool
+import com.llamatik.agent.core.tools.builtin.ReadFileTool
+import com.llamatik.agent.core.tools.builtin.SearchCodeTool
+import com.llamatik.agent.core.tools.builtin.SearchFilenamesTool
+import com.llamatik.agent.core.tools.builtin.WriteFileTool
+import com.llamatik.agent.core.tools.builtin.CreateFileTool
+import com.llamatik.agent.core.tools.builtin.ReplaceInFileTool
+import com.llamatik.agent.core.tools.builtin.ShowDiffTool
+import com.llamatik.agent.core.tools.builtin.ApplyPatchTool
+import com.llamatik.agent.core.tools.builtin.GitStatusTool
+import com.llamatik.agent.core.tools.builtin.GitDiffTool
+import com.llamatik.agent.core.tools.builtin.GitChangedFilesTool
+import com.llamatik.agent.core.tools.builtin.GitBranchTool
+import com.llamatik.agent.core.tools.builtin.GitCommitMessageSuggestionTool
+import com.llamatik.agent.core.tools.builtin.TerminalAllowedCommandsTool
+import com.llamatik.agent.core.tools.builtin.TerminalRunTool
+import com.llamatik.agent.core.tools.builtin.TerminalLastOutputTool
 import com.llamatik.agent.core.tools.ToolCall
 import com.llamatik.agent.core.tools.ToolResult
 import com.intellij.openapi.components.Service
@@ -20,23 +39,23 @@ import java.util.concurrent.ConcurrentHashMap
 class ToolRegistry(private val project: Project) {
     private val builtinTools: Map<String, LlamatikTool> = listOf(
         // Core file tools
-        ListFilesTool(project),
-        ReadFileTool(project),
-        SearchCodeTool(project),
-        SearchFilenamesTool(project),
+        ListFilesTool(),
+        ReadFileTool(),
+        SearchCodeTool(),
+        SearchFilenamesTool(),
         GetCurrentFileTool(project),
         GetSelectedTextTool(project),
-        WriteFileTool(project),
-        CreateFileTool(project),
-        ReplaceInFileTool(project),
-        ShowDiffTool(project),
-        ApplyPatchTool(project),
+        WriteFileTool(),
+        CreateFileTool(),
+        ReplaceInFileTool(),
+        ShowDiffTool(),
+        ApplyPatchTool(),
         // Git tools
-        GitStatusTool(project),
-        GitDiffTool(project),
-        GitChangedFilesTool(project),
-        GitBranchTool(project),
-        GitCommitMessageSuggestionTool(project),
+        GitStatusTool(),
+        GitDiffTool(),
+        GitChangedFilesTool(),
+        GitBranchTool(),
+        GitCommitMessageSuggestionTool(),
         // PSI tools
         PsiFileStructureTool(project),
         PsiFindSymbolTool(project),
@@ -55,9 +74,9 @@ class ToolRegistry(private val project: Project) {
         CodebaseRulesRefreshTool(project),
         CodebaseRulesExplainTool(project),
         // Terminal tools
-        TerminalAllowedCommandsTool(project),
-        TerminalRunTool(project),
-        TerminalLastOutputTool(project),
+        TerminalAllowedCommandsTool(),
+        TerminalRunTool(),
+        TerminalLastOutputTool(),
         // Static analysis tools
         StaticAnalysisDetectToolsTool(project),
         StaticAnalysisRunTool(project),
