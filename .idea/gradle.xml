@@ -8,7 +8,10 @@
         <option name="modules">
           <set>
             <option value="$PROJECT_DIR$" />
+            <option value="$PROJECT_DIR$/acp" />
             <option value="$PROJECT_DIR$/agent-core" />
+            <option value="$PROJECT_DIR$/backends" />
+            <option value="$PROJECT_DIR$/cli" />
           </set>
         </option>
       </GradleProjectSettings>

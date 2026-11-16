@@ -83,7 +83,7 @@ class AgentWorkflowTest {
         HeadlessAgent(backend, config, root).run("Create New.kt", 2)
 
         assertTrue("New.kt should exist", File(root, "src/New.kt").exists())
-        assertEquals("object New", File(root, "src/New.kt").readText())
+        assertEquals("object New\n", File(root, "src/New.kt").readText())
     }
 
     // ── 4: replace_in_file ───────────────────────────────────────────────────
@@ -324,7 +324,7 @@ class AgentWorkflowTest {
         assertNull(result.error)
         assertEquals(listOf("create_file"), result.toolsExecuted)
         assertEquals(listOf("src/Hello.kt"), result.changedPaths)
-        assertEquals("fun hello() = \"hi\"", File(root, "src/Hello.kt").readText())
+        assertEquals("fun hello() = \"hi\"\n", File(root, "src/Hello.kt").readText())
     }
 
     // ── 16: agent records changed files ──────────────────────────────────────

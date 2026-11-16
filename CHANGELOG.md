@@ -8,7 +8,12 @@
 - **Automatic fallback and recovery** — when the server becomes unreachable the plugin switches back to the local model (configurable) and returns to the server by itself once it answers again.
 - **Resumable generations** — if the connection drops mid-generation the request is resumed with the server (no lost or duplicated text); if the server can no longer resume, the request is restarted or re-run locally.
 
+### Added
+- **Command-line agent (`llamatik`) and ACP agent (`llamatik-acp`)** — the same agent now runs outside the IDE, on a local GGUF model or a Llamatik server: in a terminal, or inside any Agent Client Protocol editor (Zed, JetBrains, Neovim…). Edits and commands are always confirmed. See `Documentation/command-line-and-acp.md`.
+
 ### Fixed
+- **Command-only tasks keep their answer** — "run the tests" ran the command but showed a generic "completed without a file change" instead of the model's answer.
+- **Edits keep the file's trailing newline** — applying an agent edit used to strip it, showing "No newline at end of file" in every diff; new files now end with a newline.
 - **Questions keep their answer** — after reading files or running a tool, a prose reply to a question ("what files are in src?", "explain @File.kt") is shown instead of being replaced by a forced "write the file" pass. The forced write pass now only applies to requests that ask for an edit.
 - **No endless agent loop** — a model that repeats the same read-only call can no longer keep the agent running forever.
 - **Forced write pass hardening** — a reply that is a tool call (or empty) can no longer become the content of an edit proposal; empty replies are retried.

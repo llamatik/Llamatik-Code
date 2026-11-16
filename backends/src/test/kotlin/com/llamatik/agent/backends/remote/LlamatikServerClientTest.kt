@@ -1,4 +1,4 @@
-package com.llamatik.teammate.server
+package com.llamatik.agent.backends.remote
 
 import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpServer

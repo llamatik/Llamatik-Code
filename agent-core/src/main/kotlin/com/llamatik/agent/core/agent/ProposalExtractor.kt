@@ -107,12 +107,12 @@ class ProposalExtractor(
             }.trim()
 
             val newContent = when {
-                content.contains("\n---NEW---\n") -> content.substringAfter("\n---NEW---\n").trim()
-                content.startsWith("Prepared new file for ") -> content.substringAfter("\n").trim()
+                content.contains("\n---NEW---\n") -> content.substringAfter("\n---NEW---\n").trimKeepingFinalNewline()
+                content.startsWith("Prepared new file for ") -> content.substringAfter("\n").trimKeepingFinalNewline()
                 else -> continue
             }
             val oldContent = when {
-                content.contains("\n---OLD---\n") -> content.substringAfter("\n---OLD---\n").substringBefore("\n---NEW---\n").trim()
+                content.contains("\n---OLD---\n") -> content.substringAfter("\n---OLD---\n").substringBefore("\n---NEW---\n").trimKeepingFinalNewline()
                 else -> runCatching { env.files.read(path) }.getOrDefault("")
             }
 
@@ -123,9 +123,22 @@ class ProposalExtractor(
                 }
                 is ProposalValidator.Result.Valid -> Unit
             }
-            proposals += EditProposal(filePath = path, oldContent = oldContent, newContent = newContent, summary = "Changes from $toolName")
+            // Tool arguments arrive trimmed, which would strip the file's final newline from every edit
+            // ("No newline at end of file" in each diff). Keep the convention of the file being replaced; new
+            // files get the usual trailing newline.
+            val finalContent = if (!newContent.endsWith("\n") && (oldContent.isEmpty() || oldContent.endsWith("\n"))) newContent + "\n" else newContent
+            proposals += EditProposal(filePath = path, oldContent = oldContent, newContent = finalContent, summary = "Changes from $toolName")
         }
 
         return ProposalResult(proposals, rejections)
+    }
+
+    /**
+     * Trims surrounding whitespace but keeps one final newline, so applying a proposal does not strip the
+     * trailing newline of the file (which shows up as "No newline at end of file" in every diff).
+     */
+    private fun String.trimKeepingFinalNewline(): String {
+        val body = trim()
+        return if (body.isNotEmpty() && endsWith("\n")) body + "\n" else body
     }
 }

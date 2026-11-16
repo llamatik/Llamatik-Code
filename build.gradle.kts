@@ -47,6 +47,7 @@ dependencies {
     }
 
     implementation(project(":agent-core"))
+    implementation(project(":backends"))
     implementation("com.llamatik:core:2.3.0")
     testImplementation("junit:junit:4.13.2")
     testImplementation(testFixtures(project(":agent-core")))
@@ -618,8 +619,8 @@ val releaseValidationReport by tasks.registering {
 val releaseCheck by tasks.registering {
     description = "Full pre-Marketplace release gate: agent-core tests (golden transcripts), tool contracts, agent workflows, and plugin verifier."
     group = "verification"
-    // The agent loop and its golden transcripts live in :agent-core.
-    dependsOn(":agent-core:test", toolContractTest, agentWorkflowTest, releaseValidationReport)
+    // The agent loop and its golden transcripts live in :agent-core; the CLI and ACP agent share it.
+    dependsOn(":agent-core:test", ":backends:test", ":cli:test", ":acp:test", toolContractTest, agentWorkflowTest, releaseValidationReport)
 
     val includeModelSmoke = providers.gradleProperty("includeModelSmoke").orNull == "true"
     if (includeModelSmoke) {

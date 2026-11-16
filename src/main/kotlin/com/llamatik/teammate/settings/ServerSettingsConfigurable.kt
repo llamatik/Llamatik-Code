@@ -10,7 +10,7 @@ import com.intellij.ui.components.JBTextField
 import com.intellij.util.ui.FormBuilder
 import com.intellij.util.ui.JBUI
 import com.llamatik.teammate.server.ConnectResult
-import com.llamatik.teammate.server.ServerCapabilities
+import com.llamatik.agent.backends.remote.ServerCapabilities
 import com.llamatik.teammate.server.ServerConnectionService
 import com.llamatik.teammate.server.ServerConnectionState
 import com.llamatik.teammate.server.ServerStatus

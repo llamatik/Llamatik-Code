@@ -109,7 +109,8 @@ class HeadlessAgentTest {
         )
         agent.run("Create New.kt", 5)
         assertTrue(File(root, "New.kt").isFile)
-        assertEquals("class New", File(root, "New.kt").readText())
+        // New files end with a newline (the loop used to strip it).
+        assertEquals("class New\n", File(root, "New.kt").readText())
     }
 
     @Test

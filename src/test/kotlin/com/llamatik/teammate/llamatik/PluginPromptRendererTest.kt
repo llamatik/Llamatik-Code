@@ -1,5 +1,6 @@
 package com.llamatik.teammate.llamatik
 
+import com.llamatik.agent.backends.prompt.PluginPromptRenderer
 import com.llamatik.agent.core.model.ChatMessage
 import com.llamatik.agent.core.model.ChatRole
 import org.junit.Assert.*

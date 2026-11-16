@@ -1,4 +1,4 @@
-package com.llamatik.teammate.server
+package com.llamatik.agent.backends.remote
 
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject

@@ -1,5 +1,12 @@
 package com.llamatik.teammate.server
 
+import com.llamatik.agent.backends.remote.LlamatikServerClient
+import com.llamatik.agent.backends.remote.ServerEndpoint
+import com.llamatik.agent.backends.remote.PairingResult
+import com.llamatik.agent.backends.remote.ServerLink
+import com.llamatik.agent.backends.remote.ServerPairing
+import com.llamatik.agent.backends.remote.ServerCapabilities
+import com.llamatik.agent.backends.remote.ServerProbe
 import com.intellij.credentialStore.CredentialAttributes
 import com.intellij.credentialStore.Credentials
 import com.intellij.credentialStore.generateServiceName
@@ -71,7 +78,7 @@ sealed interface ConnectResult {
  * answers again.
  */
 @Service(Service.Level.APP)
-class ServerConnectionService {
+class ServerConnectionService : ServerLink {
     private val logger = thisLogger()
     private val settings get() = service<LlamatikAppSettings>()
 
@@ -94,6 +101,11 @@ class ServerConnectionService {
 
     fun status(): ServerStatus = status
 
+    // ── ServerLink: what the (shared) remote backend needs ─────────────────
+    override fun capabilities(): ServerCapabilities = status.capabilities
+    override fun displayName(): String = status.displayName
+    override fun isUsable(): Boolean = status.isUsable
+
     /** Registers [listener] (called on a background thread!). Returns a function that removes it. */
     fun addListener(listener: (ServerStatus) -> Unit): () -> Unit {
         listeners.add(listener)
@@ -112,7 +124,7 @@ class ServerConnectionService {
     }
 
     /** The endpoint to talk to right now, or null when no server is configured. */
-    fun endpoint(): ServerEndpoint? {
+    override fun endpoint(): ServerEndpoint? {
         val data = settings.data()
         if (!data.serverEnabled || data.serverHost.isBlank()) return null
         return ServerEndpoint(data.serverHost, data.serverPort, token)
@@ -192,7 +204,7 @@ class ServerConnectionService {
     }
 
     /** Called by in-flight generation when the connection dropped, so the UI reacts without waiting for the next probe. */
-    fun reportConnectionProblem() {
+    override fun reportConnectionProblem() {
         if (status.state == ServerConnectionState.CONNECTED) {
             publish(status.copy(state = ServerConnectionState.RECONNECTING, message = "Connection interrupted — retrying…"))
         }
@@ -201,7 +213,7 @@ class ServerConnectionService {
     }
 
     /** Called when generation traffic worked, proving the connection is fine. */
-    fun reportConnectionOk() {
+    override fun reportConnectionOk() {
         if (status.state == ServerConnectionState.RECONNECTING) {
             failures = 0
             publish(status.copy(state = ServerConnectionState.CONNECTED, message = null))
@@ -299,34 +311,24 @@ class ServerConnectionService {
 
     /** Returns null on success (token stored), or a human-readable failure reason. */
     private fun pairWith(host: String, port: Int, name: String): String? {
-        val client = LlamatikServerClient(ServerEndpoint(host, port))
-        val requestId = client.requestPairing(clientId(), deviceName())
-            ?: return "The server refused the approval request."
-        publish(
-            ServerStatus(
-                ServerConnectionState.PAIRING, host, port, name,
-                message = "Waiting for the owner of ${name.ifBlank { host }} to approve this device…",
-            ),
+        val result = ServerPairing.pair(
+            endpoint = ServerEndpoint(host, port),
+            clientId = clientId(),
+            clientName = deviceName(),
+            onWaiting = {
+                publish(
+                    ServerStatus(
+                        ServerConnectionState.PAIRING, host, port, name,
+                        message = "Waiting for the owner of ${name.ifBlank { host }} to approve this device…",
+                    ),
+                )
+            },
+            isCancelled = { cancelPairing.get() },
         )
-        var waited = 0L
-        while (waited < PAIRING_TIMEOUT_MS) {
-            if (cancelPairing.get()) return "Approval request cancelled."
-            when (val poll = client.pollPairing(requestId)) {
-                null -> Unit
-                else -> when (poll.status) {
-                    "approved" -> {
-                        val t = poll.token ?: return "The server approved the request but sent no token."
-                        saveToken(host, port, t)
-                        return null
-                    }
-                    "denied" -> return "The server denied this device."
-                    "expired" -> return "The approval request expired."
-                }
-            }
-            Thread.sleep(PAIRING_POLL_MS)
-            waited += PAIRING_POLL_MS
+        return when (result) {
+            is PairingResult.Approved -> { saveToken(host, port, result.token); null }
+            is PairingResult.Failed -> result.reason
         }
-        return "Timed out waiting for approval."
     }
 
     private fun clientId(): String {
@@ -407,7 +409,5 @@ class ServerConnectionService {
         private const val LOST_INTERVAL_MS = 5_000L
         /** Consecutive failed probes before the connection is considered lost (~10 s). */
         private const val LOST_AFTER_FAILURES = 3
-        private const val PAIRING_POLL_MS = 1_000L
-        private const val PAIRING_TIMEOUT_MS = 65_000L
     }
 }

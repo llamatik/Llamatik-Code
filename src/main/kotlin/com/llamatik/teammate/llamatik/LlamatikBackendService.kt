@@ -1,5 +1,7 @@
 package com.llamatik.teammate.llamatik
 
+import com.llamatik.agent.backends.prompt.ChatPromptSupport
+import com.llamatik.agent.backends.prompt.PluginPromptRenderer
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.thisLogger
 import com.llamatik.teammate.ui.Strings

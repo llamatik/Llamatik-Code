@@ -149,6 +149,10 @@ object AgentScenarios {
             files = files,
             toolResults = mapOf("read_file" to listOf("object Util"), "write_file" to listOf(prepared("src/Calc.kt", calc, calcFixed)))),
 
+        AgentScenario("command-then-answer-keeps-its-answer", "run the tests",
+            listOf(call("terminal_run", "command" to "./gradlew test"), "The test run succeeded and everything passed as expected."),
+            toolResults = mapOf("terminal_run" to listOf("Command: ./gradlew test\nExit code: 0  Duration: 3000ms\nStdout:\nBUILD SUCCESSFUL"))),
+
         // ── Ask / chat ──────────────────────────────────────────────────────────
         AgentScenario("chat-simple", "What is Kotlin?", listOf("Kotlin is a modern language for the JVM."), chat = true,
             history = listOf(user("What is Kotlin?"))),

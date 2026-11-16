@@ -1,4 +1,4 @@
-package com.llamatik.teammate.llamatik
+package com.llamatik.agent.backends.prompt
 
 import com.llamatik.agent.core.model.ChatMessage
 import com.llamatik.agent.core.model.ChatRole

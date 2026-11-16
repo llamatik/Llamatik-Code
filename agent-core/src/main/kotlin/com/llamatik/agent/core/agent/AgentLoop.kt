@@ -406,14 +406,19 @@ class AgentLoop(
                                 cleanedRound1
                             } else if (proposals.isNotEmpty()) {
                                 ""
-                            } else if (accumulatedRejections.isEmpty() && hasReadContent) {
-                                // Read-only tasks (review, analysis, explanation) — surface the model's
+                            } else if (accumulatedRejections.isEmpty() && (hasReadContent || !wantsEdit)) {
+                                // Read-only tasks (review, analysis, explanation) and tasks that only ran commands — surface the model's
                                 // answer text. Allow think fallback so base models (which put their entire
                                 // answer inside <think> blocks) still show output.
                                 val answer = ToolCallParser.cleanForDisplay(echoStripped, allowThinkFallback = true)
                                 answer.ifBlank {
-                                    "The agent reviewed the files but did not produce a written summary. " +
-                                    "Try asking again or use @filename to attach a specific file."
+                                    if (hasReadContent) {
+                                        "The agent reviewed the files but did not produce a written summary. " +
+                                            "Try asking again or use @filename to attach a specific file."
+                                    } else {
+                                        "The model did not produce an answer. " +
+                                            "Try asking again or use @filename to attach a specific file."
+                                    }
                                 }
                             } else {
                                 buildString {

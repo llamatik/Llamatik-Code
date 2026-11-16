@@ -1,27 +1,28 @@
-package com.llamatik.teammate.server
+package com.llamatik.agent.backends.remote
 
-import com.intellij.openapi.diagnostic.thisLogger
 import com.llamatik.agent.core.backend.AssistantBackend
 import com.llamatik.agent.core.backend.GenerationCallbacks
 import com.llamatik.agent.core.backend.GenerationHandle
 import com.llamatik.agent.core.backend.GenerationRequest
-import com.llamatik.teammate.llamatik.ChatPromptSupport
-import com.llamatik.teammate.llamatik.PluginPromptRenderer
+import com.llamatik.agent.backends.prompt.ChatPromptSupport
+import com.llamatik.agent.backends.prompt.PluginPromptRenderer
 import java.io.IOException
 import java.util.UUID
+import java.util.logging.Level
+import java.util.logging.Logger
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * The server stayed unreachable for longer than we are willing to wait (or the model it was
- * running is gone). [LlamatikRouter] reacts to this by re-running the request on the local model.
+ * running is gone). the IDE plugin's router reacts to this by re-running the request on the local model.
  */
 class ServerUnavailableException(message: String, cause: Throwable? = null) : IOException(message, cause)
 
 /**
  * [AssistantBackend] that runs inference on a Llamatik server instead of the local native library.
  *
- * Mirrors [com.llamatik.teammate.llamatik.LlamatikBackendService]: the prompt is rendered with the
+ * Mirrors LlamatikBackendService in the IDE plugin: the prompt is rendered with the
  * chat template of the model loaded *on the server*, tokens are streamed back, and stop sequences /
  * the token budget are enforced client-side.
  *
@@ -30,22 +31,21 @@ class ServerUnavailableException(message: String, cause: Throwable? = null) : IO
  * generation — no lost or duplicated text. We keep retrying with back-off for as long as the server
  * keeps the generation alive; when it can no longer resume, the request is restarted from scratch.
  */
-class RemoteBackendService(private val connection: ServerConnectionService) : AssistantBackend {
-    private val logger = thisLogger()
+class RemoteBackend(private val connection: ServerLink) : AssistantBackend {
+    private val logger = Logger.getLogger(RemoteBackend::class.java.name)
 
     private val executor = Executors.newCachedThreadPool { r ->
         Thread(r, "llamatik-remote-gen").apply { isDaemon = true }
     }
 
-    override fun isModelLoaded(): Boolean = connection.status().isUsable
+    override fun isModelLoaded(): Boolean = connection.isUsable()
 
     override fun isBaseModel(): Boolean =
-        connection.status().capabilities.finetuneType?.lowercase() == "base"
+        connection.capabilities().finetuneType?.lowercase() == "base"
 
     override fun selectedModelLabel(): String {
-        val s = connection.status()
-        val model = s.capabilities.textModel ?: "No model loaded"
-        return "$model @ ${s.displayName}"
+        val model = connection.capabilities().textModel ?: "No model loaded"
+        return "$model @ ${connection.displayName()}"
     }
 
     override fun generate(request: GenerationRequest, callbacks: GenerationCallbacks): GenerationHandle {
@@ -56,7 +56,7 @@ class RemoteBackendService(private val connection: ServerConnectionService) : As
                 run(request, callbacks, abort)
             } catch (t: Throwable) {
                 if (!abort.isAborted) {
-                    logger.warn("Remote generation failed", t)
+                    logger.log(Level.WARNING, "Remote generation failed", t)
                     callbacks.onError(t.message ?: "Remote generation failed", t)
                 }
             }
@@ -77,7 +77,7 @@ class RemoteBackendService(private val connection: ServerConnectionService) : As
         val endpoint = connection.endpoint()
             ?: throw ServerUnavailableException("No Llamatik server is configured.")
         val client = LlamatikServerClient(endpoint)
-        val caps = connection.status().capabilities
+        val caps = connection.capabilities()
 
         // ── Prompt: rendered by the server's own chat template ──────────────
         val (prompt, stopSequences) = withRetry(userAbort, CONNECT_WINDOW_MS) {

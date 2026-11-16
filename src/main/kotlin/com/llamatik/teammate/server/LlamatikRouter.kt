@@ -1,5 +1,7 @@
 package com.llamatik.teammate.server
 
+import com.llamatik.agent.backends.remote.RemoteBackend
+import com.llamatik.agent.backends.remote.ServerUnavailableException
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.thisLogger
@@ -26,7 +28,7 @@ class LlamatikRouter : AssistantBackend {
     private val logger = thisLogger()
     private val local: LlamatikBackendService get() = service()
     private val connection: ServerConnectionService get() = service()
-    private val remote by lazy { RemoteBackendService(connection) }
+    private val remote by lazy { RemoteBackend(connection) }
 
     private fun localAvailable(): Boolean = service<LlamatikAppSettings>().data().modelPath.isNotBlank()
 

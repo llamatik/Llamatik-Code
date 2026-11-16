@@ -1,11 +1,11 @@
-package com.llamatik.teammate.llamatik
+package com.llamatik.agent.backends.prompt
 
 import com.llamatik.agent.core.model.ChatMessage
 import com.llamatik.agent.core.model.ChatRole
 
 /**
  * Prompt helpers shared by the local ([LlamatikBackendService]) and remote
- * ([com.llamatik.teammate.server.RemoteBackendService]) backends, so both build prompts and detect
+ * ([com.llamatik.agent.backends.remote.RemoteBackend]) backends, so both build prompts and detect
  * turn boundaries identically.
  */
 object ChatPromptSupport {
