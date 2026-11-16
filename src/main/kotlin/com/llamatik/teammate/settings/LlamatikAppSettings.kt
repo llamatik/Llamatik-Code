@@ -87,6 +87,16 @@ class LlamatikAppSettings : PersistentStateComponent<LlamatikAppSettings.State> 
         var inlineCompletionDebounceMs: Int = 600,
         var inlineCompletionMaxContextChars: Int = 1200,
         var inlineCompletionMaxTokens: Int = 64,
+        // Llamatik Server (remote inference)
+        /** When true the plugin connects to [serverHost]:[serverPort] and runs inference there instead of locally. */
+        var serverEnabled: Boolean = false,
+        var serverHost: String = "",
+        var serverPort: Int = 8080,
+        var serverName: String = "",
+        /** Stable random id so the server can recognise the device it approved. Generated on first use. */
+        var serverClientId: String = "",
+        /** When the server connection is lost, transparently run on the local model (if one is configured). */
+        var serverFallbackToLocal: Boolean = true,
         // Review / feedback
         var completedTasksWithChanges: Int = 0,
         var reviewPromptLastShownMs: Long = 0L,

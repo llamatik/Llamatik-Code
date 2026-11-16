@@ -91,3 +91,14 @@ Settings for the enterprise pair programmer and inline completion features. Requ
 | Debounce delay (ms) | Idle time before a completion request is sent | 600 ms |
 | Max context chars | Characters of prefix + suffix sent to the model | 1200 |
 | Max completion tokens | Maximum tokens in the generated completion | 64 |
+
+### Llamatik Server
+
+*Settings → Tools → Llamatik Code → Llamatik Server.* Run inference on a Llamatik server instead of locally.
+
+| Setting | Description | Default |
+|---|---|---|
+| Name / Address / Port | The server to connect to. Press **Connect**; if the server requires per-device approval, accept the request on the server's device. | — / — / 8080 |
+| Switch back to the local model when the server is unreachable | On connection loss, new requests (and the one in flight, once the server cannot resume it) run on the local model. Reconnects to the server automatically. | on |
+
+While connected, the tool window shows a banner with the server and its loaded model. Connections are plain HTTP (unencrypted): only use servers on networks you trust. The access token issued on approval is stored in the IDE's Password Safe.
