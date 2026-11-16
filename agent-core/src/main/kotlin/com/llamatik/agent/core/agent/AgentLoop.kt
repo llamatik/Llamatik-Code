@@ -29,6 +29,7 @@ class AgentLoop(
     private val tools: ToolExecutor,
     private val policy: ToolPolicy,
     sources: PromptSources,
+    private val limits: AgentLimits = AgentLimits(),
 ) {
     val promptBuilder = PromptBuilder(env, tools, sources)
     val fileReferences = FileReferences(env)
@@ -36,7 +37,7 @@ class AgentLoop(
 
     /**
      * Runs the multi-round agent loop for one user prompt: the model may call tools across up to
-     * [MAX_ROUNDS] rounds before it answers or proposes edits.
+     * [AgentLimits.maxRounds] rounds before it answers or proposes edits.
      *
      * Special tokens routed through [onToken]: text starting with [STATUS_PREFIX] is a progress
      * message, text starting with [TOOL_PREFIX] announces a tool call (`name:firstArgument`).
@@ -233,16 +234,16 @@ class AgentLoop(
             return """<tool_call name="write_file"><arg name="path">$path</arg><arg name="content">"""
         }
 
-        // Multi-round agentic loop: model can call tools across up to MAX_ROUNDS before answering.
+        // Multi-round agentic loop: model can call tools across up to limits.maxRounds before answering.
         // Each round feeds tool results back so the model can: list files -> read files -> write files.
         fun runRound(messages: List<ChatMessage>, round: Int, accumulatedProposals: List<EditProposal>, hasReadContent: Boolean = false, prefill: String = "", emptyRetry: Int = 0, toolErrorRetry: Int = 0) {
             if (cancelled.get()) return
             // Global wall-clock safety net — kills the session if the total time exceeds the cap.
             // Skip for the write pass: the model is actively generating file content and must not
             // be interrupted; exploration rounds are the ones that can stall indefinitely.
-            val isWritePass = round >= MAX_ROUNDS - 1
-            if (!isWritePass && System.currentTimeMillis() - sessionStartMs > AGENT_SESSION_TIMEOUT_MS) {
-                val msg = ChatMessage(role = ChatRole.ASSISTANT, content = "Agent timed out after ${AGENT_SESSION_TIMEOUT_MS / 60_000} minutes. Try a shorter task or attach the file directly with @filename.")
+            val isWritePass = round >= limits.maxRounds - 1
+            if (!isWritePass && System.currentTimeMillis() - sessionStartMs > limits.sessionTimeoutMs) {
+                val msg = ChatMessage(role = ChatRole.ASSISTANT, content = "$TIMEOUT_MESSAGE_PREFIX${limits.sessionTimeoutMs / 60_000} minutes. Try a shorter task or attach the file directly with @filename.")
                 session.messages += msg
                 onFinished(msg, accumulatedProposals)
                 return
@@ -252,7 +253,7 @@ class AgentLoop(
             // so per-round <think> blocks only burn token budget and add latency without improving quality.
             // Use a tighter token cap for exploration rounds (tool calls need few tokens to express);
             // give the full budget only on the write pass so large file content fits in the output.
-            val isWriteRound = round >= MAX_ROUNDS - 1
+            val isWriteRound = round >= limits.maxRounds - 1
             // Exploration rounds must still allow thinking models to emit at least one tool call
             // after their <think> block. EXPLORATION_ROUND_MAX_TOKENS is a soft cap — if the
             // user's maxTokens setting is smaller than the floor, use the floor.
@@ -307,7 +308,7 @@ class AgentLoop(
                         val dynamicMcpNames = tools.dynamicToolNames()
                         val toolCalls = ToolCallParser.parseIncludingIncomplete(answerText)
                             .filter { it.name in policy.knownToolNames || it.name in dynamicMcpNames }
-                            .take(MAX_TOOL_CALLS_PER_ROUND)
+                            .take(limits.maxToolCallsPerRound)
 
                         // Mid-loop prose guard: model wrote text instead of a tool call after having
                         // read content (or when a file was explicitly attached). Give it one explicit
@@ -316,14 +317,14 @@ class AgentLoop(
                         // already in the system prompt, so the model has everything it needs and
                         // emitting prose instead of a tool call means it got confused — escalate
                         // directly rather than showing "file not found" to the user.
-                        // Bounds: round < MAX_ROUNDS - 1 to avoid re-entering this path recursively.
+                        // Bounds: round < limits.maxRounds - 1 to avoid re-entering this path recursively.
                         val hasFileInContext = effectiveFileContext.isNotBlank()
-                        val shouldEscalateToWrite = toolCalls.isEmpty() && round < MAX_ROUNDS - 1 &&
+                        val shouldEscalateToWrite = toolCalls.isEmpty() && round < limits.maxRounds - 1 &&
                             (hasReadContent || (hasFileInContext && round == 1))
                         if (shouldEscalateToWrite) {
                             val finalDirective = RoundDirective.get(RoundDirective.RoundState(
-                                round = MAX_ROUNDS - 1,
-                                maxRounds = MAX_ROUNDS,
+                                round = limits.maxRounds - 1,
+                                maxRounds = limits.maxRounds,
                                 hasReadContent = hasReadContent,
                                 wroteFilesThisRound = false,
                                 validProposalsProduced = false,
@@ -362,15 +363,15 @@ class AgentLoop(
                             if (!cancelled.get()) onToken("${STATUS_PREFIX}Writing changes…")
                             // Pass hasReadContent = true when file context was explicitly attached —
                             // the file IS in context even though the model never called read_file.
-                            runRound(listOf(ChatMessage(role = ChatRole.USER, content = finalContent)), MAX_ROUNDS - 1, accumulatedProposals, hasReadContent || hasFileInContext, writePassPrefill())
+                            runRound(listOf(ChatMessage(role = ChatRole.USER, content = finalContent)), limits.maxRounds - 1, accumulatedProposals, hasReadContent || hasFileInContext, writePassPrefill())
                             return
                         }
 
-                        if (toolCalls.isEmpty() || round >= MAX_ROUNDS) {
+                        if (toolCalls.isEmpty() || round >= limits.maxRounds) {
                             // On the final round the model may emit write_file/create_file/replace_in_file
                             // tool calls instead of <edit_proposal> blocks. Execute those edit calls so
                             // their proposals are not silently dropped.
-                            val finalRoundToolProposals: List<EditProposal> = if (round >= MAX_ROUNDS && toolCalls.isNotEmpty()) {
+                            val finalRoundToolProposals: List<EditProposal> = if (round >= limits.maxRounds && toolCalls.isNotEmpty()) {
                                 val editCalls = toolCalls.filter { it.name in policy.editToolNames }
                                 if (editCalls.isNotEmpty()) {
                                     val editMessages = editCalls.map { call ->
@@ -481,7 +482,7 @@ class AgentLoop(
                         }
                         val allToolsFailed = failedMessages.size == toolMessages.size && toolMessages.isNotEmpty() && !allCallsDuplicate
                         val anyWriteToolFailed = failedMessages.any { msg -> msg.toolName in policy.editToolNames }
-                        if ((allToolsFailed || anyWriteToolFailed) && toolErrorRetry < MAX_TOOL_ERROR_RETRIES && round < MAX_ROUNDS) {
+                        if ((allToolsFailed || anyWriteToolFailed) && toolErrorRetry < MAX_TOOL_ERROR_RETRIES && round < limits.maxRounds) {
                             val errorSummary = failedMessages.joinToString("\n") { msg ->
                                 "Tool ${msg.toolName} error: ${msg.content.lines().firstOrNull().orEmpty().take(200)}"
                             }
@@ -533,8 +534,8 @@ class AgentLoop(
                         // Escalate directly to the final-round write pass instead of burning another round.
                         if (allCallsDuplicate && roundProposals.isEmpty()) {
                             val finalDirective = RoundDirective.get(RoundDirective.RoundState(
-                                round = MAX_ROUNDS - 1,
-                                maxRounds = MAX_ROUNDS,
+                                round = limits.maxRounds - 1,
+                                maxRounds = limits.maxRounds,
                                 hasReadContent = hasReadContent,
                                 wroteFilesThisRound = false,
                                 validProposalsProduced = false,
@@ -566,7 +567,7 @@ class AgentLoop(
                             }
                             streamFilter.reset()
                             if (!cancelled.get()) onToken("${STATUS_PREFIX}Writing changes…")
-                            runRound(listOf(ChatMessage(role = ChatRole.USER, content = finalContent)), MAX_ROUNDS - 1, allProposals, hasReadContent, writePassPrefill())
+                            runRound(listOf(ChatMessage(role = ChatRole.USER, content = finalContent)), limits.maxRounds - 1, allProposals, hasReadContent, writePassPrefill())
                             return
                         }
                         if (wroteFiles && roundProposals.isNotEmpty()) {
@@ -597,9 +598,9 @@ class AgentLoop(
                         // Without attachment but file read via tools: escalate after round 2.
                         val minWriteEscalationRound = if (effectiveFileContext.isNotBlank()) 1 else 2
                         if (hasFileContextNow && nowHasReadContent && allReadOnly && roundProposals.isEmpty()
-                            && round >= minWriteEscalationRound && round < MAX_ROUNDS - 1) {
+                            && round >= minWriteEscalationRound && round < limits.maxRounds - 1) {
                             val writeDirective = RoundDirective.get(RoundDirective.RoundState(
-                                round = MAX_ROUNDS - 1, maxRounds = MAX_ROUNDS, hasReadContent = true,
+                                round = limits.maxRounds - 1, maxRounds = limits.maxRounds, hasReadContent = true,
                                 wroteFilesThisRound = false, validProposalsProduced = false,
                                 allToolsWereReadOnly = true, rejectionReasons = emptyList(), hasFileContext = true,
                             ))
@@ -632,7 +633,7 @@ class AgentLoop(
                             }
                             streamFilter.reset()
                             if (!cancelled.get()) onToken("${STATUS_PREFIX}Writing changes…")
-                            runRound(listOf(ChatMessage(role = ChatRole.USER, content = writeContent)), MAX_ROUNDS - 1, allProposals, nowHasReadContent, writePassPrefill())
+                            runRound(listOf(ChatMessage(role = ChatRole.USER, content = writeContent)), limits.maxRounds - 1, allProposals, nowHasReadContent, writePassPrefill())
                             return
                         }
 
@@ -640,7 +641,7 @@ class AgentLoop(
 
                         val directive = RoundDirective.get(RoundDirective.RoundState(
                             round = round,
-                            maxRounds = MAX_ROUNDS,
+                            maxRounds = limits.maxRounds,
                             hasReadContent = nowHasReadContent,
                             wroteFilesThisRound = wroteFiles,
                             validProposalsProduced = roundProposals.isNotEmpty(),

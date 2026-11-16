@@ -67,7 +67,7 @@ class AgentWorld(val scenario: AgentScenario) {
     val session = ChatSession().also { it.messages += scenario.history }
 
     val backend = ScriptedBackend()
-    val files: WorkspaceFiles = FakeFiles(scenario.files)
+    val files: WorkspaceFiles = InMemoryFiles(scenario.files)
     val editor: EditorContext = object : EditorContext {
         override fun currentFile(): String? = scenario.currentFile
         override fun selectedText(): String? = scenario.selectedText
@@ -151,33 +151,4 @@ class AgentWorld(val scenario: AgentScenario) {
     }
 
     private fun String.show() = if (isEmpty()) "''" else "<<<$this>>>"
-
-    private class FakeFiles(private val files: Map<String, String>) : WorkspaceFiles {
-        override val rootPath = "/work/demo"
-        override fun list(relativePath: String?): List<String> {
-            val prefix = relativePath?.takeIf { it.isNotBlank() && it != "." }?.trimEnd('/')?.plus("/") ?: ""
-            return files.keys.filter { it.startsWith(prefix) }.sorted()
-        }
-        override fun read(path: String): String =
-            files[path.removePrefix("/work/demo/")] ?: error("File not found: $path")
-        override fun write(path: String, content: String) = throw UnsupportedOperationException()
-        override fun searchFilenames(query: String) = files.keys.filter { it.contains(query, true) }.sorted()
-        override fun searchCode(query: String) = files.filterValues { it.contains(query, true) }.keys.sorted()
-        override fun isIgnored(path: String) = false
-    }
-
-    private object NoShell : ShellRunner {
-        override fun run(command: String, cwd: String, timeoutMs: Long) = ShellResult(command, 0, "", "", 0, true)
-        override fun lastOutput(command: String): ShellResult? = null
-        override fun lastOutputAny(): ShellResult? = null
-    }
-
-    private object NoGit : GitRunner {
-        override fun isGitRepo() = false
-        override fun branch() = "main"
-        override fun status() = GitStatus("main", emptyList(), emptyList(), emptyList(), false)
-        override fun diff(staged: Boolean, maxChars: Int) = ""
-        override fun changedFiles() = emptyList<String>()
-        override fun suggestCommitContext(maxDiffChars: Int) = "No changes detected"
-    }
 }

@@ -616,9 +616,10 @@ val releaseValidationReport by tasks.registering {
 }
 
 val releaseCheck by tasks.registering {
-    description = "Full pre-Marketplace release gate: tool contracts, agent workflows, and plugin verifier."
+    description = "Full pre-Marketplace release gate: agent-core tests (golden transcripts), tool contracts, agent workflows, and plugin verifier."
     group = "verification"
-    dependsOn(toolContractTest, agentWorkflowTest, releaseValidationReport)
+    // The agent loop and its golden transcripts live in :agent-core.
+    dependsOn(":agent-core:test", toolContractTest, agentWorkflowTest, releaseValidationReport)
 
     val includeModelSmoke = providers.gradleProperty("includeModelSmoke").orNull == "true"
     if (includeModelSmoke) {

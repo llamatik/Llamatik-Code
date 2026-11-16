@@ -1,6 +1,6 @@
 package com.llamatik.teammate.benchmark
 
-import com.llamatik.teammate.agent.AgentLoopTest
+import com.llamatik.agent.core.testing.FakeBackend
 import com.llamatik.agent.core.backend.BackendConfig
 import org.junit.Assert.*
 import org.junit.Rule
@@ -380,7 +380,7 @@ class BenchmarkHarnessTest {
     @Test
     fun `runner marks task as verification failed when command exits non-zero`() {
         val task = makeTask(testCommand = "exit 1")
-        val result = runnerFor(AgentLoopTest.FakeBackend("Done.")).runTask(task)
+        val result = runnerFor(FakeBackend("Done.")).runTask(task)
         assertFalse(result.passed)
         assertEquals(AgentStatus.VERIFICATION_FAILED, result.agentStatus)
     }
@@ -388,7 +388,7 @@ class BenchmarkHarnessTest {
     @Test
     fun `runner marks task as passed when command exits zero`() {
         val task = makeTask(testCommand = "echo ok")
-        val result = runnerFor(AgentLoopTest.FakeBackend("Done.")).runTask(task)
+        val result = runnerFor(FakeBackend("Done.")).runTask(task)
         assertTrue(result.passed)
         assertEquals(AgentStatus.SUCCESS, result.agentStatus)
     }
@@ -401,7 +401,7 @@ class BenchmarkHarnessTest {
         val task = BenchmarkTaskLoader.load(taskDir)
 
         val writeResponse = """<tool_call name="write_file"><arg name="path">Existing.kt</arg><arg name="content">updated</arg></tool_call>"""
-        val backend = AgentLoopTest.FakeBackend(writeResponse, "Done.")
+        val backend = FakeBackend(writeResponse, "Done.")
 
         val reportDir = tmp.newFolder("wr-reports")
         val result = BenchmarkRunner(backend, fakeConfig(), reportDir = reportDir, logsDir = File(reportDir, "logs"))
@@ -415,7 +415,7 @@ class BenchmarkHarnessTest {
         val task = makeTask(testCommand = "echo hello_stdout")
         val reportDir = tmp.newFolder("log-reports")
         val logsDir = File(reportDir, "logs")
-        BenchmarkRunner(AgentLoopTest.FakeBackend("Done."), fakeConfig(), reportDir = reportDir, logsDir = logsDir)
+        BenchmarkRunner(FakeBackend("Done."), fakeConfig(), reportDir = reportDir, logsDir = logsDir)
             .runTask(task)
         val stdout = File(logsDir, "${task.id}-stdout.txt")
         assertTrue("stdout log should exist", stdout.isFile)
@@ -427,7 +427,7 @@ class BenchmarkHarnessTest {
         val task = makeTask(testCommand = "echo ok")
         val reportDir = tmp.newFolder("combined-reports")
         val logsDir = File(reportDir, "logs")
-        BenchmarkRunner(AgentLoopTest.FakeBackend("Done."), fakeConfig(), reportDir = reportDir, logsDir = logsDir)
+        BenchmarkRunner(FakeBackend("Done."), fakeConfig(), reportDir = reportDir, logsDir = logsDir)
             .runTask(task)
         val logFile = File(logsDir, "${task.id}.log")
         assertTrue("Combined log should exist", logFile.isFile)
@@ -437,7 +437,7 @@ class BenchmarkHarnessTest {
     @Test
     fun `runner result contains modelLabel from backend`() {
         val task = makeTask(testCommand = "echo ok")
-        val result = runnerFor(AgentLoopTest.FakeBackend("Done.")).runTask(task)
+        val result = runnerFor(FakeBackend("Done.")).runTask(task)
         assertEquals("fake-model", result.modelLabel)
     }
 
@@ -446,7 +446,7 @@ class BenchmarkHarnessTest {
         val task = makeTask(testCommand = "echo ok")
         val reportDir = tmp.newFolder("ver-reports")
         val result = BenchmarkRunner(
-            AgentLoopTest.FakeBackend("Done."), fakeConfig(),
+            FakeBackend("Done."), fakeConfig(),
             pluginVersion = "9.9.9",
             reportDir = reportDir,
             logsDir = File(reportDir, "logs"),
@@ -459,7 +459,7 @@ class BenchmarkHarnessTest {
         val root = tmp.newFolder("multi-tasks")
         val t1 = BenchmarkTaskLoader.load(makeTaskDir(root, "t1", testCommand = "echo ok"))
         val t2 = BenchmarkTaskLoader.load(makeTaskDir(root, "t2", testCommand = "echo ok"))
-        val results = runnerFor(AgentLoopTest.FakeBackend("Done.")).runAll(listOf(t1, t2))
+        val results = runnerFor(FakeBackend("Done.")).runAll(listOf(t1, t2))
         assertEquals(2, results.size)
         assertTrue(results.all { it.passed })
     }
@@ -495,7 +495,7 @@ class BenchmarkHarnessTest {
         val originalFile = File(taskDir, "repo/Original.kt").also { it.writeText("untouched") }
         val writeResponse = """<tool_call name="write_file"><arg name="path">Original.kt</arg><arg name="content">changed</arg></tool_call>"""
         val reportDir = tmp.newFolder("iso-reports")
-        BenchmarkRunner(AgentLoopTest.FakeBackend(writeResponse, "Done."), fakeConfig(),
+        BenchmarkRunner(FakeBackend(writeResponse, "Done."), fakeConfig(),
             reportDir = reportDir, logsDir = File(reportDir, "logs"))
             .runTask(BenchmarkTaskLoader.load(taskDir))
         assertEquals("untouched", originalFile.readText())
@@ -504,14 +504,14 @@ class BenchmarkHarnessTest {
     @Test
     fun `runner errorMessage is null for successful task`() {
         val task = makeTask(testCommand = "echo ok")
-        val result = runnerFor(AgentLoopTest.FakeBackend("Done.")).runTask(task)
+        val result = runnerFor(FakeBackend("Done.")).runTask(task)
         assertNull(result.errorMessage)
     }
 
     @Test
     fun `runner errorMessage is set for verification failure`() {
         val task = makeTask(testCommand = "exit 1")
-        val result = runnerFor(AgentLoopTest.FakeBackend("Done.")).runTask(task)
+        val result = runnerFor(FakeBackend("Done.")).runTask(task)
         assertNotNull(result.errorMessage)
         assertTrue(result.errorMessage?.isNotBlank() == true)
     }
@@ -519,14 +519,14 @@ class BenchmarkHarnessTest {
     @Test
     fun `runner durationMs is positive`() {
         val task = makeTask(testCommand = "echo ok")
-        val result = runnerFor(AgentLoopTest.FakeBackend("Done.")).runTask(task)
+        val result = runnerFor(FakeBackend("Done.")).runTask(task)
         assertTrue(result.durationMs >= 0)
     }
 
     @Test
     fun `runner startedAt is before finishedAt`() {
         val task = makeTask(testCommand = "echo ok")
-        val result = runnerFor(AgentLoopTest.FakeBackend("Done.")).runTask(task)
+        val result = runnerFor(FakeBackend("Done.")).runTask(task)
         assertFalse(result.startedAt.isAfter(result.finishedAt))
     }
 

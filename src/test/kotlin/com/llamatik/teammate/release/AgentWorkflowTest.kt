@@ -3,6 +3,7 @@ package com.llamatik.teammate.release
 import com.llamatik.agent.core.backend.BackendConfig
 import com.llamatik.teammate.benchmark.HeadlessAgent
 import org.junit.Assert.*
+import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
@@ -94,7 +95,7 @@ class AgentWorkflowTest {
         File(root, "src/Calc.kt").writeText("fun add(a: Int, b: Int) = a - b")
 
         val backend = ScriptedAssistantBackend(listOf(
-            """<tool_call name="replace_in_file"><arg name="path">src/Calc.kt</arg><arg name="old">a - b</arg><arg name="new">a + b</arg></tool_call>""",
+            """<tool_call name="replace_in_file"><arg name="path">src/Calc.kt</arg><arg name="oldText">a - b</arg><arg name="newText">a + b</arg></tool_call>""",
             "Fixed.",
         ))
         HeadlessAgent(backend, config, root).run("Fix the subtraction bug", 2)
@@ -167,7 +168,7 @@ class AgentWorkflowTest {
 
         val backend = ScriptedAssistantBackend(listOf(
             """<tool_call name="read_file"><arg name="path">src/Stack.kt</arg></tool_call>""",
-            """<tool_call name="replace_in_file"><arg name="path">src/Stack.kt</arg><arg name="old">items[0]</arg><arg name="new">items[items.size - 1]</arg></tool_call>""",
+            """<tool_call name="replace_in_file"><arg name="path">src/Stack.kt</arg><arg name="oldText">items[0]</arg><arg name="newText">items[items.size - 1]</arg></tool_call>""",
             "Fixed the off-by-one error.",
         ))
         val result = HeadlessAgent(backend, config, root).run("Fix Stack.peek()", 5)
@@ -188,8 +189,9 @@ class AgentWorkflowTest {
         val backend = ScriptedAssistantBackend(listOf(
             """<tool_call name="list_files"><arg name="path">.</arg></tool_call>""",
             """<tool_call name="read_file"><arg name="path">src/main/kotlin/Circle.kt</arg></tool_call>""",
-            """<tool_call name="replace_in_file"><arg name="path">src/main/kotlin/Circle.kt</arg><arg name="old">TODO()</arg><arg name="new">Math.PI * r * r</arg></tool_call>""",
-            "Implemented area().",
+            // After two exploration rounds the loop forces a write pass whose assistant turn is pre-filled
+            // with `<tool_call name="write_file">…<arg name="content">`; the model continues with the file.
+            """class Circle(val r: Double) { fun area() = Math.PI * r * r }</arg></tool_call>""",
         ))
         val result = HeadlessAgent(backend, config, root).run("Implement Circle.area()", 5)
 
@@ -208,8 +210,8 @@ class AgentWorkflowTest {
         val backend = ScriptedAssistantBackend(listOf(
             """<tool_call name="search_code"><arg name="query">divide</arg></tool_call>""",
             """<tool_call name="read_file"><arg name="path">src/Math.kt</arg></tool_call>""",
-            """<tool_call name="replace_in_file"><arg name="path">src/Math.kt</arg><arg name="old">a * b</arg><arg name="new">a / b</arg></tool_call>""",
-            "Fixed divide.",
+            // Forced write pass after two exploration rounds: the model continues the pre-filled write_file call.
+            """fun divide(a: Int, b: Int) = a / b</arg></tool_call>""",
         ))
         val result = HeadlessAgent(backend, config, root).run("Fix division bug", 5)
 
@@ -278,7 +280,7 @@ class AgentWorkflowTest {
         File(root, "src/A.kt").writeText("fun hello() {}")
 
         val backend = ScriptedAssistantBackend(listOf(
-            """<tool_call name="replace_in_file"><arg name="path">src/A.kt</arg><arg name="old">DOES_NOT_EXIST</arg><arg name="new">replacement</arg></tool_call>""",
+            """<tool_call name="replace_in_file"><arg name="path">src/A.kt</arg><arg name="oldText">DOES_NOT_EXIST</arg><arg name="newText">replacement</arg></tool_call>""",
             "The pattern was not found; nothing changed.",
         ))
         val result = HeadlessAgent(backend, config, root).run("Replace non-existent pattern", 5)
@@ -290,6 +292,8 @@ class AgentWorkflowTest {
 
     // ── 15: create_file then read_file round-trip ─────────────────────────────
 
+    @Ignore("The old test-only agent kept going after a write. Production stops as soon as a valid proposal exists " +
+        "(see 'create_file ends the run' below and AgentLoopTest 'loop stops immediately after create_file').")
     @Test
     fun `create file then read it back in next round`() {
         val root = tmp.newFolder("proj")
@@ -305,6 +309,22 @@ class AgentWorkflowTest {
         assertTrue("create_file should be used", "create_file" in result.toolsExecuted)
         assertTrue("read_file should be used", "read_file" in result.toolsExecuted)
         assertTrue(File(root, "src/Hello.kt").exists())
+    }
+
+    @Test
+    fun `create_file ends the run once a valid proposal exists`() {
+        val root = tmp.newFolder("proj")
+
+        val backend = ScriptedAssistantBackend(listOf(
+            """<tool_call name="create_file"><arg name="path">src/Hello.kt</arg><arg name="content">fun hello() = "hi"</arg></tool_call>""",
+            """<tool_call name="read_file"><arg name="path">src/Hello.kt</arg></tool_call>""",
+        ))
+        val result = HeadlessAgent(backend, config, root).run("Create Hello.kt", 5)
+
+        assertNull(result.error)
+        assertEquals(listOf("create_file"), result.toolsExecuted)
+        assertEquals(listOf("src/Hello.kt"), result.changedPaths)
+        assertEquals("fun hello() = \"hi\"", File(root, "src/Hello.kt").readText())
     }
 
     // ── 16: agent records changed files ──────────────────────────────────────

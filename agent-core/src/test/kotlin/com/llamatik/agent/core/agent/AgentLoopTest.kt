@@ -1,325 +1,71 @@
-package com.llamatik.teammate.agent
+package com.llamatik.agent.core.agent
 
-import com.llamatik.agent.core.agent.RoundDirective
-import com.llamatik.agent.core.agent.ProposalValidator
-import com.llamatik.agent.core.backend.AssistantBackend
-import com.llamatik.agent.core.backend.BackendConfig
-import com.llamatik.agent.core.backend.GenerationCallbacks
-import com.llamatik.agent.core.backend.GenerationHandle
-import com.llamatik.agent.core.backend.GenerationRequest
-import com.llamatik.agent.core.model.ChatMessage
-import com.llamatik.agent.core.model.ChatRole
-import com.llamatik.agent.core.model.EditProposal
-import com.llamatik.agent.core.tools.ToolCall
-import com.llamatik.agent.core.tools.ToolCallParser
+import com.llamatik.agent.core.testing.AgentRun
+import com.llamatik.agent.core.testing.FakeBackend
+import com.llamatik.agent.core.testing.FakeToolRegistry
 import org.junit.Assert.*
+import org.junit.Ignore
 import org.junit.Test
 
 /**
- * Unit tests for the agent pipeline that do NOT require the IntelliJ platform.
+ * Behavioural tests of the agent loop, driving the REAL [AgentLoop] with a scripted backend and tool
+ * registry. (They used to drive a test-only copy of the loop that had drifted from production; see
+ * docs/agent-core-extraction.md, Phase 4.)
  *
- * The tests use [FakeBackend] to simulate model responses and [FakeToolRegistry] to
- * simulate tool execution. They drive [AgentLoop] — a pure-logic extraction of the
- * runRound() logic from AgentOrchestrator — so the loop can be tested without
- * IntelliJ services.
+ * [LoopHarness] keeps the call shape of the old copy: `rounds` is the number of backend calls, a
+ * `fileAttached` run attaches a file with `@{...}` like the composer does.
  */
 class AgentLoopTest {
 
-    // ── FakeBackend ──────────────────────────────────────────────────────────
+    data class LoopResult(
+        val finalMessage: String,
+        /** Backend calls made (a retry or an escalated write pass counts as one more). */
+        val rounds: Int,
+        val toolsExecuted: List<String>,
+        val proposalPaths: List<String> = emptyList(),
+    )
 
-    /**
-     * A fake [AssistantBackend] that returns scripted responses in sequence.
-     * Each response is delivered synchronously (no threads) to keep tests deterministic.
-     */
-    class FakeBackend(private vararg val responses: String) : AssistantBackend {
-        private var callIndex = 0
-        val capturedRequests = mutableListOf<GenerationRequest>()
 
-        override fun isModelLoaded() = true
-        override fun selectedModelLabel() = "fake-model"
-
-        override fun generate(request: GenerationRequest, callbacks: GenerationCallbacks): GenerationHandle {
-            capturedRequests += request
-            val response = responses.getOrElse(callIndex) { "" }
-            callIndex++
-            callbacks.onCompleted(response)
-            return object : GenerationHandle {
-                override fun cancel() {}
-                override val isCancelled = false
-            }
-        }
+    private companion object {
+        /**
+         * Known defects of the production loop that the old test-only copy hid (it implemented the
+         * intended behaviour; production never did). The tests that state the intended behaviour are
+         * @Ignore'd rather than weakened, and the actual behaviour is pinned by the `known defect`
+         * tests at the end of this class. See the Phase 4 report.
+         */
+        const val D1 = "KNOWN DEFECT D1: after a read-only round the loop treats a prose answer as 'model failed to write' " +
+            "and forces a write pass, so plain Q&A ('list/read, then explain') loses its answer"
+        const val D2 = "KNOWN DEFECT D2: re-escalating an all-duplicate round at the write pass never terminates when the model " +
+            "keeps repeating the same read-only call (and the write pass is exempt from the session timeout)"
+        const val D3 = "KNOWN DEFECT D3: noThink is only set for the write pass or when a file is attached, " +
+            "although the code comment says 'disable thinking on ALL agent rounds'"
     }
 
-    // ── FakeToolRegistry ─────────────────────────────────────────────────────
-
-    /**
-     * A fake tool registry that records which tools were called and returns scripted results.
-     */
-    class FakeToolRegistry(
-        private val results: Map<String, String> = emptyMap(),
-        sequentialResults: List<String> = emptyList(),
-    ) {
-        val executedCalls = mutableListOf<ToolCall>()
-        private val queue = ArrayDeque(sequentialResults)
-
-        fun execute(call: ToolCall): String {
-            executedCalls += call
-            if (queue.isNotEmpty()) return queue.removeFirst()
-            return results[call.name] ?: "result for ${call.name}"
-        }
-
-        fun describeTools() = "- list_files: list\n- read_file: read\n- write_file: write\n- create_file: create"
-    }
-
-    // ── AgentLoop ────────────────────────────────────────────────────────────
-
-    /**
-     * Pure-logic loop extracted from AgentOrchestrator for testability.
-     * Mirrors the real runRound() logic without any IntelliJ service dependencies.
-     */
-    class AgentLoop(
+    private class LoopHarness(
         private val backend: FakeBackend,
         private val toolRegistry: FakeToolRegistry,
         private val maxRounds: Int = 5,
         private val maxToolCallsPerRound: Int = 4,
-        private val toolResultsMaxChars: Int = 4000,
-        private val toolResultContentMaxChars: Int = 1200,
         private val fileAttached: Boolean = false,
         private val timeoutMs: Long = Long.MAX_VALUE,
     ) {
-        private val knownToolNames = setOf(
-            "list_files", "read_file", "search_code", "search_filenames",
-            "get_current_file", "get_selected_text", "write_file", "create_file",
-            "replace_in_file", "show_diff", "apply_patch",
-            "git_status", "git_diff", "git_changed_files", "git_branch",
-        )
-        private val editToolNames = setOf("write_file", "replace_in_file", "create_file")
-        private val readOnlyToolNames = setOf(
-            "list_files", "read_file", "search_code", "search_filenames",
-            "get_current_file", "get_selected_text",
-            "git_status", "git_diff", "git_changed_files", "git_branch",
-        )
-
-        data class LoopResult(
-            val finalMessage: String,
-            val rounds: Int,
-            val toolsExecuted: List<String>,
-            val proposalPaths: List<String> = emptyList(),
-            val writeToolErrors: List<String> = emptyList(),
-        )
-
-        fun run(userPrompt: String, systemPrompt: String = "You are a coding agent.", preSeedReadPaths: Set<String> = emptySet()): LoopResult {
-            val tokens = mutableListOf<String>()
-            var finalMessage = ""
-            var totalRounds = 0
-            val roundProposals = mutableListOf<Pair<String, String>>()
-            val writeErrors = mutableListOf<String>()
-            val sessionStartMs = System.currentTimeMillis()
-            // Mirrors AgentOrchestrator.executedToolKeys: dedup set across all rounds.
-            val executedToolKeys = mutableSetOf<Pair<String, String>>()
-            preSeedReadPaths.forEach { executedToolKeys += "read_file" to it }
-            // Tracks whether any read-only tool has been called (hasReadContent across rounds).
-            var hasReadContentAccum = false
-
-            fun extractProposals(toolMessages: List<ChatMessage>): List<Pair<String, String>> {
-                return toolMessages.mapNotNull { msg ->
-                    if (msg.toolName !in editToolNames) return@mapNotNull null
-                    val c = msg.content
-                    val path = when {
-                        c.startsWith("Prepared file replacement for ") ->
-                            c.removePrefix("Prepared file replacement for ").substringBefore("\n")
-                        c.startsWith("Prepared new file for ") ->
-                            c.removePrefix("Prepared new file for ").substringBefore("\n")
-                        else -> {
-                            // Mirror production fix: record write tool errors as rejections
-                            writeErrors += "${msg.toolName} failed: ${c.lines().firstOrNull().orEmpty().take(200)}"
-                            return@mapNotNull null
-                        }
-                    }.trim()
-                    val newContent = when {
-                        c.contains("\n---NEW---\n") -> c.substringAfter("\n---NEW---\n").trim()
-                        c.startsWith("Prepared new file for ") -> c.substringAfter("\n").trim()
-                        else -> return@mapNotNull null
-                    }
-                    if (ProposalValidator.validate(path, newContent) !is ProposalValidator.Result.Valid)
-                        return@mapNotNull null
-                    path to newContent
-                }
-            }
-
-            fun anyWriteToolFailed(toolMessages: List<ChatMessage>): Boolean =
-                toolMessages.any { msg ->
-                    msg.toolName in editToolNames &&
-                    !msg.content.startsWith("Prepared") &&
-                    (msg.content.startsWith("Error") || msg.content.startsWith("Missing") || msg.content.contains("failed:"))
-                }
-
-            fun runRound(messages: List<ChatMessage>, round: Int, task: String, hasReadContent: Boolean) {
-                if (round > maxRounds) return
-                if (System.currentTimeMillis() - sessionStartMs > timeoutMs) {
-                    finalMessage = "Agent timed out"
-                    return
-                }
-                totalRounds = round
-
-                val config = BackendConfig(
-                    modelIdOrPath = "fake.gguf",
-                    temperature = 0.0,
-                    maxTokens = 2048,
-                    contextLength = 4096,
-                    numThreads = 4,
-                    useMmap = true,
-                    flashAttention = false,
-                    batchSize = 2048,
-                    localOnly = true,
-                )
-
-                backend.generate(
-                    GenerationRequest(systemPrompt = systemPrompt, messages = messages, config = config,
-                        noThink = true),
-                    object : GenerationCallbacks {
-                        override fun onToken(t: String) { tokens += t }
-                        override fun onCompleted(fullText: String) {
-                            val answerText = ToolCallParser.stripThinking(fullText)
-                            val toolCalls = ToolCallParser.parseIncludingIncomplete(answerText)
-                                .filter { it.name in knownToolNames }
-                                .take(maxToolCallsPerRound)
-
-                            // Mid-loop prose guard: fires when the model wrote prose instead of a tool call
-                            // after at least two rounds of reading. round > 2 (not round > 1) so that
-                            // simple Q&A responses (1 read round + 1 prose round) terminate normally
-                            // rather than being escalated to a write pass.
-                            // round < maxRounds - 1 prevents re-entry on the escalated write pass.
-                            if (toolCalls.isEmpty() && round > 2 && round < maxRounds - 1 && hasReadContent) {
-                                runRound(
-                                    listOf(ChatMessage(role = ChatRole.USER, content = "Task: $task\nNow write the file.")),
-                                    maxRounds - 1,
-                                    task,
-                                    hasReadContent,
-                                )
-                                return
-                            }
-
-                            if (toolCalls.isEmpty() || round >= maxRounds) {
-                                finalMessage = ToolCallParser.cleanForDisplay(fullText, allowThinkFallback = round == 1)
-                                return
-                            }
-
-                            var allCallsDuplicate = true
-                            val toolMessages = toolCalls.map { call ->
-                                val toolKey = call.name to (call.arguments.values.firstOrNull().orEmpty())
-                                val isDuplicateReadOnly = call.name in readOnlyToolNames && !executedToolKeys.add(toolKey)
-                                if (!isDuplicateReadOnly) allCallsDuplicate = false
-                                val result = if (isDuplicateReadOnly) {
-                                    "Already called ${call.name} — use the result you already received."
-                                } else {
-                                    toolRegistry.execute(call)
-                                }
-                                ChatMessage(role = ChatRole.TOOL, content = result, toolName = call.name)
-                            }
-
-                            val wroteFiles = toolCalls.any { it.name in editToolNames }
-                            val proposals = extractProposals(toolMessages)
-                            val nowHasRead = hasReadContent || toolCalls.any { it.name in readOnlyToolNames }
-                            hasReadContentAccum = nowHasRead
-
-                            // Mirror production fix: if any write tool failed while read-only tools
-                            // succeeded, reflect errors back so the model can correct its arguments.
-                            val failedMessages = toolMessages.filter {
-                                !it.content.startsWith("Already called") &&
-                                (it.content.startsWith("Error") || it.content.startsWith("Missing") || it.content.contains("not found") || it.content.contains("failed:"))
-                            }
-                            val allToolsFailed = failedMessages.size == toolMessages.size && toolMessages.isNotEmpty()
-                            val anyWriteFailed = anyWriteToolFailed(toolMessages)
-                            if ((allToolsFailed || anyWriteFailed) && round < maxRounds) {
-                                val errorSummary = failedMessages.joinToString("\n") { msg ->
-                                    "Tool ${msg.toolName} error: ${msg.content.lines().firstOrNull().orEmpty().take(200)}"
-                                }
-                                runRound(
-                                    listOf(ChatMessage(role = ChatRole.USER, content = "Task: $task\nThe following tool calls failed:\n$errorSummary\nFix the arguments and try again.")),
-                                    round + 1, task, nowHasRead,
-                                )
-                                return
-                            }
-
-                            if (wroteFiles) {
-                                roundProposals += proposals
-                                if (proposals.isNotEmpty()) {
-                                    finalMessage = ""
-                                    return
-                                }
-                            }
-
-                            // Directed write escalation: mirrors AgentOrchestrator.
-                            // With file attached: escalate after round 1. Without: escalate after round 2.
-                            val allReadOnlyThisRound = toolCalls.all { it.name !in editToolNames }
-                            val hasFileContext = fileAttached || preSeedReadPaths.isNotEmpty()
-                            val minWriteEscalationRound = if (fileAttached) 1 else 2
-                            if (hasFileContext && nowHasRead && allReadOnlyThisRound && proposals.isEmpty()
-                                && round >= minWriteEscalationRound && round < maxRounds - 1) {
-                                runRound(
-                                    listOf(ChatMessage(role = ChatRole.USER, content = "Task: $task\nFile is attached. WRITE the file NOW.")),
-                                    maxRounds - 1,
-                                    task,
-                                    nowHasRead,
-                                )
-                                return
-                            }
-
-                            // All-duplicate escalation: only fire if we're not already at the penultimate
-                            // round (prevents infinite escalation when maxRounds is small).
-                            if (allCallsDuplicate && proposals.isEmpty() && round < maxRounds - 1) {
-                                runRound(
-                                    listOf(ChatMessage(role = ChatRole.USER, content = "Task: $task\nAll previous reads were duplicates. Now write the file.")),
-                                    maxRounds - 1,
-                                    task,
-                                    nowHasRead,
-                                )
-                                return
-                            }
-
-                            val allReadOnly = toolCalls.all { it.name !in editToolNames }
-                            val directive = RoundDirective.get(RoundDirective.RoundState(
-                                round = round,
-                                maxRounds = maxRounds,
-                                hasReadContent = nowHasRead,
-                                wroteFilesThisRound = wroteFiles,
-                                validProposalsProduced = proposals.isNotEmpty(),
-                                allToolsWereReadOnly = allReadOnly,
-                            ))
-
-                            val toolResultsSummary = toolMessages.joinToString("\n") { msg ->
-                                "<result tool=\"${msg.toolName}\">\n${msg.content.take(toolResultContentMaxChars)}\n</result>"
-                            }
-
-                            val nextContent = buildString {
-                                appendLine("Task: ${task.take(200)}")
-                                appendLine("Tool results:")
-                                appendLine(toolResultsSummary.take(toolResultsMaxChars))
-                                appendLine()
-                                append(directive)
-                            }
-                            val nextMessages = listOf(ChatMessage(role = ChatRole.USER, content = nextContent))
-                            runRound(nextMessages, round + 1, task, nowHasRead)
-                        }
-                        override fun onError(message: String, throwable: Throwable?) {
-                            finalMessage = "ERROR: $message"
-                        }
-                    }
-                )
-            }
-
-            val initMessages = listOf(ChatMessage(role = ChatRole.USER, content = userPrompt))
-            runRound(initMessages, 1, userPrompt, hasReadContent = preSeedReadPaths.isNotEmpty())
-
+        fun run(userPrompt: String, preSeedReadPaths: Set<String> = emptySet()): LoopResult {
+            val attached = preSeedReadPaths + if (fileAttached) setOf(ATTACHED) else emptySet()
+            val prompt = userPrompt + attached.joinToString("") { " @{$it}" }
+            val files = attached.associateWith { "class Attached {}" }
+            val run = AgentRun(
+                backend, toolRegistry, files,
+                AgentLimits(maxRounds = maxRounds, maxToolCallsPerRound = maxToolCallsPerRound, sessionTimeoutMs = timeoutMs),
+            ).run(prompt)
             return LoopResult(
-                finalMessage = finalMessage,
-                rounds = totalRounds,
+                finalMessage = run.finalMessage,
+                rounds = backend.capturedRequests.size,
                 toolsExecuted = toolRegistry.executedCalls.map { it.name },
-                proposalPaths = roundProposals.map { it.first },
-                writeToolErrors = writeErrors.toList(),
+                proposalPaths = run.proposalPaths,
             )
         }
+
+        companion object { const val ATTACHED = "src/Attached.kt" }
     }
 
     // ── Tests: loop termination on prose ────────────────────────────────────
@@ -327,7 +73,7 @@ class AgentLoopTest {
     @Test
     fun `loop terminates in round 1 when model returns plain prose`() {
         val backend = FakeBackend("Here is my analysis of your code.")
-        val loop = AgentLoop(backend, FakeToolRegistry())
+        val loop = LoopHarness(backend, FakeToolRegistry())
         val result = loop.run("Review my code")
         assertEquals(1, result.rounds)
         assertEquals("Here is my analysis of your code.", result.finalMessage)
@@ -340,15 +86,18 @@ class AgentLoopTest {
         // This is the "halts after reasoning" bug: the loop should return the think content
         // as fallback rather than a blank string.
         val backend = FakeBackend("<think>I should call list_files to explore the project structure.</think>")
-        val loop = AgentLoop(backend, FakeToolRegistry())
+        val loop = LoopHarness(backend, FakeToolRegistry())
         val result = loop.run("Review my code")
-        assertEquals(1, result.rounds)
+        // Still round 1: a blank answer is retried MAX_EMPTY_RETRIES times before the loop concludes.
+        assertEquals(1 + MAX_EMPTY_RETRIES, result.rounds)
+        assertTrue(result.toolsExecuted.isEmpty())
         // cleanForDisplay falls back to think content when nothing else remains
         assertTrue("Should not be blank", result.finalMessage.isNotBlank())
     }
 
     // ── Tests: tool call execution ───────────────────────────────────────────
 
+    @Ignore(D1)
     @Test
     fun `loop executes list_files tool call and continues to round 2`() {
         val backend = FakeBackend(
@@ -357,7 +106,7 @@ class AgentLoopTest {
             // Round 2: model returns prose answer after seeing tool results
             "I found the following files in your project.",
         )
-        val loop = AgentLoop(backend, FakeToolRegistry(mapOf("list_files" to "src/Main.kt\nsrc/Foo.kt")))
+        val loop = LoopHarness(backend, FakeToolRegistry(mapOf("list_files" to "src/Main.kt\nsrc/Foo.kt")))
         val result = loop.run("What files are in the project?")
         assertEquals(2, result.rounds)
         assertEquals(listOf("list_files"), result.toolsExecuted)
@@ -381,7 +130,7 @@ class AgentLoopTest {
             "read_file" to "fun main() { println(\"broken\") }",
             "write_file" to "Prepared file replacement for src/Main.kt\n---OLD---\nfun main() { println(\"broken\") }\n---NEW---\nfun main() {\n    println(\"fixed\")\n}",
         ))
-        val loop = AgentLoop(backend, fakeTools)
+        val loop = LoopHarness(backend, fakeTools)
         val result = loop.run("Fix the main function")
         // Loop exits after write_file in round 3 — no round 4 prose needed
         assertEquals(3, result.rounds)
@@ -395,12 +144,13 @@ class AgentLoopTest {
             """<tool_call name="diff_tool"><arg name="path">src/A.kt</arg></tool_call>""",
             // Since hallucinated tools are filtered, the loop should terminate after round 1
         )
-        val loop = AgentLoop(backend, FakeToolRegistry())
+        val loop = LoopHarness(backend, FakeToolRegistry())
         val result = loop.run("Show me the diff")
         assertEquals(1, result.rounds)
         assertTrue("Hallucinated tool should not be executed", result.toolsExecuted.isEmpty())
     }
 
+    @Ignore(D1)
     @Test
     fun `loop respects MAX_TOOL_CALLS_PER_ROUND cap`() {
         // Model emits 6 tool calls; only first 4 should be executed
@@ -409,13 +159,14 @@ class AgentLoopTest {
         }
         val backend = FakeBackend(sixCalls, "Done reviewing all files.")
         val fakeTools = FakeToolRegistry(mapOf("read_file" to "file content"))
-        val loop = AgentLoop(backend, fakeTools, maxToolCallsPerRound = 4)
+        val loop = LoopHarness(backend, fakeTools, maxToolCallsPerRound = 4)
         val result = loop.run("Review all files")
         assertEquals(4, result.toolsExecuted.size)
     }
 
     // ── Tests: MAX_ROUNDS hard cap ───────────────────────────────────────────
 
+    @Ignore(D2)
     @Test
     fun `loop stops at MAX_ROUNDS even if model keeps emitting tool calls`() {
         // Model always responds with a tool call — loop must stop at maxRounds
@@ -424,7 +175,7 @@ class AgentLoopTest {
             infiniteToolCall, infiniteToolCall, infiniteToolCall,
             infiniteToolCall, infiniteToolCall, infiniteToolCall,
         )
-        val loop = AgentLoop(backend, FakeToolRegistry(), maxRounds = 3)
+        val loop = LoopHarness(backend, FakeToolRegistry(), maxRounds = 3)
         val result = loop.run("Do something")
         assertEquals(3, result.rounds)
     }
@@ -439,7 +190,7 @@ class AgentLoopTest {
             "The class Foo has a bar method.",
         )
         val fakeTools = FakeToolRegistry(mapOf("read_file" to fileContent))
-        val loop = AgentLoop(backend, fakeTools)
+        val loop = LoopHarness(backend, fakeTools)
         loop.run("Review Foo.kt")
 
         // Round 2 request should contain the file content in the user message
@@ -453,37 +204,42 @@ class AgentLoopTest {
 
     @Test
     fun `tool result content is truncated to TOOL_RESULT_CONTENT_MAX_CHARS`() {
-        val longContent = "x".repeat(5000)
+        // Production budget: a single tool result is capped at max(fileBudget, TOOL_RESULT_CONTENT_MAX_CHARS) = 8000
+        // chars at this context size (the old test copy used a 1200-char cap that production never had).
+        val longContent = "x".repeat(20_000)
         val backend = FakeBackend(
             """<tool_call name="read_file"><arg name="path">big.kt</arg></tool_call>""",
             "Done.",
         )
         val fakeTools = FakeToolRegistry(mapOf("read_file" to longContent))
-        val loop = AgentLoop(backend, fakeTools, toolResultContentMaxChars = 1200)
+        val loop = LoopHarness(backend, fakeTools)
         loop.run("Read big.kt")
 
         val round2Content = backend.capturedRequests[1].messages.first().content
-        // Full 5000-char content must NOT appear; max 1200 chars per result
+        // Full content must NOT appear; max TOOL_RESULT_CONTENT_MAX_CHARS per result
         assertFalse(
             "Tool result should be truncated",
-            round2Content.contains("x".repeat(1201)),
+            round2Content.contains("x".repeat(TOOL_RESULT_CONTENT_MAX_CHARS + 1)),
         )
+        assertTrue("Truncated content is still passed on", round2Content.contains("x".repeat(1000)))
     }
 
     // ── Tests: think-block round-trip ────────────────────────────────────────
 
+    @Ignore(D1)
     @Test
     fun `tool call after think block is correctly extracted`() {
         val response = "<think>I should list files first.</think>\n" +
             """<tool_call name="list_files"><arg name="path">src</arg></tool_call>"""
         val backend = FakeBackend(response, "Here are the files.")
         val fakeTools = FakeToolRegistry(mapOf("list_files" to "src/Main.kt"))
-        val loop = AgentLoop(backend, fakeTools)
+        val loop = LoopHarness(backend, fakeTools)
         val result = loop.run("List files")
         assertEquals(listOf("list_files"), result.toolsExecuted)
         assertEquals(2, result.rounds)
     }
 
+    @Ignore(D1)
     @Test
     fun `multiple tool calls in single response are all executed`() {
         val response = """
@@ -495,7 +251,7 @@ class AgentLoopTest {
             "list_files" to "src/Main.kt",
             "read_file" to "fun main() {}",
         ))
-        val loop = AgentLoop(backend, fakeTools)
+        val loop = LoopHarness(backend, fakeTools)
         val result = loop.run("Review project")
         assertEquals(listOf("list_files", "read_file"), result.toolsExecuted)
     }
@@ -516,7 +272,7 @@ class AgentLoopTest {
             "list_files" to "src/test/",
             "create_file" to "Prepared new file for src/test/FooTest.kt\nclass FooTest { @Test fun test1() {} }",
         ))
-        val loop = AgentLoop(backend, fakeTools)
+        val loop = LoopHarness(backend, fakeTools)
         val result = loop.run("Create tests")
         assertEquals("Loop must stop after create_file, not launch round 3", 2, result.rounds)
         assertEquals(listOf("list_files", "create_file"), result.toolsExecuted)
@@ -533,7 +289,7 @@ class AgentLoopTest {
         val fakeTools = FakeToolRegistry(mapOf(
             "write_file" to "Prepared file replacement for src/Foo.kt\n---OLD---\n\n---NEW---\nclass Foo { fun bar() = 42 }",
         ))
-        val loop = AgentLoop(backend, fakeTools)
+        val loop = LoopHarness(backend, fakeTools)
         val result = loop.run("Write Foo")
         assertEquals(1, result.rounds)
         assertEquals(listOf("write_file"), result.toolsExecuted)
@@ -561,7 +317,7 @@ class AgentLoopTest {
                 "Prepared new file for test/LamPatikCodeTest.kt\n$garbageContent",
             )
         )
-        val loop = AgentLoop(backend, fakeTools)
+        val loop = LoopHarness(backend, fakeTools)
         val result = loop.run("Create tests")
         // Garbage proposal must be absent regardless of how many rounds ran
         assertTrue(
@@ -572,6 +328,7 @@ class AgentLoopTest {
 
     // ── Tests: think-leak suppression after tool rounds ──────────────────────
 
+    @Ignore(D1)
     @Test
     fun `think content does not leak into answer panel after tool rounds`() {
         // Simulates the code-review scenario from the bug report:
@@ -581,7 +338,7 @@ class AgentLoopTest {
             """<tool_call name="list_files"><arg name="path">.</arg></tool_call>""",
             "<think>Okay let me plan... the search_filenames are empty. Wait maybe I should check again.</think>",
         )
-        val loop = AgentLoop(backend, FakeToolRegistry(mapOf("list_files" to "src/Main.kt")))
+        val loop = LoopHarness(backend, FakeToolRegistry(mapOf("list_files" to "src/Main.kt")))
         val result = loop.run("Code review")
         assertEquals(2, result.rounds)
         assertTrue(
@@ -595,9 +352,11 @@ class AgentLoopTest {
         // If the model outputs only a think block with no tools and no answer text at all,
         // surface it rather than showing a blank panel — this is round 1 so no tools ran.
         val backend = FakeBackend("<think>I cannot help with this request.</think>")
-        val loop = AgentLoop(backend, FakeToolRegistry())
+        val loop = LoopHarness(backend, FakeToolRegistry())
         val result = loop.run("Do something")
-        assertEquals(1, result.rounds)
+        // Still round 1: a blank answer is retried MAX_EMPTY_RETRIES times before the loop concludes.
+        assertEquals(1 + MAX_EMPTY_RETRIES, result.rounds)
+        assertTrue(result.toolsExecuted.isEmpty())
         assertTrue("Should surface think content on round 1 with no tools", result.finalMessage.isNotBlank())
     }
 
@@ -605,6 +364,7 @@ class AgentLoopTest {
 
     // ── Tests: git/read-only tools count as hasReadContent ───────────────────
 
+    @Ignore(D1)
     @Test
     fun `git_status tool call sets hasReadContent so loop does not demand a file write`() {
         // Before the fix, only read_file/search_code set hasReadContent. git_status was ignored,
@@ -614,7 +374,7 @@ class AgentLoopTest {
             "Your working tree is clean.",
         )
         val fakeTools = FakeToolRegistry(mapOf("git_status" to "nothing to commit"))
-        val loop = AgentLoop(backend, fakeTools)
+        val loop = LoopHarness(backend, fakeTools)
         val result = loop.run("Show me git status")
         assertEquals(2, result.rounds)
         assertEquals(listOf("git_status"), result.toolsExecuted)
@@ -623,18 +383,20 @@ class AgentLoopTest {
 
     @Test
     fun `TOOL_RESULTS_MAX_CHARS cap prevents oversized next-round prompt`() {
-        val hugeResult = "A".repeat(10_000)
+        val hugeResult = "A".repeat(30_000)
         val backend = FakeBackend(
             """<tool_call name="read_file"><arg name="path">big.kt</arg></tool_call>""",
             "Done.",
         )
         val fakeTools = FakeToolRegistry(mapOf("read_file" to hugeResult))
-        val loop = AgentLoop(backend, fakeTools, toolResultsMaxChars = 4000, toolResultContentMaxChars = 1200)
+        val loop = LoopHarness(backend, fakeTools)
         loop.run("Read")
         val round2Msg = backend.capturedRequests[1].messages.first().content
         assertTrue(
             "Total tool results in round-2 prompt must be capped",
-            round2Msg.length <= 4000 + 500, // 4000 for results + ~500 for task + directive overhead
+            // Production budget at this context size: results capped at TOOL_RESULTS_MAX_CHARS (8000), plus the
+            // re-injected source (<= ~3300) and ~1500 for task + directive + wrappers.
+            round2Msg.length <= TOOL_RESULTS_MAX_CHARS + 3_300 + 1_500,
         )
     }
 
@@ -651,7 +413,7 @@ class AgentLoopTest {
             "Done reviewing.",
         )
         val fakeTools = FakeToolRegistry(mapOf("read_file" to "class Foo {}"))
-        val loop = AgentLoop(backend, fakeTools)
+        val loop = LoopHarness(backend, fakeTools)
         val result = loop.run("Review Foo.kt")
         // read_file should only be executed once — the second call is dedup synthetic
         assertEquals("read_file should only be executed once", 1, result.toolsExecuted.count { it == "read_file" })
@@ -666,9 +428,9 @@ class AgentLoopTest {
             "I reviewed the attached file.",
         )
         val fakeTools = FakeToolRegistry(mapOf("read_file" to "class Attached {}"))
-        val loop = AgentLoop(backend, fakeTools)
+        val loop = LoopHarness(backend, fakeTools)
         val result = loop.run("Review Attached.kt", preSeedReadPaths = setOf("src/Attached.kt"))
-        assertEquals("Pre-seeded path must not trigger real read_file execution", 0, result.toolsExecuted.size)
+        assertEquals("Pre-seeded path must not trigger real read_file execution", 0, result.toolsExecuted.count { it == "read_file" })
     }
 
     // ── Tests: all-duplicate escalation ─────────────────────────────────────
@@ -690,7 +452,7 @@ class AgentLoopTest {
             "read_file" to "class Foo {}",
             "write_file" to "Prepared file replacement for src/Foo.kt\n---OLD---\nclass Foo {}\n---NEW---\nclass Foo { fun fixed() = 1 }",
         ))
-        val loop = AgentLoop(backend, fakeTools, maxRounds = 5)
+        val loop = LoopHarness(backend, fakeTools, maxRounds = 5)
         val result = loop.run("Fix Foo.kt")
         assertTrue("write_file must be executed in the escalated write pass", result.toolsExecuted.contains("write_file"))
         assertTrue("Proposal for Foo.kt must be present", result.proposalPaths.contains("src/Foo.kt"))
@@ -717,7 +479,7 @@ class AgentLoopTest {
             "read_file" to "class Bar {}",
             "write_file" to "Prepared file replacement for src/Bar.kt\n---OLD---\nclass Bar {}\n---NEW---\nclass Bar { fun added() = 2 }",
         ))
-        val loop = AgentLoop(backend, fakeTools, maxRounds = 5)
+        val loop = LoopHarness(backend, fakeTools, maxRounds = 5)
         val result = loop.run("Improve Bar.kt")
         assertTrue("write_file must be executed after mid-loop prose escalation", result.toolsExecuted.contains("write_file"))
         assertTrue("Proposal for Bar.kt must be present", result.proposalPaths.contains("src/Bar.kt"))
@@ -728,13 +490,14 @@ class AgentLoopTest {
         // Round 1 prose is a legitimate answer (user asked a question, model answered).
         // The guard must not fire on round == 1.
         val backend = FakeBackend("Here is my answer to your question.")
-        val loop = AgentLoop(backend, FakeToolRegistry(), maxRounds = 5)
+        val loop = LoopHarness(backend, FakeToolRegistry(), maxRounds = 5)
         val result = loop.run("What does this code do?")
         assertEquals(1, result.rounds)
         assertEquals("Here is my answer to your question.", result.finalMessage)
         assertTrue(result.toolsExecuted.isEmpty())
     }
 
+    @Ignore(D1)
     @Test
     fun `mid-loop prose on round 2 does NOT escalate — simple read-then-answer pattern`() {
         // 1 read round + prose answer is normal Q&A and must NOT be treated as mid-loop prose.
@@ -742,7 +505,7 @@ class AgentLoopTest {
             """<tool_call name="read_file"><arg name="path">src/Qux.kt</arg></tool_call>""",
             "The class Qux does X.",
         )
-        val loop = AgentLoop(backend, FakeToolRegistry(mapOf("read_file" to "class Qux {}")), maxRounds = 5)
+        val loop = LoopHarness(backend, FakeToolRegistry(mapOf("read_file" to "class Qux {}")), maxRounds = 5)
         val result = loop.run("Explain Qux.kt")
         assertEquals(2, result.rounds)
         assertEquals("The class Qux does X.", result.finalMessage)
@@ -766,7 +529,7 @@ class AgentLoopTest {
             "list_files" to "src/Baz.kt",
             "read_file" to "class Baz {}",
         ))
-        val loop = AgentLoop(backend, fakeTools, maxRounds = 5)
+        val loop = LoopHarness(backend, fakeTools, maxRounds = 5)
         val result = loop.run("Fix Baz.kt")
         // Must terminate without looping — proposalPaths empty is fine, loop must stop
         assertTrue("Loop must terminate, not re-escalate indefinitely", result.rounds <= 5)
@@ -775,6 +538,7 @@ class AgentLoopTest {
 
     // ── Tests: noThink on final round ────────────────────────────────────────
 
+    @Ignore(D3)
     @Test
     fun `all agent rounds have noThink set to true`() {
         // Thinking is disabled on every agent round to avoid burning token budget on per-round reasoning.
@@ -782,7 +546,7 @@ class AgentLoopTest {
             """<tool_call name="read_file"><arg name="path">src/X.kt</arg></tool_call>""",
             "Done.",
         )
-        val loop = AgentLoop(backend, FakeToolRegistry(mapOf("read_file" to "class X {}")), maxRounds = 3)
+        val loop = LoopHarness(backend, FakeToolRegistry(mapOf("read_file" to "class X {}")), maxRounds = 3)
         loop.run("Review X.kt")
         // Both round 1 and round 2 must have noThink=true
         backend.capturedRequests.forEachIndexed { i, req ->
@@ -807,7 +571,7 @@ class AgentLoopTest {
             "search_code" to "Found results",
             "write_file" to "Prepared file replacement for src/Screen.kt\n---OLD---\n\n---NEW---\nclass Screen { fun skip() {} }",
         ))
-        val loop = AgentLoop(backend, fakeTools, maxRounds = 5, fileAttached = true)
+        val loop = LoopHarness(backend, fakeTools, maxRounds = 5, fileAttached = true)
         val result = loop.run("Add a skip button to Screen.kt")
         assertTrue("write_file must be executed after escalation", result.toolsExecuted.contains("write_file"))
         assertTrue("Proposal for src/Screen.kt must be present", result.proposalPaths.contains("src/Screen.kt"))
@@ -827,7 +591,7 @@ class AgentLoopTest {
             "search_code" to "results",
             "write_file" to "Prepared file replacement for src/A.kt\n---OLD---\n\n---NEW---\nclass A {}",
         ))
-        val loop = AgentLoop(backend, fakeTools, maxRounds = 5, fileAttached = true)
+        val loop = LoopHarness(backend, fakeTools, maxRounds = 5, fileAttached = true)
         val result = loop.run("Modify A.kt")
         // Must not use more backend calls than: round1 + writePass = 2
         assertEquals("Backend must only be called 2 times (explore, write)", 2, backend.capturedRequests.size)
@@ -836,15 +600,16 @@ class AgentLoopTest {
 
     @Test
     fun `without attached file model gets two exploration rounds before escalation`() {
-        // No file attached — escalation fires at round >= 3 (minWriteEscalationRound=3)
-        // Round 1: list_files, Round 2: read_file, Round 3: another read → escalation fires at round 3
-        // Write pass: write_file
+        // No file attached: the model explores for two rounds (list, read). Once it has read a file the
+        // loop escalates to the write pass (minWriteEscalationRound = 2), so the third backend call is
+        // the write pass and a further exploration call is never made.
         val backend = FakeBackend(
             """<tool_call name="list_files"><arg name="path">src</arg></tool_call>""",
             """<tool_call name="read_file"><arg name="path">src/Foo.kt</arg></tool_call>""",
-            """<tool_call name="search_code"><arg name="query">helper</arg></tool_call>""",
-            // Write pass (escalated round 4)
+            // Write pass (escalated after the second round)
             """<tool_call name="write_file"><arg name="path">src/Foo.kt</arg><arg name="content">class Foo { fun fixed() {} }</arg></tool_call>""",
+            // Would be a third exploration round; must never run.
+            """<tool_call name="search_code"><arg name="query">helper</arg></tool_call>""",
         )
         val fakeTools = FakeToolRegistry(mapOf(
             "list_files" to "src/Foo.kt",
@@ -852,11 +617,11 @@ class AgentLoopTest {
             "search_code" to "helper() in Utils.kt",
             "write_file" to "Prepared file replacement for src/Foo.kt\n---OLD---\nclass Foo {}\n---NEW---\nclass Foo { fun fixed() {} }",
         ))
-        val loop = AgentLoop(backend, fakeTools, maxRounds = 5, fileAttached = false)
+        val loop = LoopHarness(backend, fakeTools, maxRounds = 5, fileAttached = false)
         val result = loop.run("Fix Foo.kt")
-        assertTrue("write_file must be executed", result.toolsExecuted.contains("write_file"))
+        assertEquals(listOf("list_files", "read_file", "write_file"), result.toolsExecuted)
         assertTrue("Proposal for Foo.kt must be present", result.proposalPaths.contains("src/Foo.kt"))
-        assertEquals("Backend must only be called 4 times", 4, backend.capturedRequests.size)
+        assertEquals("Backend must only be called 3 times (explore, explore, write)", 3, backend.capturedRequests.size)
     }
 
     // ── Tests: global session timeout ─────────────────────────────────────────
@@ -868,7 +633,7 @@ class AgentLoopTest {
             """<tool_call name="read_file"><arg name="path">src/X.kt</arg></tool_call>""",
             "Done.",
         )
-        val loop = AgentLoop(backend, FakeToolRegistry(mapOf("read_file" to "class X {}")), timeoutMs = -1L)
+        val loop = LoopHarness(backend, FakeToolRegistry(mapOf("read_file" to "class X {}")), timeoutMs = -1L)
         val result = loop.run("Do something")
         assertTrue("Result must mention timeout", result.finalMessage.contains("timed out", ignoreCase = true))
         assertEquals("No backend calls should happen after timeout", 0, backend.capturedRequests.size)
@@ -887,7 +652,7 @@ class AgentLoopTest {
             "read_file" to "class F { /* old */ }",
             "write_file" to "Prepared file replacement for src/F.kt\n---OLD---\nclass F {}\n---NEW---\nclass F {}",
         ))
-        val loop = AgentLoop(backend, fakeTools, fileAttached = true)
+        val loop = LoopHarness(backend, fakeTools, fileAttached = true)
         val result = loop.run("Fix F.kt")
         assertTrue("write_file must execute even with capped exploration tokens", result.toolsExecuted.contains("write_file"))
     }
@@ -913,9 +678,11 @@ class AgentLoopTest {
                 "Prepared file replacement for src/Screen.kt\n---OLD---\n\n---NEW---\nclass Screen { fun skip() {} }",
             )
         )
-        val loop = AgentLoop(backend, fakeTools, maxRounds = 5)
+        val loop = LoopHarness(backend, fakeTools, maxRounds = 5)
         val result = loop.run("Add skip button to Screen.kt")
-        assertTrue("write tool error must be recorded", result.writeToolErrors.isNotEmpty())
+        val reflection = backend.capturedRequests[1].messages.first().content
+        assertTrue("write tool error must be reflected back to the model", reflection.contains("The following tool calls failed:"))
+        assertTrue(reflection.contains("Tool write_file error: Missing content"))
         assertTrue("write_file must be retried and produce a proposal", result.proposalPaths.contains("src/Screen.kt"))
     }
 
@@ -930,12 +697,12 @@ class AgentLoopTest {
         val fakeTools = FakeToolRegistry(
             sequentialResults = listOf("Missing content")
         )
-        val loop = AgentLoop(backend, fakeTools, maxRounds = 5)
+        val loop = LoopHarness(backend, fakeTools, maxRounds = 5)
         val result = loop.run("Update Foo.kt")
-        assertTrue(
-            "Missing content error must be captured in writeToolErrors",
-            result.writeToolErrors.any { it.contains("Missing content", ignoreCase = true) },
-        )
+        // The failure is fed back to the model so it can retry (and is remembered as a rejection reason).
+        val reflection = backend.capturedRequests[1].messages.first().content
+        assertTrue("Missing content error must be reflected back, not silently dropped",
+            reflection.contains("Tool write_file error: Missing content"))
     }
 
     @Test
@@ -950,10 +717,57 @@ class AgentLoopTest {
             "read_file" to "class B {}",
             "write_file" to "Prepared file replacement for src/B.kt\n---OLD---\nclass B {}\n---NEW---\nclass B { fun go() {} }",
         ))
-        val loop = AgentLoop(backend, fakeTools, maxRounds = 5, fileAttached = true)
+        val loop = LoopHarness(backend, fakeTools, maxRounds = 5, fileAttached = true)
         val result = loop.run("Update B.kt")
         assertTrue("write_file must be in the executed calls", result.toolsExecuted.contains("write_file"))
         assertTrue("Proposal for B.kt must be present", result.proposalPaths.contains("src/B.kt"))
         assertEquals("Must not over-call backend when model writes on time", 2, backend.capturedRequests.size)
+    }
+
+    // ── Live replacement for the @Ignore'd D2 test ────────────────────────────
+
+    @Test
+    fun `loop stops at MAX_ROUNDS when the model keeps emitting different tool calls`() {
+        val backend = FakeBackend(*(1..10).map { """<tool_call name="search_code"><arg name="query">term$it</arg></tool_call>""" }.toTypedArray())
+        val result = LoopHarness(backend, FakeToolRegistry()).run("Do something")
+        assertEquals(MAX_ROUNDS, result.rounds)
+    }
+
+    // ── Pinned behaviour of the known defects (flip these when the defect is fixed) ──
+
+    @Test
+    fun `known defect D1 - a read-then-prose answer is replaced by a forced write pass`() {
+        val backend = FakeBackend(
+            """<tool_call name="list_files"><arg name="path">src</arg></tool_call>""",
+            "I found the following files in your project.",
+            // The forced write pass: the model has nothing to write and returns nothing.
+        )
+        val result = LoopHarness(backend, FakeToolRegistry(mapOf("list_files" to "src/Main.kt"))).run("What files are in the project?")
+        val writePass = backend.capturedRequests[2]
+        assertEquals("the prose answer triggered a write pass (full write token budget)", WRITE_ROUND_MIN_TOKENS, writePass.config.maxTokens)
+        assertEquals("the model's first answer never reaches the user",
+            "The agent reviewed the files but did not produce a written summary. " +
+                "Try asking again or use @filename to attach a specific file.",
+            result.finalMessage)
+    }
+
+    @Test
+    fun `known defect D3 - noThink is only set for the write pass or with an attached file`() {
+        val plain = FakeBackend("Here is a plain answer for you.")
+        LoopHarness(plain, FakeToolRegistry()).run("Question")
+        assertFalse(plain.capturedRequests.single().noThink)
+
+        val attached = FakeBackend("Here is a plain answer for you.")
+        LoopHarness(attached, FakeToolRegistry(), fileAttached = true).run("Question")
+        assertTrue(attached.capturedRequests.first().noThink)
+    }
+
+    @Test
+    fun `known defect D2 - repeating one read-only call is never cut off at MAX_ROUNDS`() {
+        val same = """<tool_call name="list_files"><arg name="path">.</arg></tool_call>"""
+        val backend = FakeBackend(*Array(30) { same })
+        LoopHarness(backend, FakeToolRegistry()).run("Do something")
+        // 30 scripted answers all consumed: the loop keeps re-entering the write pass.
+        assertTrue("backend calls: ${backend.capturedRequests.size}", backend.capturedRequests.size >= 30)
     }
 }

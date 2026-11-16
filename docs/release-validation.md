@@ -125,7 +125,7 @@ failure) for any tool that has no contract case — use this as a coverage track
 ## Agent workflow tests
 
 `AgentWorkflowTest` contains 17 inline scenarios that run the real
-`HeadlessAgent` loop with a `ScriptedAssistantBackend` and small ephemeral
+`HeadlessAgent` (a thin wrapper that runs the real `agent-core` `AgentLoop`) with a `ScriptedAssistantBackend` and small ephemeral
 fixture projects created in a `TemporaryFolder`.
 
 Each scenario exercises a specific agent capability:

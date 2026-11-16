@@ -1,5 +1,8 @@
-package com.llamatik.teammate.agent
+package com.llamatik.agent.core.agent
 
+import com.llamatik.agent.core.testing.AgentRun
+import com.llamatik.agent.core.testing.FakeBackend
+import com.llamatik.agent.core.testing.FakeToolRegistry
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -154,61 +157,35 @@ class PromptBudgetTest {
     private fun generateFile(lines: Int): String =
         (1..lines).joinToString("\n") { i -> "x$i//L$i" }
 
-    // ── End-to-end loop tests via AgentLoop + FakeBackend ────────────────────
+    // ── End-to-end loop tests: the real AgentLoop with a scripted backend ────────
 
-    private fun loopWithBudget(contextSize: Int) = AgentLoopTest.AgentLoop(
-        backend          = AgentLoopTest.FakeBackend(
-            """<tool_call name="read_file"><arg name="path">Big.kt</arg></tool_call>""",
-            "I have read the file.",
-        ),
-        toolRegistry     = AgentLoopTest.FakeToolRegistry(mapOf("read_file" to generateFile(2000))),
-        toolResultsMaxChars       = toolResultsMax(contextSize),
-        toolResultContentMaxChars = toolResultContentMax(contextSize),
-    )
+    private fun readFileRun(path: String, content: String, contextSize: Int): String {
+        val backend = FakeBackend(
+            """<tool_call name="read_file"><arg name="path">$path</arg></tool_call>""",
+            "Done.",
+        )
+        AgentRun(backend, FakeToolRegistry(mapOf("read_file" to content)), contextLength = contextSize).run("Read $path")
+        return backend.capturedRequests[1].messages.first().content
+    }
 
     @Test
     fun `571-line file fully reaches model with floor budget - regression`() {
         val content = generateFile(571)
         assertTrue("571-line file must fit within the 8000-char floor", content.length <= 8_000)
 
-        val backend   = AgentLoopTest.FakeBackend(
-            """<tool_call name="read_file"><arg name="path">Service.kt</arg></tool_call>""",
-            "Done.",
-        )
-        val fakeTools = AgentLoopTest.FakeToolRegistry(mapOf("read_file" to content))
-        val loop = AgentLoopTest.AgentLoop(
-            backend, fakeTools,
-            toolResultsMaxChars       = toolResultsMax(contextSize = 2048),   // exercises floor path
-            toolResultContentMaxChars = toolResultContentMax(contextSize = 2048),
-        )
-        loop.run("Read Service.kt")
-
-        val round2 = backend.capturedRequests[1].messages.first().content
+        val round2 = readFileRun("Service.kt", content, contextSize = 2048) // exercises the floor path
         assertTrue("Line 571 must be present — file must not be truncated", round2.contains("//L571"))
     }
 
     @Test
-    fun `old hardcoded 4000-char total cap truncated file - documents bug 2`() {
-        // TOOL_RESULTS_MAX_CHARS was hardcoded to 4000.
-        // generateFile(571) = ~5800 chars; take(4000) stops around line 390.
+    fun `no hardcoded 4000-char total cap on tool results - bug 2 stays fixed`() {
+        // TOOL_RESULTS_MAX_CHARS used to be hardcoded to 4000: generateFile(571) is ~5800 chars, so
+        // the old cap cut the file around line 390. The production loop has no such cap; this guards
+        // against it coming back (the old test drove a copy of the loop with a configurable cap).
         val content = generateFile(571)
-        val backend   = AgentLoopTest.FakeBackend(
-            """<tool_call name="read_file"><arg name="path">Service.kt</arg></tool_call>""",
-            "Done.",
-        )
-        val fakeTools = AgentLoopTest.FakeToolRegistry(mapOf("read_file" to content))
-        val loop = AgentLoopTest.AgentLoop(
-            backend, fakeTools,
-            toolResultsMaxChars       = 4_000,   // the old hardcoded value
-            toolResultContentMaxChars = 8_000,
-        )
-        loop.run("Read Service.kt")
-
-        val round2 = backend.capturedRequests[1].messages.first().content
-        assertFalse(
-            "Old 4000-char total cap must have cut the file before line 571",
-            round2.contains("//L571"),
-        )
+        assertTrue("fixture must be larger than the old cap", content.length > 4_000)
+        val round2 = readFileRun("Service.kt", content, contextSize = 4096)
+        assertTrue("A total cap of 4000 chars would have cut the file before line 571", round2.contains("//L571"))
     }
 
     @Test
@@ -221,19 +198,7 @@ class PromptBudgetTest {
             content.length <= toolResultContentMax(contextSize = 16384),
         )
 
-        val backend   = AgentLoopTest.FakeBackend(
-            """<tool_call name="read_file"><arg name="path">Big.kt</arg></tool_call>""",
-            "Done.",
-        )
-        val fakeTools = AgentLoopTest.FakeToolRegistry(mapOf("read_file" to content))
-        val loop = AgentLoopTest.AgentLoop(
-            backend, fakeTools,
-            toolResultsMaxChars       = toolResultsMax(contextSize = 16384),
-            toolResultContentMaxChars = toolResultContentMax(contextSize = 16384),
-        )
-        loop.run("Read Big.kt")
-
-        val round2 = backend.capturedRequests[1].messages.first().content
+        val round2 = readFileRun("Big.kt", content, contextSize = 16384)
         assertTrue("Line 2000 must be present in round-2 prompt", round2.contains("//L2000"))
     }
 
@@ -247,19 +212,7 @@ class PromptBudgetTest {
             content.length > maxChars,
         )
 
-        val backend   = AgentLoopTest.FakeBackend(
-            """<tool_call name="read_file"><arg name="path">Big.kt</arg></tool_call>""",
-            "Done.",
-        )
-        val fakeTools = AgentLoopTest.FakeToolRegistry(mapOf("read_file" to content))
-        val loop = AgentLoopTest.AgentLoop(
-            backend, fakeTools,
-            toolResultsMaxChars       = toolResultsMax(contextSize = 4096),
-            toolResultContentMaxChars = maxChars,
-        )
-        loop.run("Read Big.kt")
-
-        val round2 = backend.capturedRequests[1].messages.first().content
+        val round2 = readFileRun("Big.kt", content, contextSize = 4096)
         assertFalse(
             "With contextSize=4096 (budget=$maxChars chars), line 2000 must be absent — file exceeds context",
             round2.contains("//L2000"),
@@ -270,20 +223,15 @@ class PromptBudgetTest {
     fun `two concurrent read_file calls both arrive complete at default context`() {
         val file1   = generateFile(500)
         val file2   = generateFile(500)
-        val backend = AgentLoopTest.FakeBackend(
+        val backend = FakeBackend(
             """
             <tool_call name="read_file"><arg name="path">A.kt</arg></tool_call>
             <tool_call name="read_file"><arg name="path">B.kt</arg></tool_call>
             """.trimIndent(),
             "Reviewed.",
         )
-        val fakeTools = AgentLoopTest.FakeToolRegistry(sequentialResults = listOf(file1, file2))
-        val loop = AgentLoopTest.AgentLoop(
-            backend, fakeTools,
-            toolResultsMaxChars       = toolResultsMax(contextSize = 16384),
-            toolResultContentMaxChars = toolResultContentMax(contextSize = 16384),
-        )
-        loop.run("Review A.kt and B.kt")
+        val fakeTools = FakeToolRegistry(sequentialResults = listOf(file1, file2))
+        AgentRun(backend, fakeTools, contextLength = 16384).run("Review A.kt and B.kt")
 
         val round2 = backend.capturedRequests[1].messages.first().content
         // //L500 appears once per file = twice total
