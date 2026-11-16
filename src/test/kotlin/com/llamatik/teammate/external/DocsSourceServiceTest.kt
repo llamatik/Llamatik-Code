@@ -43,14 +43,9 @@ class DocsSourceServiceTest {
     }
 
     @Test
-    fun `free tier limit is 3`() {
+    fun `source limit is 10 regardless of tier`() {
         val svc = TestDocsSourceService()
-        assertEquals(3, svc.sourcesLimit(isPro = false))
-    }
-
-    @Test
-    fun `pro tier limit is 10`() {
-        val svc = TestDocsSourceService()
+        assertEquals(10, svc.sourcesLimit(isPro = false))
         assertEquals(10, svc.sourcesLimit(isPro = true))
     }
 
@@ -61,24 +56,18 @@ class DocsSourceServiceTest {
     }
 
     @Test
-    fun `canAddSource returns false when at free limit`() {
+    fun `canAddSource returns false when at limit`() {
         val svc = TestDocsSourceService()
-        svc.addSource(makeSource("s1"), isPro = false)
-        svc.addSource(makeSource("s2"), isPro = false)
-        svc.addSource(makeSource("s3"), isPro = false)
-        assertFalse("Should be at limit after adding 3 sources", svc.canAddSource(isPro = false))
+        for (i in 1..10) svc.addSource(makeSource("s$i"), isPro = false)
+        assertFalse("Should be at limit after adding 10 sources", svc.canAddSource(isPro = false))
     }
 
     @Test
-    fun `addSource rejects fourth source on free tier`() {
+    fun `addSource allows fourth source on non-pro tier`() {
         val svc = TestDocsSourceService()
-        svc.addSource(makeSource("s1"), isPro = false)
-        svc.addSource(makeSource("s2"), isPro = false)
-        val added3 = svc.addSource(makeSource("s3"), isPro = false)
-        assertTrue("Third add should succeed on free tier", added3)
-        val added4 = svc.addSource(makeSource("s4"), isPro = false)
-        assertFalse("Fourth add should fail on free tier", added4)
-        assertEquals(3, svc.listSources().size)
+        for (i in 1..3) svc.addSource(makeSource("s$i"), isPro = false)
+        assertTrue("Fourth add should succeed: limits no longer depend on tier", svc.addSource(makeSource("s4"), isPro = false))
+        assertEquals(4, svc.listSources().size)
     }
 
     @Test
