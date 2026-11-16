@@ -1,0 +1,16 @@
+REQUEST #1 tag=CHAT noThink=false maxTokens=2048 ctx=16384 prefill=''
+SYSTEM <<<You are Llamatik Code, a local AI coding assistant inside IntelliJ.
+Answer the user's question clearly and concisely. You may include code snippets.
+Do not use tool calls or edit proposals — only provide text answers.
+Open file: src/Calc.kt
+File content:
+fun add(a: Int, b: Int): Int {
+    return a - b
+}
+
+Selected text: return a - b
+Project instructions: Be terse.
+>>>
+MSG USER tool=null editProposal=false <<<explain this>>>
+CHAT_FINISHED <<<It adds two numbers (incorrectly).<end_of_turn>ignored>>>
+SESSION USER editProposal=false <<<explain this>>>

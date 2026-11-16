@@ -1,0 +1,8 @@
+REQUEST #1 tag=CHAT noThink=false maxTokens=2048 ctx=16384 prefill=''
+SYSTEM <<<You are Llamatik Code, a local AI coding assistant inside IntelliJ.
+Answer the user's question clearly and concisely. You may include code snippets.
+Do not use tool calls or edit proposals — only provide text answers.
+>>>
+MSG USER tool=null editProposal=false <<<hi>>>
+ERROR <<<model exploded>>>
+SESSION USER editProposal=false <<<hi>>>

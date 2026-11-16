@@ -1,0 +1,18 @@
+REQUEST #1 tag=CHAT noThink=false maxTokens=2048 ctx=16384 prefill=''
+SYSTEM <<<You are Llamatik Code, a local AI coding assistant inside IntelliJ.
+Answer the user's question clearly and concisely. You may include code snippets.
+Do not use tool calls or edit proposals — only provide text answers.
+>>>
+MSG USER tool=null editProposal=false <<<What is Kotlin?>>>
+TOKEN <<<Kotl>>>
+TOKEN <<<in i>>>
+TOKEN <<<s a >>>
+TOKEN <<<mode>>>
+TOKEN <<<rn l>>>
+TOKEN <<<angu>>>
+TOKEN <<<age >>>
+TOKEN <<<for >>>
+TOKEN <<<the >>>
+TOKEN <<<JVM.>>>
+CHAT_FINISHED <<<Kotlin is a modern language for the JVM.>>>
+SESSION USER editProposal=false <<<What is Kotlin?>>>

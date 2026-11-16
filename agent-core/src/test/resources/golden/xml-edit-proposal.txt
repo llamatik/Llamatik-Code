@@ -1,0 +1,81 @@
+REQUEST #1 tag=AGENT noThink=false maxTokens=2048 ctx=16384 prefill=''
+SYSTEM <<<You are Llamatik Code, an autonomous local development agent for IntelliJ. You plan, patch, review, and verify code locally — all source code stays on the user's machine.
+LANGUAGE: This is a Kotlin project. You MUST write ALL code exclusively in Kotlin.
+NEVER output Python, Java, or any other language. Only Kotlin.
+OUTPUT FORMAT — strictly follow this every response:
+  Optional: <think>brief reasoning</think>
+  Then IMMEDIATELY one of:
+    A) One or more tool calls (no prose before or after the XML)
+    B) write_file/create_file tool calls to apply changes
+    C) A plain-text answer (only when no file changes are needed)
+NEVER write prose like 'I will now...' or 'I'll start by...' — go straight to the tool call or answer.
+Use ONLY file paths that exist in the project. Never invent paths.
+Tools: list_files | read_file | search_code | search_filenames | write_file | create_file | replace_in_file | git_status
+Tool call format: <tool_call name="TOOL"><arg name="ARG">VALUE</arg></tool_call>
+Examples:
+  <tool_call name="search_code"><arg name="query">ClassName</arg></tool_call>
+  <tool_call name="list_files"><arg name="path">src</arg></tool_call>
+  <tool_call name="read_file"><arg name="path">src/Main.kt</arg></tool_call>
+  <tool_call name="git_status"></tool_call>
+  <tool_call name="write_file"><arg name="path">src/Main.kt</arg><arg name="content">…</arg></tool_call>
+>>>
+MSG USER tool=null editProposal=false <<<fix src/Calc.kt
+
+Project context:
+- project: demo
+- language: Kotlin — ALL generated code MUST be written in Kotlin
+>>>
+COUNT 1
+COUNT 2
+COUNT 3
+COUNT 4
+COUNT 5
+COUNT 6
+COUNT 7
+COUNT 8
+COUNT 9
+COUNT 10
+COUNT 11
+COUNT 12
+COUNT 13
+COUNT 14
+COUNT 15
+COUNT 16
+COUNT 17
+COUNT 18
+COUNT 19
+COUNT 20
+COUNT 21
+COUNT 22
+COUNT 23
+COUNT 24
+COUNT 25
+COUNT 26
+COUNT 27
+COUNT 28
+COUNT 29
+COUNT 30
+COUNT 31
+COUNT 32
+COUNT 33
+COUNT 34
+COUNT 35
+COUNT 36
+COUNT 37
+COUNT 38
+COUNT 39
+COUNT 40
+FINISHED role=ASSISTANT hasProposalId=true <<<>>>
+PROPOSAL src/Calc.kt summary=<<<fix add>>> old=<<<fun add(a: Int, b: Int): Int {
+    return a - b
+}
+>>> new=<<<fun add(a: Int, b: Int): Int {
+    return a + b
+}>>>
+SESSION USER editProposal=false <<<fix src/Calc.kt
+
+Project context:
+- project: demo
+- language: Kotlin — ALL generated code MUST be written in Kotlin
+>>>
+SESSION ASSISTANT editProposal=true <<<>>>

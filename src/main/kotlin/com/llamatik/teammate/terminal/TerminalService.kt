@@ -27,6 +27,7 @@ class TerminalService(private val project: Project) {
     )
 
     private val lastOutputs = ConcurrentHashMap<String, CommandOutput>()
+    @Volatile private var lastCommand: String? = null
 
     companion object {
         // The allowlist is shared with headless hosts: see CommandAllowlist.
@@ -69,12 +70,14 @@ class TerminalService(private val project: Project) {
                     succeeded = result.exitCode == 0,
                 )
                 lastOutputs[command] = output
+                lastCommand = command
                 log.info("terminal_run [$command] exit=${result.exitCode} in ${elapsed}ms")
                 onDone(output)
             } catch (e: Exception) {
                 val elapsed = System.currentTimeMillis() - start
                 val output = CommandOutput(command, -1, "", e.message ?: "Failed", elapsed, false)
                 lastOutputs[command] = output
+                lastCommand = command
                 onDone(output)
             }
         }
@@ -82,7 +85,8 @@ class TerminalService(private val project: Project) {
 
     fun lastOutput(command: String): CommandOutput? = lastOutputs[command]
 
-    fun lastOutputAny(): CommandOutput? = lastOutputs.values.maxByOrNull { it.durationMs }
+    /** Output of the most recently finished command. */
+    fun lastOutputAny(): CommandOutput? = lastCommand?.let { lastOutputs[it] }
 
     private fun splitCommand(cmd: String): List<String> = CommandAllowlist.splitCommand(cmd)
 }

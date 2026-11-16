@@ -22,7 +22,7 @@ interface ShellRunner {
 
     fun lastOutput(command: String): ShellResult?
 
-    /** Output of the command with the longest duration (historical behaviour, kept as is). */
+    /** Output of the most recently finished command. */
     fun lastOutputAny(): ShellResult?
 }
 
@@ -90,6 +90,7 @@ object CommandAllowlist {
 /** [ShellRunner] on [ProcessBuilder], for hosts without an IDE. */
 class ProcessShellRunner : ShellRunner {
     private val lastOutputs = ConcurrentHashMap<String, ShellResult>()
+    @Volatile private var lastCommand: String? = null
 
     override fun run(command: String, cwd: String, timeoutMs: Long): ShellResult {
         val start = System.currentTimeMillis()
@@ -120,10 +121,11 @@ class ProcessShellRunner : ShellRunner {
             ShellResult(command, -1, "", e.message ?: "Failed", System.currentTimeMillis() - start, false)
         }
         lastOutputs[command] = result
+        lastCommand = command
         return result
     }
 
     override fun lastOutput(command: String): ShellResult? = lastOutputs[command]
 
-    override fun lastOutputAny(): ShellResult? = lastOutputs.values.maxByOrNull { it.durationMs }
+    override fun lastOutputAny(): ShellResult? = lastCommand?.let { lastOutputs[it] }
 }

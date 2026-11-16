@@ -67,4 +67,13 @@ class ShellAndAllowlistTest {
         assertFalse(r.succeeded)
         assertEquals(-1, r.exitCode)
     }
+
+    @Test
+    fun `lastOutputAny is the most recent command, not the slowest`() {
+        assumeTrue(!isWindows)
+        val shell = ProcessShellRunner()
+        shell.run("sleep 0.3", tmp.root.absolutePath, 10_000)
+        shell.run("echo fast", tmp.root.absolutePath, 10_000)
+        assertEquals("echo fast", shell.lastOutputAny()?.command)
+    }
 }

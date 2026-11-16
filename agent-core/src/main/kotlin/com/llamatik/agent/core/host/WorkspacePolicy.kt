@@ -28,8 +28,16 @@ object WorkspacePolicy {
     const val MAX_LISTED_FILES = 500
     const val MAX_SEARCH_RESULTS = 50
 
-    fun globMatches(path: String, glob: String): Boolean =
-        FileSystems.getDefault().getPathMatcher("glob:$glob").matches(Path.of(path))
+    /**
+     * Glob match where a leading star-star-slash also matches zero directories, so a pattern meant
+     * for "any directory" covers files at the project root too (plain Java globs require a parent).
+     */
+    fun globMatches(path: String, glob: String): Boolean {
+        val fs = FileSystems.getDefault()
+        val p = Path.of(path)
+        if (fs.getPathMatcher("glob:$glob").matches(p)) return true
+        return glob.startsWith("**/") && fs.getPathMatcher("glob:${glob.removePrefix("**/")}").matches(p)
+    }
 
     fun isDenied(relativePath: String): Boolean = DEFAULT_DENIED_GLOBS.any { globMatches(relativePath, it) }
 

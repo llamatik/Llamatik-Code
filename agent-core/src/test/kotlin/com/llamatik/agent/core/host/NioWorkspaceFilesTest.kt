@@ -136,16 +136,24 @@ class NioWorkspaceFilesTest {
         assertEquals("class Created", files.read("new/dir/Created.kt"))
     }
 
-    /**
-     * Characterization of existing behaviour (the IDE implementation has the same quirk): the
-     * leading double-star-slash in the denylist globs needs a parent directory, so secret-looking files at the project
-     * ROOT are not denied. Kept as is for now; see the Phase 2 report.
-     */
     @Test
-    fun `denylist globs only match files below the root (known quirk)`() {
+    fun `secret-looking files are denied at the root as well as in subdirectories`() {
         put(".env", "TOP=1")
-        assertEquals("TOP=1", files.read(".env"))
-        assertEquals("sdk.dir=/x", files.read("local.properties"))
-        assertTrue(files.list(null).contains("local.properties"))
+        put("secrets.json", "{}")
+        put("release.keystore", "k")
+        listOf(".env", "local.properties", "secrets.json", "release.keystore", "config/.env").forEach { denied ->
+            try { files.read(denied); fail("expected denial for $denied") } catch (e: IllegalArgumentException) {
+                assertEquals("Access denied for file: $denied", e.message)
+            }
+        }
+        val listing = files.list(null)
+        assertTrue(listing.none { it in setOf(".env", "local.properties", "secrets.json", "release.keystore") })
+        assertEquals(listOf("README.md"), listing.filter { !it.endsWith(")") })
+    }
+
+    @Test
+    fun `similarly named files that are not secrets stay readable`() {
+        put("environment.md", "ok")
+        assertEquals("ok", files.read("environment.md"))
     }
 }

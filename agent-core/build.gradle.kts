@@ -2,6 +2,7 @@
 // analytics and persistence code): the CLI, the ACP adapter and the benchmarks depend on it too.
 plugins {
     id("org.jetbrains.kotlin.jvm")
+    `java-test-fixtures`
 }
 
 group = "com.llamatik.agent"

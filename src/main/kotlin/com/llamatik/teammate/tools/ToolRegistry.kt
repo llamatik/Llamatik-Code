@@ -19,6 +19,7 @@ import com.llamatik.agent.core.tools.builtin.GitCommitMessageSuggestionTool
 import com.llamatik.agent.core.tools.builtin.TerminalAllowedCommandsTool
 import com.llamatik.agent.core.tools.builtin.TerminalRunTool
 import com.llamatik.agent.core.tools.builtin.TerminalLastOutputTool
+import com.llamatik.agent.core.agent.ToolExecutor
 import com.llamatik.agent.core.tools.ToolCall
 import com.llamatik.agent.core.tools.ToolResult
 import com.intellij.openapi.components.Service
@@ -36,7 +37,7 @@ import com.llamatik.teammate.tools.impl.*
 import java.util.concurrent.ConcurrentHashMap
 
 @Service(Service.Level.PROJECT)
-class ToolRegistry(private val project: Project) {
+class ToolRegistry(private val project: Project) : ToolExecutor {
     private val builtinTools: Map<String, LlamatikTool> = listOf(
         // Core file tools
         ListFilesTool(),
@@ -183,9 +184,9 @@ class ToolRegistry(private val project: Project) {
     fun describeTools(): String = allTools.values.joinToString("\n") { "- ${it.name}: ${it.description}" }
 
     /** Compact list of just tool names — used when the char budget is tight. */
-    fun listToolNames(): String = allTools.keys.joinToString(" | ")
+    override fun listToolNames(): String = allTools.keys.joinToString(" | ")
 
-    fun execute(call: ToolCall, context: ToolExecutionContext): ToolResult {
+    override fun execute(call: ToolCall, context: ToolExecutionContext): ToolResult {
         val tool = allTools[call.name] ?: return ToolResult(call.name, false, "Unknown tool: ${call.name}")
         return runCatching { tool.execute(call, context) }
             .getOrElse { ToolResult(call.name, false, it.message ?: "Tool execution failed") }
@@ -203,5 +204,5 @@ class ToolRegistry(private val project: Project) {
         }
     }
 
-    fun dynamicToolNames(): Set<String> = dynamicTools.keys.toSet()
+    override fun dynamicToolNames(): Set<String> = dynamicTools.keys.toSet()
 }

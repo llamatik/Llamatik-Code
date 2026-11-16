@@ -1,19 +1,19 @@
-package com.llamatik.teammate.agent
+package com.llamatik.agent.core.agent
 
 import org.junit.Assert.*
 import org.junit.Test
 
 /**
- * Tests for the "current file reference" resolution logic in AgentOrchestrator.
+ * Tests for the "current file reference" resolution logic in FileReferences.
  *
  * The production code lives in resolveCurrentFileReference() but the phrase list
- * is testable via AgentOrchestrator.CURRENT_FILE_PHRASES.
+ * is testable via CURRENT_FILE_PHRASES.
  *
  * We test the pure transformation: given a phrase, does it match and get rewritten?
  */
 class CurrentFileResolverTest {
 
-    private val phrases = AgentOrchestrator.CURRENT_FILE_PHRASES
+    private val phrases = CURRENT_FILE_PHRASES
 
     // Helper: simulates the rewrite that resolveCurrentFileReference does
     private fun rewrite(prompt: String, fileName: String): String {
