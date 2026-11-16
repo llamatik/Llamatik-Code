@@ -1,4 +1,4 @@
-package com.llamatik.teammate.model
+package com.llamatik.agent.core.model
 
 import java.util.UUID
 
@@ -41,11 +41,4 @@ data class EditProposal(
     val oldContent: String,
     val newContent: String,
     val summary: String,
-)
-
-data class ModelDescriptor(
-    val id: String,
-    val displayName: String,
-    val source: String,
-    val description: String,
 )

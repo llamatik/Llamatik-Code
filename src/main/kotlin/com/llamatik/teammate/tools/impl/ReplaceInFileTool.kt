@@ -1,9 +1,9 @@
 package com.llamatik.teammate.tools.impl
 
 import com.intellij.openapi.project.Project
-import com.llamatik.teammate.tools.ToolCall
+import com.llamatik.agent.core.tools.ToolCall
 import com.llamatik.teammate.tools.ToolExecutionContext
-import com.llamatik.teammate.tools.ToolResult
+import com.llamatik.agent.core.tools.ToolResult
 
 class ReplaceInFileTool(project: Project) : BaseProjectTool(project) {
     override val name: String = "replace_in_file"

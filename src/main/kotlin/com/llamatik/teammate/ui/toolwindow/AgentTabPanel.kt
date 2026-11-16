@@ -16,9 +16,9 @@ import com.llamatik.teammate.model.AgentExchange
 import com.llamatik.teammate.model.AgentPhase
 import com.llamatik.teammate.model.AgentTaskSnapshot
 import com.llamatik.teammate.model.AgentTaskState
-import com.llamatik.teammate.model.AttachedImage
+import com.llamatik.agent.core.model.AttachedImage
 import com.llamatik.teammate.model.DownloadProgressState
-import com.llamatik.teammate.model.EditProposal
+import com.llamatik.agent.core.model.EditProposal
 import com.llamatik.teammate.model.ModelStatus
 import com.llamatik.teammate.model.PluginReadinessState
 import com.llamatik.teammate.model.TaskStatus

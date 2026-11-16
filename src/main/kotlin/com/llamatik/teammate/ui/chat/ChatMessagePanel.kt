@@ -8,7 +8,7 @@ import com.intellij.util.ui.AsyncProcessIcon
 import com.llamatik.teammate.ui.LlamatikTheme
 import com.llamatik.teammate.ui.Strings
 import com.intellij.util.ui.JBUI
-import com.llamatik.teammate.model.ChatRole
+import com.llamatik.agent.core.model.ChatRole
 import java.awt.BorderLayout
 import java.awt.Dimension
 import java.awt.FlowLayout

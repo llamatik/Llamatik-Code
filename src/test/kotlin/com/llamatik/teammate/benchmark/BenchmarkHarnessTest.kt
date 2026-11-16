@@ -1,7 +1,7 @@
 package com.llamatik.teammate.benchmark
 
 import com.llamatik.teammate.agent.AgentLoopTest
-import com.llamatik.teammate.backend.BackendConfig
+import com.llamatik.agent.core.backend.BackendConfig
 import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
@@ -468,15 +468,15 @@ class BenchmarkHarnessTest {
     fun `runner sets AGENT_ERROR status when backend reports an error`() {
         val task = makeTask(testCommand = "echo ok")
         val reportDir = tmp.newFolder("err-reports")
-        val errorBackend = object : com.llamatik.teammate.backend.AssistantBackend {
+        val errorBackend = object : com.llamatik.agent.core.backend.AssistantBackend {
             override fun isModelLoaded() = true
             override fun selectedModelLabel() = "error-model"
             override fun generate(
-                request: com.llamatik.teammate.backend.GenerationRequest,
-                callbacks: com.llamatik.teammate.backend.GenerationCallbacks,
-            ): com.llamatik.teammate.backend.GenerationHandle {
+                request: com.llamatik.agent.core.backend.GenerationRequest,
+                callbacks: com.llamatik.agent.core.backend.GenerationCallbacks,
+            ): com.llamatik.agent.core.backend.GenerationHandle {
                 callbacks.onError("model exploded")
-                return object : com.llamatik.teammate.backend.GenerationHandle {
+                return object : com.llamatik.agent.core.backend.GenerationHandle {
                     override fun cancel() {}
                     override val isCancelled = false
                 }
@@ -540,7 +540,7 @@ class BenchmarkHarnessTest {
         return BenchmarkTaskLoader.load(taskDir)
     }
 
-    private fun runnerFor(backend: com.llamatik.teammate.backend.AssistantBackend): BenchmarkRunner {
+    private fun runnerFor(backend: com.llamatik.agent.core.backend.AssistantBackend): BenchmarkRunner {
         val reportDir = tmp.newFolder()
         return BenchmarkRunner(backend, fakeConfig(), reportDir = reportDir, logsDir = File(reportDir, "logs"))
     }

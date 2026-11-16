@@ -1,6 +1,6 @@
-package com.llamatik.teammate.backend
+package com.llamatik.agent.core.backend
 
-import com.llamatik.teammate.model.ChatMessage
+import com.llamatik.agent.core.model.ChatMessage
 
 data class BackendConfig(
     val modelIdOrPath: String,

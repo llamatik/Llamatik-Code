@@ -6,9 +6,9 @@ import com.intellij.openapi.diagnostic.thisLogger
 import com.llamatik.teammate.ui.Strings
 import com.llamatik.core.platform.GenStream
 import com.llamatik.core.platform.MultimodalBridge
-import com.llamatik.teammate.backend.GenerationCallbacks
-import com.llamatik.teammate.backend.GenerationHandle
-import com.llamatik.teammate.model.AttachedImage
+import com.llamatik.agent.core.backend.GenerationCallbacks
+import com.llamatik.agent.core.backend.GenerationHandle
+import com.llamatik.agent.core.model.AttachedImage
 import com.llamatik.teammate.settings.LlamatikAppSettings
 import java.awt.RenderingHints
 import java.awt.image.BufferedImage

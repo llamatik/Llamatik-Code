@@ -1,5 +1,11 @@
 package com.llamatik.teammate.model
 
+import com.llamatik.agent.core.model.ChatRole
+import com.llamatik.agent.core.model.ChatMessage
+import com.llamatik.agent.core.model.AgentRole
+import com.llamatik.agent.core.model.ChatSession
+import com.llamatik.agent.core.model.EditProposal
+
 // Already in ChatModels.kt: ChatMessage, ChatRole, AgentRole, ChatSession, EditProposal, ModelDescriptor
 // New domain types:
 

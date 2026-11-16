@@ -4,9 +4,9 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.llamatik.teammate.memory.ProjectMemoryService
 import com.llamatik.teammate.tools.LlamatikTool
-import com.llamatik.teammate.tools.ToolCall
+import com.llamatik.agent.core.tools.ToolCall
 import com.llamatik.teammate.tools.ToolExecutionContext
-import com.llamatik.teammate.tools.ToolResult
+import com.llamatik.agent.core.tools.ToolResult
 
 class ProjectMemoryGetTool(project: Project) : BaseProjectTool(project) {
     override val name = "project_memory_get"

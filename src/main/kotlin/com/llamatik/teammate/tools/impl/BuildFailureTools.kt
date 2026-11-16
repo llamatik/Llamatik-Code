@@ -5,9 +5,9 @@ import com.intellij.openapi.project.Project
 import com.llamatik.teammate.build.BuildFailureService
 import com.llamatik.teammate.terminal.TerminalService
 import com.llamatik.teammate.tools.LlamatikTool
-import com.llamatik.teammate.tools.ToolCall
+import com.llamatik.agent.core.tools.ToolCall
 import com.llamatik.teammate.tools.ToolExecutionContext
-import com.llamatik.teammate.tools.ToolResult
+import com.llamatik.agent.core.tools.ToolResult
 
 class BuildFailureParseTool(project: Project) : BaseProjectTool(project) {
     override val name = "build_failure_parse"

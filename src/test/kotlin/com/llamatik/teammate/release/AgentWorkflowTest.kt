@@ -1,6 +1,6 @@
 package com.llamatik.teammate.release
 
-import com.llamatik.teammate.backend.BackendConfig
+import com.llamatik.agent.core.backend.BackendConfig
 import com.llamatik.teammate.benchmark.HeadlessAgent
 import org.junit.Assert.*
 import org.junit.Rule

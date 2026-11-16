@@ -6,7 +6,7 @@ import com.intellij.openapi.fileChooser.FileChooserDescriptor
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
 import com.intellij.util.ui.JBUI
-import com.llamatik.teammate.model.AttachedImage
+import com.llamatik.agent.core.model.AttachedImage
 import com.llamatik.teammate.ui.LlamatikTheme
 import com.llamatik.teammate.ui.Strings
 import java.awt.BorderLayout

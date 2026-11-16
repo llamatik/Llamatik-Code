@@ -7,7 +7,7 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.LocalFileSystem
-import com.llamatik.teammate.model.EditProposal
+import com.llamatik.agent.core.model.EditProposal
 import com.llamatik.teammate.ui.Strings
 
 @Service(Service.Level.PROJECT)

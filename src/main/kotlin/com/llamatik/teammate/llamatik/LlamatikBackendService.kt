@@ -5,11 +5,11 @@ import com.intellij.openapi.diagnostic.thisLogger
 import com.llamatik.teammate.ui.Strings
 import com.llamatik.core.platform.GenStream
 import com.llamatik.core.platform.LlamaSession
-import com.llamatik.teammate.backend.AssistantBackend
-import com.llamatik.teammate.backend.GenerationCallbacks
-import com.llamatik.teammate.backend.GenerationHandle
-import com.llamatik.teammate.backend.GenerationRequest
-import com.llamatik.teammate.backend.SessionTag
+import com.llamatik.agent.core.backend.AssistantBackend
+import com.llamatik.agent.core.backend.GenerationCallbacks
+import com.llamatik.agent.core.backend.GenerationHandle
+import com.llamatik.agent.core.backend.GenerationRequest
+import com.llamatik.agent.core.backend.SessionTag
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.Executors
@@ -275,7 +275,7 @@ class LlamatikBackendService : AssistantBackend {
     private fun trimAtStop(text: String, stops: List<String>): String =
         ChatPromptSupport.trimAtStop(text, stops)
 
-    private fun validateConfig(config: com.llamatik.teammate.backend.BackendConfig) {
+    private fun validateConfig(config: com.llamatik.agent.core.backend.BackendConfig) {
         require(config.contextLength >= 512) {
             "Context size must be at least 512 tokens (current: ${config.contextLength}). Adjust it in Inference Settings."
         }
@@ -300,7 +300,7 @@ class LlamatikBackendService : AssistantBackend {
      * while the first load's GPU allocation is still resident — which would double the
      * VRAM usage and OOM on constrained hardware (e.g. M1 Pro with a 27 GB model).
      */
-    private fun ensureModelReady(config: com.llamatik.teammate.backend.BackendConfig) {
+    private fun ensureModelReady(config: com.llamatik.agent.core.backend.BackendConfig) {
         val normalizedModelPath = validateModelPath(config.modelIdOrPath)
 
         synchronized(modelLock) {

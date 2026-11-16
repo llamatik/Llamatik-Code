@@ -46,6 +46,7 @@ dependencies {
         bundledPlugin("org.jetbrains.kotlin")
     }
 
+    implementation(project(":agent-core"))
     implementation("com.llamatik:core:2.3.0")
     testImplementation("junit:junit:4.13.2")
 }

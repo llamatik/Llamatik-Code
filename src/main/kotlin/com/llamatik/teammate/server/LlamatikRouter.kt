@@ -3,10 +3,10 @@ package com.llamatik.teammate.server
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.thisLogger
-import com.llamatik.teammate.backend.AssistantBackend
-import com.llamatik.teammate.backend.GenerationCallbacks
-import com.llamatik.teammate.backend.GenerationHandle
-import com.llamatik.teammate.backend.GenerationRequest
+import com.llamatik.agent.core.backend.AssistantBackend
+import com.llamatik.agent.core.backend.GenerationCallbacks
+import com.llamatik.agent.core.backend.GenerationHandle
+import com.llamatik.agent.core.backend.GenerationRequest
 import com.llamatik.teammate.llamatik.LlamatikBackendService
 import com.llamatik.teammate.settings.LlamatikAppSettings
 import java.util.concurrent.atomic.AtomicBoolean

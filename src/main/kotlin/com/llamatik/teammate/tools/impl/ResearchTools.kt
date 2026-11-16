@@ -8,9 +8,9 @@ import com.llamatik.teammate.external.research.ResearchSourceRouter
 import com.llamatik.teammate.external.research.ResearchTask
 import com.llamatik.teammate.settings.LlamatikAppSettings
 import com.llamatik.teammate.tools.LlamatikTool
-import com.llamatik.teammate.tools.ToolCall
+import com.llamatik.agent.core.tools.ToolCall
 import com.llamatik.teammate.tools.ToolExecutionContext
-import com.llamatik.teammate.tools.ToolResult
+import com.llamatik.agent.core.tools.ToolResult
 import com.llamatik.teammate.ui.Strings
 
 class ResearchPlanTool(private val project: Project) : LlamatikTool {

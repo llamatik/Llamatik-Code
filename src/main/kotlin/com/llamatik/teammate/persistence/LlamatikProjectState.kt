@@ -6,8 +6,8 @@ import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
 import com.intellij.openapi.components.StoragePathMacros
 import com.intellij.openapi.project.Project
-import com.llamatik.teammate.model.AgentRole
-import com.llamatik.teammate.model.ChatRole
+import com.llamatik.agent.core.model.AgentRole
+import com.llamatik.agent.core.model.ChatRole
 
 @State(name = "LlamatikProjectState", storages = [Storage(StoragePathMacros.WORKSPACE_FILE)])
 @Service(Service.Level.PROJECT)

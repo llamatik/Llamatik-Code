@@ -9,9 +9,9 @@ import com.intellij.ui.components.JBTextArea
 import com.intellij.util.ui.JBUI
 import com.llamatik.teammate.diff.DiffPreviewService
 import com.llamatik.teammate.llamatik.MultimodalBackendService
-import com.llamatik.teammate.model.AttachedImage
-import com.llamatik.teammate.model.ChatSession
-import com.llamatik.teammate.model.EditProposal
+import com.llamatik.agent.core.model.AttachedImage
+import com.llamatik.agent.core.model.ChatSession
+import com.llamatik.agent.core.model.EditProposal
 import com.llamatik.teammate.ui.LlamatikTheme
 import com.llamatik.teammate.ui.Strings
 import com.llamatik.teammate.ui.chat.ChatMessagePanel

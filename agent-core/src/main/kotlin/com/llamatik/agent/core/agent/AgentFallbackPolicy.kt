@@ -1,4 +1,4 @@
-package com.llamatik.teammate.agent
+package com.llamatik.agent.core.agent
 
 /**
  * Stateless fallback chain logic for Aggressive Agent Mode.

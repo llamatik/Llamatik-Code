@@ -5,8 +5,8 @@ import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.util.ui.AsyncProcessIcon
 import com.intellij.util.ui.JBUI
-import com.llamatik.teammate.model.ChatRole
-import com.llamatik.teammate.model.ChatSession
+import com.llamatik.agent.core.model.ChatRole
+import com.llamatik.agent.core.model.ChatSession
 import com.llamatik.teammate.ui.LlamatikTheme
 import com.llamatik.teammate.ui.Strings
 import java.awt.BorderLayout

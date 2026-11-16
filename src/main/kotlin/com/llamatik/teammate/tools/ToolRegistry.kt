@@ -1,5 +1,7 @@
 package com.llamatik.teammate.tools
 
+import com.llamatik.agent.core.tools.ToolCall
+import com.llamatik.agent.core.tools.ToolResult
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project

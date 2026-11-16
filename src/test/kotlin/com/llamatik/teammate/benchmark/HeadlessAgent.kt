@@ -1,15 +1,15 @@
 package com.llamatik.teammate.benchmark
 
 import com.llamatik.teammate.agent.AgentLoopTest
-import com.llamatik.teammate.agent.RoundDirective
-import com.llamatik.teammate.backend.AssistantBackend
-import com.llamatik.teammate.backend.BackendConfig
-import com.llamatik.teammate.backend.GenerationCallbacks
-import com.llamatik.teammate.backend.GenerationRequest
-import com.llamatik.teammate.model.ChatMessage
-import com.llamatik.teammate.model.ChatRole
-import com.llamatik.teammate.tools.ToolCall
-import com.llamatik.teammate.tools.ToolCallParser
+import com.llamatik.agent.core.agent.RoundDirective
+import com.llamatik.agent.core.backend.AssistantBackend
+import com.llamatik.agent.core.backend.BackendConfig
+import com.llamatik.agent.core.backend.GenerationCallbacks
+import com.llamatik.agent.core.backend.GenerationRequest
+import com.llamatik.agent.core.model.ChatMessage
+import com.llamatik.agent.core.model.ChatRole
+import com.llamatik.agent.core.tools.ToolCall
+import com.llamatik.agent.core.tools.ToolCallParser
 import java.io.File
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException

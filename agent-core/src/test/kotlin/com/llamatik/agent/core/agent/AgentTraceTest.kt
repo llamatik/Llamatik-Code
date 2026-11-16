@@ -1,4 +1,4 @@
-package com.llamatik.teammate.agent
+package com.llamatik.agent.core.agent
 
 import org.junit.Assert.*
 import org.junit.Test

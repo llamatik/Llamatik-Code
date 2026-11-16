@@ -227,7 +227,7 @@ class AtMentionHandler(
 
         // If the selected file is an image and an attachment bar is available, route
         // it there instead of inserting a text token.
-        if (imageBar != null && com.llamatik.teammate.model.AttachedImage.isImagePath(selected)) {
+        if (imageBar != null && com.llamatik.agent.core.model.AttachedImage.isImagePath(selected)) {
             val absolutePath = resolveAbsolutePath(selected)
             if (absolutePath != null) {
                 imageBar.notifyImageMention(absolutePath)

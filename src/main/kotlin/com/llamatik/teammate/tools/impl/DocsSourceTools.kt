@@ -7,9 +7,9 @@ import com.llamatik.teammate.external.docs.DocsSource
 import com.llamatik.teammate.external.docs.DocsSourceService
 import com.llamatik.teammate.external.docs.DocsSourceType
 import com.llamatik.teammate.tools.LlamatikTool
-import com.llamatik.teammate.tools.ToolCall
+import com.llamatik.agent.core.tools.ToolCall
 import com.llamatik.teammate.tools.ToolExecutionContext
-import com.llamatik.teammate.tools.ToolResult
+import com.llamatik.agent.core.tools.ToolResult
 import java.util.UUID
 
 class DocsSourcesListTool(private val project: Project) : LlamatikTool {

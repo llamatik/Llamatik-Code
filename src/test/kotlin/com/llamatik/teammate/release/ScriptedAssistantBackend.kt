@@ -1,9 +1,9 @@
 package com.llamatik.teammate.release
 
-import com.llamatik.teammate.backend.AssistantBackend
-import com.llamatik.teammate.backend.GenerationCallbacks
-import com.llamatik.teammate.backend.GenerationHandle
-import com.llamatik.teammate.backend.GenerationRequest
+import com.llamatik.agent.core.backend.AssistantBackend
+import com.llamatik.agent.core.backend.GenerationCallbacks
+import com.llamatik.agent.core.backend.GenerationHandle
+import com.llamatik.agent.core.backend.GenerationRequest
 
 /**
  * A scripted [AssistantBackend] that returns pre-defined responses in order.

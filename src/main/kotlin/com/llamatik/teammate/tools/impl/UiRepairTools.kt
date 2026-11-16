@@ -3,9 +3,9 @@ package com.llamatik.teammate.tools.impl
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.llamatik.teammate.tools.LlamatikTool
-import com.llamatik.teammate.tools.ToolCall
+import com.llamatik.agent.core.tools.ToolCall
 import com.llamatik.teammate.tools.ToolExecutionContext
-import com.llamatik.teammate.tools.ToolResult
+import com.llamatik.agent.core.tools.ToolResult
 import com.llamatik.teammate.ui_repair.UiRepairService
 
 class UiImageAnalyzeTool(project: Project) : BaseProjectTool(project) {

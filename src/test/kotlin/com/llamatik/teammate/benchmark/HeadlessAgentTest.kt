@@ -1,10 +1,10 @@
 package com.llamatik.teammate.benchmark
 
-import com.llamatik.teammate.backend.AssistantBackend
-import com.llamatik.teammate.backend.BackendConfig
-import com.llamatik.teammate.backend.GenerationCallbacks
-import com.llamatik.teammate.backend.GenerationHandle
-import com.llamatik.teammate.backend.GenerationRequest
+import com.llamatik.agent.core.backend.AssistantBackend
+import com.llamatik.agent.core.backend.BackendConfig
+import com.llamatik.agent.core.backend.GenerationCallbacks
+import com.llamatik.agent.core.backend.GenerationHandle
+import com.llamatik.agent.core.backend.GenerationRequest
 import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test

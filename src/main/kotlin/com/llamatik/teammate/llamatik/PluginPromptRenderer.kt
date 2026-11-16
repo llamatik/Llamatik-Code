@@ -1,7 +1,7 @@
 package com.llamatik.teammate.llamatik
 
-import com.llamatik.teammate.model.ChatMessage
-import com.llamatik.teammate.model.ChatRole
+import com.llamatik.agent.core.model.ChatMessage
+import com.llamatik.agent.core.model.ChatRole
 
 data class RenderedPrompt(val text: String, val stopSequences: List<String>)
 

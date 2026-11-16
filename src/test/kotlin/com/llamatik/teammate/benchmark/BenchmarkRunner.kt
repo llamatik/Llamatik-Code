@@ -1,7 +1,7 @@
 package com.llamatik.teammate.benchmark
 
-import com.llamatik.teammate.backend.AssistantBackend
-import com.llamatik.teammate.backend.BackendConfig
+import com.llamatik.agent.core.backend.AssistantBackend
+import com.llamatik.agent.core.backend.BackendConfig
 import java.io.File
 import java.nio.file.Files
 import java.time.Instant

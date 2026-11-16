@@ -1,4 +1,4 @@
-package com.llamatik.teammate.agent
+package com.llamatik.agent.core.agent
 
 data class AgentTrace(
     val steps: MutableList<AgentTraceStep> = mutableListOf(),

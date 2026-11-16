@@ -2,8 +2,8 @@ package com.llamatik.teammate.ui.chat
 
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
-import com.llamatik.teammate.model.ChatMessage
-import com.llamatik.teammate.model.ChatSession
+import com.llamatik.agent.core.model.ChatMessage
+import com.llamatik.agent.core.model.ChatSession
 import com.llamatik.teammate.persistence.ChatSessionStore
 import com.llamatik.teammate.ui.Strings
 

@@ -1,4 +1,4 @@
-package com.llamatik.teammate.agent
+package com.llamatik.agent.core.agent
 
 /**
  * Pure logic for choosing the next-round directive message sent to the model.

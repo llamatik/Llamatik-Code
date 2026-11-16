@@ -1,15 +1,17 @@
 package com.llamatik.teammate.agent
 
-import com.llamatik.teammate.backend.AssistantBackend
-import com.llamatik.teammate.backend.BackendConfig
-import com.llamatik.teammate.backend.GenerationCallbacks
-import com.llamatik.teammate.backend.GenerationHandle
-import com.llamatik.teammate.backend.GenerationRequest
-import com.llamatik.teammate.model.ChatMessage
-import com.llamatik.teammate.model.ChatRole
-import com.llamatik.teammate.model.EditProposal
-import com.llamatik.teammate.tools.ToolCall
-import com.llamatik.teammate.tools.ToolCallParser
+import com.llamatik.agent.core.agent.RoundDirective
+import com.llamatik.agent.core.agent.ProposalValidator
+import com.llamatik.agent.core.backend.AssistantBackend
+import com.llamatik.agent.core.backend.BackendConfig
+import com.llamatik.agent.core.backend.GenerationCallbacks
+import com.llamatik.agent.core.backend.GenerationHandle
+import com.llamatik.agent.core.backend.GenerationRequest
+import com.llamatik.agent.core.model.ChatMessage
+import com.llamatik.agent.core.model.ChatRole
+import com.llamatik.agent.core.model.EditProposal
+import com.llamatik.agent.core.tools.ToolCall
+import com.llamatik.agent.core.tools.ToolCallParser
 import org.junit.Assert.*
 import org.junit.Test
 

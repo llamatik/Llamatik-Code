@@ -1,17 +1,8 @@
 package com.llamatik.teammate.tools
 
 import com.intellij.openapi.project.Project
-
-data class ToolCall(
-    val name: String,
-    val arguments: Map<String, String>,
-)
-
-data class ToolResult(
-    val name: String,
-    val success: Boolean,
-    val content: String,
-)
+import com.llamatik.agent.core.tools.ToolCall
+import com.llamatik.agent.core.tools.ToolResult
 
 data class ToolExecutionContext(
     val project: Project,

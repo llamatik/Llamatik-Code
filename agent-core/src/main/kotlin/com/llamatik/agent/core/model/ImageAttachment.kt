@@ -1,4 +1,4 @@
-package com.llamatik.teammate.model
+package com.llamatik.agent.core.model
 
 import java.awt.image.BufferedImage
 import java.io.ByteArrayInputStream

@@ -3,10 +3,10 @@ package com.llamatik.teammate.persistence
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
-import com.llamatik.teammate.model.AgentRole
-import com.llamatik.teammate.model.ChatMessage
-import com.llamatik.teammate.model.ChatRole
-import com.llamatik.teammate.model.ChatSession
+import com.llamatik.agent.core.model.AgentRole
+import com.llamatik.agent.core.model.ChatMessage
+import com.llamatik.agent.core.model.ChatRole
+import com.llamatik.agent.core.model.ChatSession
 import java.util.UUID
 
 @Service(Service.Level.PROJECT)

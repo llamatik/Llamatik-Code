@@ -5,9 +5,9 @@ import com.intellij.openapi.project.Project
 import com.llamatik.teammate.benchmark.ModelBenchmarkService
 import com.llamatik.teammate.settings.LlamatikAppSettings
 import com.llamatik.teammate.tools.LlamatikTool
-import com.llamatik.teammate.tools.ToolCall
+import com.llamatik.agent.core.tools.ToolCall
 import com.llamatik.teammate.tools.ToolExecutionContext
-import com.llamatik.teammate.tools.ToolResult
+import com.llamatik.agent.core.tools.ToolResult
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 

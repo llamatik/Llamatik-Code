@@ -17,9 +17,9 @@ import com.llamatik.teammate.codehealth.RunTrigger
 import com.llamatik.teammate.codehealth.WatchedAreaService
 import com.llamatik.teammate.codehealth.WatchedAreaType
 import com.llamatik.teammate.tools.LlamatikTool
-import com.llamatik.teammate.tools.ToolCall
+import com.llamatik.agent.core.tools.ToolCall
 import com.llamatik.teammate.tools.ToolExecutionContext
-import com.llamatik.teammate.tools.ToolResult
+import com.llamatik.agent.core.tools.ToolResult
 
 private const val DISABLED_MSG =
     "Code Health Monitor is not enabled. Enable it in Settings → Llamatik Code → Code Health Monitor."

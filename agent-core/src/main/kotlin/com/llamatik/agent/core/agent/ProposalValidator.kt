@@ -1,4 +1,4 @@
-package com.llamatik.teammate.agent
+package com.llamatik.agent.core.agent
 
 /**
  * Pure validation logic for file-write proposals produced by tool calls.

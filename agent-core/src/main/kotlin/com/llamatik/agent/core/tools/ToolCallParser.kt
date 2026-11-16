@@ -1,4 +1,4 @@
-package com.llamatik.teammate.tools
+package com.llamatik.agent.core.tools
 
 object ToolCallParser {
     private val toolPattern = Regex("<tool_call\\s+name=\\\"([^\\\"]+)\\\">(.*?)</tool_call>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
