@@ -55,20 +55,18 @@ class StreamFilterTest {
 
     @Test
     fun `chat mode streams answer text and drops reasoning`() {
-        // Tokens that carry a whole tag (typical: tags are single special tokens).
-        assertEquals("Hello world", chat("Hello <think>secret</think>world", 100))
+        for (chunk in listOf(1, 2, 3, 5, 8, 100)) {
+            assertEquals("chunk=$chunk", "Hello world", chat("Hello <think>secret</think>world", chunk))
+        }
         // The opening tag may be split across tokens: it is held back until resolved.
         assertEquals("Hello ", chat("Hello <think>secret", 1))
     }
 
-    /**
-     * Characterization of an existing quirk (kept as is, see the Phase 3 report): inside a think
-     * block chat mode throws buffered text away on every token, so a `</think>` that arrives split
-     * across tokens is never recognised and the rest of the reply is lost.
-     */
     @Test
-    fun `chat mode loses the reply after a closing think tag split across tokens (known quirk)`() {
-        assertEquals("Hello ", chat("Hello <think>secret</think>world", 1))
+    fun `chat mode recognises a closing think tag split across tokens`() {
+        // Used to drop the rest of the reply: buffered text was thrown away on every token inside a think block.
+        assertEquals("Hello world", chat("Hello <think>secret</think>world", 1))
+        assertEquals("Hello world", chat("Hello <think>a < b</think>world", 1))
     }
 
     @Test

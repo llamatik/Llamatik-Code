@@ -95,4 +95,17 @@ class ProposalValidatorTest {
         """.trimIndent()
         valid("shared/src/test/kotlin/DCSAuthRepositoryTest.kt", content)
     }
+
+    @Test
+    fun `rejects content that is a tool call instead of file content`() {
+        val reply = """<tool_call name="read_file"><arg name="path">src/A.kt</arg></tool_call>"""
+        assertTrue(ProposalValidator.validate("src/A.kt", reply) is ProposalValidator.Result.Invalid)
+        assertTrue(ProposalValidator.validate("src/A.kt", "class A\n</tool_call>") is ProposalValidator.Result.Invalid)
+        assertTrue(ProposalValidator.validate("src/A.kt", "val s = \"<tool_call>\"") is ProposalValidator.Result.Invalid)
+    }
+
+    @Test
+    fun `accepts ordinary content that merely mentions tools`() {
+        assertTrue(ProposalValidator.validate("docs/Tools.md", "Use the read_file tool to open files.") is ProposalValidator.Result.Valid)
+    }
 }

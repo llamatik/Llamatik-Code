@@ -10,5 +10,10 @@ TOKEN <<<l>>>
 TOKEN <<<l>>>
 TOKEN <<<o>>>
 TOKEN <<< >>>
+TOKEN <<<w>>>
+TOKEN <<<o>>>
+TOKEN <<<r>>>
+TOKEN <<<l>>>
+TOKEN <<<d>>>
 CHAT_FINISHED <<<Hello world>>>
 SESSION USER editProposal=false <<<hi>>>

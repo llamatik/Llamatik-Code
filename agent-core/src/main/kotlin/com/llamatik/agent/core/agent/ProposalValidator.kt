@@ -24,6 +24,7 @@ object ProposalValidator {
      * 3. Path must not contain newlines (model mixed content into path argument)
      * 4. Content must be non-blank
      * 5. Content must not contain tool-invocation patterns (model confused tool syntax with code)
+     * 6. Content must not contain tool-call markup (a reply that was meant as a tool call, not a file)
      */
     fun validate(path: String, newContent: String): Result {
         if (path.isBlank())
@@ -36,8 +37,13 @@ object ProposalValidator {
             return Result.Invalid("empty content")
         if (TOOL_INVOCATION_PATTERN.containsMatchIn(newContent))
             return Result.Invalid("content contains tool invocation syntax — model confused tool calls with code")
+        if (TOOL_MARKUP_PATTERN.containsMatchIn(newContent))
+            return Result.Invalid("content contains tool call markup — the reply was a tool call, not file content")
         return Result.Valid
     }
+
+    // The XML wrapper of a tool call, e.g. when a forced write pass answered with a tool call instead of a file.
+    private val TOOL_MARKUP_PATTERN = Regex("""</?tool_call\b""", RegexOption.IGNORE_CASE)
 
     // Detects model-hallucinated tool invocations inside file content, e.g.:
     //   autorun(search_code("..."))  or  list_files("src")

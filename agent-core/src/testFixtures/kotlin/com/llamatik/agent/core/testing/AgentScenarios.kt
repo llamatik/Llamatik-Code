@@ -128,6 +128,27 @@ object AgentScenarios {
             toolResults = mapOf("list_files" to listOf("src/Calc.kt"))),
         AgentScenario("chat-backend-error", "hi", listOf("unused"), chat = true, errorAtCall = 1, history = listOf(user("hi"))),
 
+        // ── Regression scenarios for the Phase 4 fixes ─────────────────────────────
+        AgentScenario("question-about-attached-file-keeps-its-answer", "explain @{src/Calc.kt}",
+            listOf("The add function subtracts its arguments instead of adding them, which is a bug."), files = files),
+        AgentScenario("read-then-explain-keeps-its-answer", "how does Calc.kt work?",
+            listOf(call("read_file", "path" to "src/Calc.kt"), "It defines one function, add, that is meant to sum two integers."),
+            files = files, toolResults = mapOf("read_file" to listOf(calc))),
+        AgentScenario("repeated-identical-read-is-bounded", "fix the add function in src/Calc.kt",
+            List(12) { call("read_file", "path" to "src/Calc.kt") }, files = files,
+            toolResults = mapOf("read_file" to listOf(calc))),
+        AgentScenario("repeated-identical-read-question-is-bounded", "what does src/Calc.kt do?",
+            List(12) { call("read_file", "path" to "src/Calc.kt") }, files = files,
+            toolResults = mapOf("read_file" to listOf(calc))),
+        AgentScenario("forced-write-pass-blank-reply-writes-nothing", "fix the bug in @{src/Calc.kt}",
+            listOf("I believe the minus sign is wrong in the add function, it should be a plus.", "", "", ""),
+            files = files),
+        AgentScenario("forced-write-pass-reply-with-own-tool-call", "fix the bug in @{src/Calc.kt}",
+            listOf("I believe the minus sign is wrong in the add function, it should be a plus.",
+                call("read_file", "path" to "src/Util.kt"), write("src/Calc.kt", calcFixed)),
+            files = files,
+            toolResults = mapOf("read_file" to listOf("object Util"), "write_file" to listOf(prepared("src/Calc.kt", calc, calcFixed)))),
+
         // ── Ask / chat ──────────────────────────────────────────────────────────
         AgentScenario("chat-simple", "What is Kotlin?", listOf("Kotlin is a modern language for the JVM."), chat = true,
             history = listOf(user("What is Kotlin?"))),

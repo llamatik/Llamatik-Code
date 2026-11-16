@@ -6,7 +6,6 @@ import com.llamatik.agent.core.backend.GenerationCallbacks
 import com.llamatik.agent.core.backend.GenerationHandle
 import com.llamatik.agent.core.backend.GenerationRequest
 import org.junit.Assert.*
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
@@ -15,13 +14,6 @@ import java.io.File
 class HeadlessAgentTest {
 
     @get:Rule val tmp = TemporaryFolder()
-
-    private companion object {
-        /** See the KNOWN DEFECT D1 note in agent-core's AgentLoopTest: read-then-prose is escalated to a write pass. */
-        const val D1 = "KNOWN DEFECT D1: a read-only round followed by a prose answer is escalated to a forced write pass, " +
-            "which executes an extra write_file and replaces the answer"
-        const val D2 = "KNOWN DEFECT D2: an endlessly repeated read-only call is never cut off at maxRounds (StackOverflowError here)"
-    }
 
     // ── prose response ───────────────────────────────────────────────────────
 
@@ -51,7 +43,6 @@ class HeadlessAgentTest {
 
     // ── read_file ────────────────────────────────────────────────────────────
 
-    @Ignore(D1)
     @Test
     fun `read_file returns file content`() {
         val root = tmp.newFolder("repo")
@@ -308,7 +299,6 @@ class HeadlessAgentTest {
         assertEquals("fun fixed() = 1", File(root, "Calc.kt").readText())
     }
 
-    @Ignore(D2)
     @Test
     fun `maxRounds limit stops loop even if model keeps calling tools`() {
         val root = tmp.newFolder("repo")
@@ -358,7 +348,6 @@ class HeadlessAgentTest {
         assertEquals(listOf("list_files"), result.toolsExecuted)
     }
 
-    @Ignore(D1)
     @Test
     fun `multiple tool calls in one round all executed`() {
         val root = tmp.newFolder("repo")

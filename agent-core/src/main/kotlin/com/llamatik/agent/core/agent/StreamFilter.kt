@@ -108,7 +108,10 @@ class StreamFilter(
                     tokenBuffer.append(buf.substring(closeIdx + THINK_CLOSE.length))
                     continue
                 }
+                // Reasoning is discarded, but a closing tag split across tokens must still be recognised.
+                val holdLen = holdLenForTags(buf, listOf(THINK_CLOSE))
                 tokenBuffer.clear()
+                if (holdLen > 0) tokenBuffer.append(buf.takeLast(holdLen))
                 break
             }
         }

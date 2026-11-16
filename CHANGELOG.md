@@ -8,6 +8,15 @@
 - **Automatic fallback and recovery** — when the server becomes unreachable the plugin switches back to the local model (configurable) and returns to the server by itself once it answers again.
 - **Resumable generations** — if the connection drops mid-generation the request is resumed with the server (no lost or duplicated text); if the server can no longer resume, the request is restarted or re-run locally.
 
+### Fixed
+- **Questions keep their answer** — after reading files or running a tool, a prose reply to a question ("what files are in src?", "explain @File.kt") is shown instead of being replaced by a forced "write the file" pass. The forced write pass now only applies to requests that ask for an edit.
+- **No endless agent loop** — a model that repeats the same read-only call can no longer keep the agent running forever.
+- **Forced write pass hardening** — a reply that is a tool call (or empty) can no longer become the content of an edit proposal; empty replies are retried.
+- **Thinking is disabled on every agent round**, as intended, not only on the write pass.
+- **Ask tab** — a reply whose `</think>` tag arrived split across tokens is no longer cut off.
+- **Secret files at the project root** (`.env`, `local.properties`, `secrets.json`, `*.keystore`) are now hidden from the agent like those in subdirectories.
+- `terminal_last_output` returns the most recent command's output instead of the slowest one.
+
 ### Changed
 - Llamatik library updated to 2.3.0.
 

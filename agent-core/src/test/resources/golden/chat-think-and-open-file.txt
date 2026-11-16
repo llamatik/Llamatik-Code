@@ -12,5 +12,20 @@ Selected text: return a - b
 Project instructions: Be terse.
 >>>
 MSG USER tool=null editProposal=false <<<explain this>>>
+TOKEN <<<It >>>
+TOKEN <<<add>>>
+TOKEN <<<s t>>>
+TOKEN <<<wo >>>
+TOKEN <<<num>>>
+TOKEN <<<ber>>>
+TOKEN <<<s (>>>
+TOKEN <<<inc>>>
+TOKEN <<<orr>>>
+TOKEN <<<ect>>>
+TOKEN <<<ly)>>>
+TOKEN <<<.>>>
+TOKEN <<<<end_of_turn>i>>>
+TOKEN <<<gno>>>
+TOKEN <<<red>>>
 CHAT_FINISHED <<<It adds two numbers (incorrectly).<end_of_turn>ignored>>>
 SESSION USER editProposal=false <<<explain this>>>

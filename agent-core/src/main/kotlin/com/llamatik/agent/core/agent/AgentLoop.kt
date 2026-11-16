@@ -63,21 +63,13 @@ class AgentLoop(
         //   AGENT_HISTORY_BUDGET_CHARS — prior turn history
         //   USER_INSTRUCTION_MAX_CHARS — current user turn text
         //   1_200                      — context hint + file-section wrappers + safety margin
-        val effectiveContextChars = config.contextLength * 3
-        // Mirror the 90% safety margin used in LlamatikBackendService so budget and check agree.
-        val safeContextChars = (effectiveContextChars * 0.9).toInt()
-        val nonFileOverheadChars = SYSTEM_PROMPT_BASE_CHARS + AGENT_HISTORY_BUDGET_CHARS + USER_INSTRUCTION_MAX_CHARS + 1_200
-        val fileBudgetChars = (safeContextChars - nonFileOverheadChars).coerceAtLeast(0)
-        val fileAttachmentMax    = fileBudgetChars
-        val fileContextMax       = fileBudgetChars
-        // Per-result cap: the full file budget, floored so small contextSize settings never zero out.
-        val toolResultContentMax = fileBudgetChars.coerceAtLeast(TOOL_RESULT_CONTENT_MAX_CHARS)
-        // Round 2 user turn holds BOTH source re-injection AND tool results in the same message.
-        // Budget them jointly against safeContextChars so their sum never exceeds the backend limit.
-        // The second-pass system prompt is tiny (~500 chars); reserve 1_200 for it + misc overhead.
-        val round2ContentBudget  = (safeContextChars - 1_200).coerceAtLeast(0)
-        val toolResultsMax       = (round2ContentBudget * 2 / 3).coerceAtLeast(TOOL_RESULTS_MAX_CHARS)
-        val round2FileContextMax = (round2ContentBudget / 3).coerceAtLeast(3_000)
+        val budget = PromptBudget(config.contextLength)
+        val safeContextChars = budget.safeContextChars
+        val fileAttachmentMax    = budget.fileAttachmentMax
+        val fileContextMax       = budget.fileContextMax
+        val toolResultContentMax = budget.toolResultContentMax
+        val toolResultsMax       = budget.toolResultsMax
+        val round2FileContextMax = budget.round2FileContextMax
 
         val cancelled = AtomicBoolean(false)
         // Tracks whichever backend call is currently active so cancel() always reaches the live handle.
@@ -107,6 +99,9 @@ class AgentLoop(
         // compiler output). Without this the model sees the URI but cannot resolve it to project source.
         val (buildErrorContext, buildErrorPaths) = fileReferences.resolveBuildErrorReferences(cleanInstruction, fileAttachmentMax)
         val fileContext = listOf(atFileContext, currentFileContext, buildErrorContext).filter { it.isNotBlank() }.joinToString("\n\n")
+
+        // Edit requests get a forced write pass when the model answers in prose; questions keep their answer.
+        val wantsEdit = TaskIntent.wantsEdit(cleanInstruction)
 
         val contextHint = promptBuilder.buildContextHint()
 
@@ -264,7 +259,7 @@ class AgentLoop(
                     systemPrompt = roundSystemPrompt,
                     messages = messages,
                     config = config.copy(maxTokens = roundMaxTokens),
-                    noThink = prefill.isNotBlank() || effectiveFileContext.isNotBlank(),
+                    noThink = true,
                     sessionTag = SessionTag.AGENT,
                     assistantPrefill = prefill,
                 ),
@@ -278,7 +273,15 @@ class AgentLoop(
                         if (cancelled.get()) return
                         // When assistant prefill was used, the model generated text AFTER the prefill.
                         // Reconstruct the full tool call by prepending the prefill back.
-                        val textWithPrefill = if (prefill.isNotBlank()) prefill + fullText else fullText
+                        // A reply that opens a fresh tool call ignored the prefill: use it as is, never glue the two.
+                        val modelStartedOwnCall = prefill.isNotBlank() && fullText.trimStart().startsWith("<tool_call", ignoreCase = true)
+                        // The prefill alone is not an answer: a model that produced nothing after it said nothing.
+                        val modelSaidNothing = prefill.isNotBlank() && ToolCallParser.stripThinking(fullText).isBlank()
+                        val textWithPrefill = when {
+                            modelSaidNothing -> ""
+                            prefill.isNotBlank() && !modelStartedOwnCall -> prefill + fullText
+                            else -> fullText
+                        }
                         // Base models echo injected context/prompts verbatim before generating.
                         // Round 1: strip leading echo of the user instruction and any echoed file context.
                         // Round > 1: strip echo of the injected tool-results user turn.
@@ -319,7 +322,7 @@ class AgentLoop(
                         // directly rather than showing "file not found" to the user.
                         // Bounds: round < limits.maxRounds - 1 to avoid re-entering this path recursively.
                         val hasFileInContext = effectiveFileContext.isNotBlank()
-                        val shouldEscalateToWrite = toolCalls.isEmpty() && round < limits.maxRounds - 1 &&
+                        val shouldEscalateToWrite = wantsEdit && toolCalls.isEmpty() && round < limits.maxRounds - 1 &&
                             (hasReadContent || (hasFileInContext && round == 1))
                         if (shouldEscalateToWrite) {
                             val finalDirective = RoundDirective.get(RoundDirective.RoundState(
@@ -532,7 +535,9 @@ class AgentLoop(
                         val wroteFiles = toolCalls.any { it.name in policy.editToolNames }
                         // All calls this round were dedup synthetic — no new information can arrive.
                         // Escalate directly to the final-round write pass instead of burning another round.
-                        if (allCallsDuplicate && roundProposals.isEmpty()) {
+                        // Only for edit requests, and never from the write pass itself: re-entering it would repeat
+                        // forever for a model that keeps issuing the same call.
+                        if (wantsEdit && allCallsDuplicate && roundProposals.isEmpty() && round < limits.maxRounds - 1) {
                             val finalDirective = RoundDirective.get(RoundDirective.RoundState(
                                 round = limits.maxRounds - 1,
                                 maxRounds = limits.maxRounds,
@@ -597,7 +602,7 @@ class AgentLoop(
                         // With file explicitly attached: escalate after round 1 (file already in context, no exploration needed).
                         // Without attachment but file read via tools: escalate after round 2.
                         val minWriteEscalationRound = if (effectiveFileContext.isNotBlank()) 1 else 2
-                        if (hasFileContextNow && nowHasReadContent && allReadOnly && roundProposals.isEmpty()
+                        if (wantsEdit && hasFileContextNow && nowHasReadContent && allReadOnly && roundProposals.isEmpty()
                             && round >= minWriteEscalationRound && round < limits.maxRounds - 1) {
                             val writeDirective = RoundDirective.get(RoundDirective.RoundState(
                                 round = limits.maxRounds - 1, maxRounds = limits.maxRounds, hasReadContent = true,

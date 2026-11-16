@@ -1,0 +1,82 @@
+REQUEST #1 tag=AGENT noThink=true maxTokens=2048 ctx=16384 prefill=''
+SYSTEM <<<You are Llamatik Code, an autonomous local development agent for IntelliJ. You plan, patch, review, and verify code locally — all source code stays on the user's machine.
+LANGUAGE: This is a Kotlin project. You MUST write ALL code exclusively in Kotlin.
+NEVER output Python, Java, or any other language. Only Kotlin.
+OUTPUT FORMAT — strictly follow this every response:
+  Optional: <think>brief reasoning</think>
+  Then IMMEDIATELY one of:
+    A) One or more tool calls (no prose before or after the XML)
+    B) write_file/create_file tool calls to apply changes
+    C) A plain-text answer (only when no file changes are needed)
+NEVER write prose like 'I will now...' or 'I'll start by...' — go straight to the tool call or answer.
+Use ONLY file paths that exist in the project. Never invent paths.
+Tools: list_files | read_file | search_code | search_filenames | write_file | create_file | replace_in_file | git_status
+Tool call format: <tool_call name="TOOL"><arg name="ARG">VALUE</arg></tool_call>
+Examples:
+  <tool_call name="search_code"><arg name="query">ClassName</arg></tool_call>
+  <tool_call name="list_files"><arg name="path">src</arg></tool_call>
+  <tool_call name="read_file"><arg name="path">src/Main.kt</arg></tool_call>
+  <tool_call name="git_status"></tool_call>
+  <tool_call name="write_file"><arg name="path">src/Main.kt</arg><arg name="content">…</arg></tool_call>
+
+
+=== Attached files ===
+The following file contents are ALREADY provided below. Do NOT call read_file, search_code, or list_files to retrieve them again — use the content directly.
+### File: src/Calc.kt
+```
+fun add(a: Int, b: Int): Int {
+    return a - b
+}
+
+```
+=== End attached files ===
+>>>
+MSG USER tool=null editProposal=false <<<explain Calc.kt
+
+Project context:
+- project: demo
+- language: Kotlin — ALL generated code MUST be written in Kotlin
+
+
+The file content is already provided above in the system prompt. If you need to look up a symbol in a related file call read_file ONCE, then immediately call write_file with the complete modified file. Do NOT loop — one optional read then write.>>>
+COUNT 1
+COUNT 2
+COUNT 3
+COUNT 4
+COUNT 5
+COUNT 6
+COUNT 7
+COUNT 8
+COUNT 9
+COUNT 10
+COUNT 11
+COUNT 12
+COUNT 13
+COUNT 14
+COUNT 15
+COUNT 16
+COUNT 17
+COUNT 18
+COUNT 19
+COUNT 20
+FINISHED role=ASSISTANT hasProposalId=false <<<The add function subtracts its arguments instead of adding them, which is a bug.>>>
+SESSION USER editProposal=false <<<explain Calc.kt
+
+Project context:
+- project: demo
+- language: Kotlin — ALL generated code MUST be written in Kotlin
+
+
+The file content is already provided above in the system prompt. If you need to look up a symbol in a related file call read_file ONCE, then immediately call write_file with the complete modified file. Do NOT loop — one optional read then write.
+
+
+[attached_file_context]
+
+### File: src/Calc.kt
+```
+fun add(a: Int, b: Int): Int {
+    return a - b
+}
+
+```>>>
+SESSION ASSISTANT editProposal=false <<<The add function subtracts its arguments instead of adding them, which is a bug.>>>

@@ -28,28 +28,10 @@ import org.junit.Test
  */
 class PromptBudgetTest {
 
-    // ── Mirror of the production formula in AgentOrchestrator.submit() ────────
-
-    private val SYSTEM_PROMPT_BASE_CHARS   = 3_000
-    private val AGENT_HISTORY_BUDGET_CHARS = 4_000
-    private val USER_INSTRUCTION_MAX_CHARS = 800
-    private val SAFETY_MARGIN              = 1_200
-    private val nonFileOverheadChars       = SYSTEM_PROMPT_BASE_CHARS +
-                                             AGENT_HISTORY_BUDGET_CHARS +
-                                             USER_INSTRUCTION_MAX_CHARS +
-                                             SAFETY_MARGIN   // = 9 000
-
-    private val TOOL_RESULT_CONTENT_MAX_CHARS = 8_000
-    private val TOOL_RESULTS_MAX_CHARS        = 8_000
-
-    private fun fileBudget(contextSize: Int): Int =
-        (contextSize * 3 - nonFileOverheadChars).coerceAtLeast(0)
-
-    private fun toolResultContentMax(contextSize: Int): Int =
-        fileBudget(contextSize).coerceAtLeast(TOOL_RESULT_CONTENT_MAX_CHARS)
-
-    private fun toolResultsMax(contextSize: Int): Int =
-        (fileBudget(contextSize) * 2).coerceAtLeast(TOOL_RESULTS_MAX_CHARS)
+    // The budget is computed by production code (PromptBudget), not by a copy of its formula.
+    private fun fileBudget(contextSize: Int): Int = PromptBudget(contextSize).fileBudgetChars
+    private fun toolResultContentMax(contextSize: Int): Int = PromptBudget(contextSize).toolResultContentMax
+    private fun toolResultsMax(contextSize: Int): Int = PromptBudget(contextSize).toolResultsMax
 
     // ── Budget-formula unit tests ─────────────────────────────────────────────
 
@@ -66,27 +48,40 @@ class PromptBudgetTest {
     }
 
     @Test
-    fun `default contextSize 16384 - formula yields 40152, well above floor`() {
-        // 16384 * 3 = 49152 − 9000 = 40152
-        assertEquals(40_152, toolResultContentMax(contextSize = 16384))
+    fun `default contextSize 16384 - formula yields 35236, well above floor`() {
+        // 16384 * 3 = 49152, × 0.9 safety margin = 44236, − 9000 overhead = 35236
+        // (the earlier expectation of 40152 predates the 90% safety margin)
+        assertEquals(35_236, toolResultContentMax(contextSize = 16384))
     }
 
     @Test
-    fun `contextSize 32768 - formula yields 89304`() {
-        // 32768 * 3 = 98304 − 9000 = 89304
-        assertEquals(89_304, toolResultContentMax(contextSize = 32768))
+    fun `contextSize 32768 - formula yields 79473`() {
+        // 32768 * 3 = 98304, × 0.9 = 88473, − 9000 = 79473
+        assertEquals(79_473, toolResultContentMax(contextSize = 32768))
     }
 
     @Test
-    fun `toolResultsMax is double the per-result cap for concurrent reads`() {
-        // Ensures two simultaneous read_file calls both fit in the summary block
-        listOf(8192, 16384, 32768).forEach { ctx ->
-            val perResult = toolResultContentMax(ctx)
-            val total     = toolResultsMax(ctx)
+    fun `tool results and re-injected source are budgeted jointly inside the context`() {
+        // The round-2 user turn carries both, so their caps must add up to no more than the round-2 budget
+        // (which itself is inside the safe context). The floors only apply to tiny contexts.
+        listOf(8192, 16384, 32768, 65536).forEach { ctx ->
+            val b = PromptBudget(ctx)
             assertTrue(
-                "toolResultsMax ($total) must be ≥ 2 × toolResultContentMax ($perResult) for contextSize=$ctx",
-                total >= perResult * 2,
+                "toolResultsMax + round2FileContextMax must fit round2ContentBudget for contextSize=$ctx",
+                b.toolResultsMax + b.round2FileContextMax <= b.round2ContentBudget,
             )
+            assertTrue(b.round2ContentBudget < b.safeContextChars)
+        }
+    }
+
+    @Test
+    fun `a single result may use the whole file budget but never more than the joint cap allows`() {
+        listOf(16384, 32768).forEach { ctx ->
+            val b = PromptBudget(ctx)
+            assertEquals(b.fileBudgetChars, b.toolResultContentMax)
+            // Documents the real relationship: one maximal result can exceed the joint tool-results cap and is then
+            // truncated there, so two maximal results do NOT both fit (the old test claimed they would).
+            assertTrue(b.toolResultsMax < 2 * b.toolResultContentMax)
         }
     }
 
@@ -118,7 +113,7 @@ class PromptBudgetTest {
             "Budget with contextSize=16384 must be > 0 regardless of batchSize (got $budget16k)",
             budget16k > 0,
         )
-        assertEquals("contextSize=16384 must yield 40152-char budget", 40_152, budget16k)
+        assertEquals("contextSize=16384 must yield a 35236-char budget", 35_236, budget16k)
     }
 
     // ── File-size coverage assertions ─────────────────────────────────────────

@@ -4,13 +4,12 @@ import com.llamatik.agent.core.testing.AgentRun
 import com.llamatik.agent.core.testing.FakeBackend
 import com.llamatik.agent.core.testing.FakeToolRegistry
 import org.junit.Assert.*
-import org.junit.Ignore
 import org.junit.Test
 
 /**
  * Behavioural tests of the agent loop, driving the REAL [AgentLoop] with a scripted backend and tool
- * registry. (They used to drive a test-only copy of the loop that had drifted from production; see
- * docs/agent-core-extraction.md, Phase 4.)
+ * registry. (They used to drive a test-only copy of the loop that had drifted from production; porting
+ * them exposed the defects fixed in Phase 4. See docs/agent-core-extraction.md.)
  *
  * [LoopHarness] keeps the call shape of the old copy: `rounds` is the number of backend calls, a
  * `fileAttached` run attaches a file with `@{...}` like the composer does.
@@ -25,21 +24,6 @@ class AgentLoopTest {
         val proposalPaths: List<String> = emptyList(),
     )
 
-
-    private companion object {
-        /**
-         * Known defects of the production loop that the old test-only copy hid (it implemented the
-         * intended behaviour; production never did). The tests that state the intended behaviour are
-         * @Ignore'd rather than weakened, and the actual behaviour is pinned by the `known defect`
-         * tests at the end of this class. See the Phase 4 report.
-         */
-        const val D1 = "KNOWN DEFECT D1: after a read-only round the loop treats a prose answer as 'model failed to write' " +
-            "and forces a write pass, so plain Q&A ('list/read, then explain') loses its answer"
-        const val D2 = "KNOWN DEFECT D2: re-escalating an all-duplicate round at the write pass never terminates when the model " +
-            "keeps repeating the same read-only call (and the write pass is exempt from the session timeout)"
-        const val D3 = "KNOWN DEFECT D3: noThink is only set for the write pass or when a file is attached, " +
-            "although the code comment says 'disable thinking on ALL agent rounds'"
-    }
 
     private class LoopHarness(
         private val backend: FakeBackend,
@@ -97,7 +81,6 @@ class AgentLoopTest {
 
     // ── Tests: tool call execution ───────────────────────────────────────────
 
-    @Ignore(D1)
     @Test
     fun `loop executes list_files tool call and continues to round 2`() {
         val backend = FakeBackend(
@@ -150,7 +133,6 @@ class AgentLoopTest {
         assertTrue("Hallucinated tool should not be executed", result.toolsExecuted.isEmpty())
     }
 
-    @Ignore(D1)
     @Test
     fun `loop respects MAX_TOOL_CALLS_PER_ROUND cap`() {
         // Model emits 6 tool calls; only first 4 should be executed
@@ -166,7 +148,6 @@ class AgentLoopTest {
 
     // ── Tests: MAX_ROUNDS hard cap ───────────────────────────────────────────
 
-    @Ignore(D2)
     @Test
     fun `loop stops at MAX_ROUNDS even if model keeps emitting tool calls`() {
         // Model always responds with a tool call — loop must stop at maxRounds
@@ -226,7 +207,6 @@ class AgentLoopTest {
 
     // ── Tests: think-block round-trip ────────────────────────────────────────
 
-    @Ignore(D1)
     @Test
     fun `tool call after think block is correctly extracted`() {
         val response = "<think>I should list files first.</think>\n" +
@@ -239,7 +219,6 @@ class AgentLoopTest {
         assertEquals(2, result.rounds)
     }
 
-    @Ignore(D1)
     @Test
     fun `multiple tool calls in single response are all executed`() {
         val response = """
@@ -328,7 +307,6 @@ class AgentLoopTest {
 
     // ── Tests: think-leak suppression after tool rounds ──────────────────────
 
-    @Ignore(D1)
     @Test
     fun `think content does not leak into answer panel after tool rounds`() {
         // Simulates the code-review scenario from the bug report:
@@ -340,11 +318,14 @@ class AgentLoopTest {
         )
         val loop = LoopHarness(backend, FakeToolRegistry(mapOf("list_files" to "src/Main.kt")))
         val result = loop.run("Code review")
-        assertEquals(2, result.rounds)
-        assertTrue(
+        // Round 2 is retried MAX_EMPTY_RETRIES times: after stripping <think> nothing is left.
+        assertEquals(2 + MAX_EMPTY_RETRIES, result.rounds)
+        // The panel shows the generic "no written summary" notice (never blank), not the model's reasoning.
+        assertFalse(
             "Reasoning must not leak into answer panel after tool rounds",
-            result.finalMessage.isBlank(),
+            result.finalMessage.contains("Okay let me plan") || result.finalMessage.contains("search_filenames"),
         )
+        assertTrue(result.finalMessage.isNotBlank())
     }
 
     @Test
@@ -364,7 +345,6 @@ class AgentLoopTest {
 
     // ── Tests: git/read-only tools count as hasReadContent ───────────────────
 
-    @Ignore(D1)
     @Test
     fun `git_status tool call sets hasReadContent so loop does not demand a file write`() {
         // Before the fix, only read_file/search_code set hasReadContent. git_status was ignored,
@@ -497,7 +477,6 @@ class AgentLoopTest {
         assertTrue(result.toolsExecuted.isEmpty())
     }
 
-    @Ignore(D1)
     @Test
     fun `mid-loop prose on round 2 does NOT escalate — simple read-then-answer pattern`() {
         // 1 read round + prose answer is normal Q&A and must NOT be treated as mid-loop prose.
@@ -538,7 +517,6 @@ class AgentLoopTest {
 
     // ── Tests: noThink on final round ────────────────────────────────────────
 
-    @Ignore(D3)
     @Test
     fun `all agent rounds have noThink set to true`() {
         // Thinking is disabled on every agent round to avoid burning token budget on per-round reasoning.
@@ -731,43 +709,5 @@ class AgentLoopTest {
         val backend = FakeBackend(*(1..10).map { """<tool_call name="search_code"><arg name="query">term$it</arg></tool_call>""" }.toTypedArray())
         val result = LoopHarness(backend, FakeToolRegistry()).run("Do something")
         assertEquals(MAX_ROUNDS, result.rounds)
-    }
-
-    // ── Pinned behaviour of the known defects (flip these when the defect is fixed) ──
-
-    @Test
-    fun `known defect D1 - a read-then-prose answer is replaced by a forced write pass`() {
-        val backend = FakeBackend(
-            """<tool_call name="list_files"><arg name="path">src</arg></tool_call>""",
-            "I found the following files in your project.",
-            // The forced write pass: the model has nothing to write and returns nothing.
-        )
-        val result = LoopHarness(backend, FakeToolRegistry(mapOf("list_files" to "src/Main.kt"))).run("What files are in the project?")
-        val writePass = backend.capturedRequests[2]
-        assertEquals("the prose answer triggered a write pass (full write token budget)", WRITE_ROUND_MIN_TOKENS, writePass.config.maxTokens)
-        assertEquals("the model's first answer never reaches the user",
-            "The agent reviewed the files but did not produce a written summary. " +
-                "Try asking again or use @filename to attach a specific file.",
-            result.finalMessage)
-    }
-
-    @Test
-    fun `known defect D3 - noThink is only set for the write pass or with an attached file`() {
-        val plain = FakeBackend("Here is a plain answer for you.")
-        LoopHarness(plain, FakeToolRegistry()).run("Question")
-        assertFalse(plain.capturedRequests.single().noThink)
-
-        val attached = FakeBackend("Here is a plain answer for you.")
-        LoopHarness(attached, FakeToolRegistry(), fileAttached = true).run("Question")
-        assertTrue(attached.capturedRequests.first().noThink)
-    }
-
-    @Test
-    fun `known defect D2 - repeating one read-only call is never cut off at MAX_ROUNDS`() {
-        val same = """<tool_call name="list_files"><arg name="path">.</arg></tool_call>"""
-        val backend = FakeBackend(*Array(30) { same })
-        LoopHarness(backend, FakeToolRegistry()).run("Do something")
-        // 30 scripted answers all consumed: the loop keeps re-entering the write pass.
-        assertTrue("backend calls: ${backend.capturedRequests.size}", backend.capturedRequests.size >= 30)
     }
 }
