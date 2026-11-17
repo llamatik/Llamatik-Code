@@ -41,7 +41,7 @@ class RemoteBackendTest {
     }
 
     private fun backend(): RemoteBackend {
-        val caps = (LlamatikServerClient(ServerEndpoint("127.0.0.1", server.port)).probe() as ServerProbe.Ok).capabilities
+        val caps = (ServerApi(ServerEndpoint("127.0.0.1", server.port)).probe() as ServerProbe.Ok).capabilities
         return RemoteBackend(StaticServerLink(ServerEndpoint("127.0.0.1", server.port), caps, "box"))
     }
 

@@ -29,7 +29,7 @@ class BackendFactoryTest {
         assertTrue(failure(null, null).contains("--model"))
         assertTrue(failure("a.gguf", "box").contains("not both"))
         assertTrue(failure("/nope/model.gguf", null).contains("does not exist"))
-        assertTrue(failure("model.bin", null).contains(".gguf"))
+        assertTrue(failure(tmp.newFile("model.bin").path, null).contains(".gguf"))
         assertTrue(failure(null, "box:abc").contains("Invalid server address"))
         assertTrue(failure(null, "127.0.0.1:1").contains("Could not reach"))
     }

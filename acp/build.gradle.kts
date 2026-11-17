@@ -20,7 +20,6 @@ dependencies {
     implementation(project(":backends"))
     // Pre-1.0 and released often: pinned, and only this module depends on it.
     implementation("com.agentclientprotocol:acp:0.34.0")
-    runtimeOnly("com.google.code.gson:gson:2.11.0")
     // The SDK logs through kotlin-logging/SLF4J and ships no backend. slf4j-simple writes to stderr, which
     // matters: stdout carries the protocol.
     runtimeOnly("org.slf4j:slf4j-simple:2.0.16")

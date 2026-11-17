@@ -47,10 +47,19 @@ dependencies {
     }
 
     implementation(project(":agent-core"))
-    implementation(project(":backends"))
-    implementation("com.llamatik:core:2.3.0")
+    implementation(project(":backends")) {
+        // The IDE platform provides these (coroutines 1.10, serialization 1.9, ktor client with the Java engine
+        // and content negotiation, slf4j). Bundling a second copy next to the platform's is the classic way to
+        // break a plugin, so the plugin runs on the platform's versions; RemoteBackendOnPlatformTest checks that
+        // the Llamatik network client works on exactly that classpath.
+        exclude(group = "org.jetbrains.kotlinx")
+        exclude(group = "io.ktor")
+        exclude(group = "org.slf4j")
+    }
+    implementation("com.llamatik:core:2.4.0")
     testImplementation("junit:junit:4.13.2")
     testImplementation(testFixtures(project(":agent-core")))
+    testImplementation(testFixtures(project(":backends")))
 }
 
 intellijPlatform {

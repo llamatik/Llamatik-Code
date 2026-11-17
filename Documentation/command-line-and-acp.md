@@ -84,5 +84,5 @@ Notes:
 ## Developing
 
 Both front-ends are small. The agent itself lives in `agent-core` and knows nothing about IntelliJ; the
-hosts provide files, shell, git and permissions (`AgentEnvironment`). Shared model backends and the server
-client are in `backends`, also used by the IDE plugin. See `docs/agent-core-extraction.md`.
+hosts provide files, shell, git and permissions (`AgentEnvironment`). The model backends are in `backends`, also
+used by the IDE plugin: one local engine, and a remote backend on top of the Llamatik library's network client. See `docs/agent-core-extraction.md`.

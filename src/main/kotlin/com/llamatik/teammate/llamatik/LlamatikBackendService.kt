@@ -1,429 +1,48 @@
 package com.llamatik.teammate.llamatik
 
-import com.llamatik.agent.backends.prompt.ChatPromptSupport
-import com.llamatik.agent.backends.prompt.PluginPromptRenderer
 import com.intellij.openapi.components.Service
-import com.intellij.openapi.diagnostic.thisLogger
-import com.llamatik.teammate.ui.Strings
-import com.llamatik.core.platform.GenStream
-import com.llamatik.core.platform.LlamaSession
+import com.intellij.openapi.components.service
+import com.llamatik.agent.backends.local.LocalLlamaBackend
 import com.llamatik.agent.core.backend.AssistantBackend
-import com.llamatik.agent.core.backend.GenerationCallbacks
-import com.llamatik.agent.core.backend.GenerationHandle
-import com.llamatik.agent.core.backend.GenerationRequest
-import com.llamatik.agent.core.backend.SessionTag
-import java.nio.file.Files
-import java.nio.file.Path
-import java.util.concurrent.Executors
-import java.util.concurrent.ThreadFactory
-import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicInteger
+import com.llamatik.teammate.ui.Strings
 
-
+/**
+ * The IDE's local inference: the shared [LocalLlamaBackend] configured for the plugin (model chosen per
+ * request from the settings, separate threads and KV caches for agent / chat / benchmark, error texts
+ * that point at the settings page).
+ */
 @Service(Service.Level.APP)
-class LlamatikBackendService : AssistantBackend {
-    private val logger = thisLogger()
+class LlamatikBackendService private constructor(
+    private val local: LocalLlamaBackend,
+) : AssistantBackend by local {
 
-    // Three independent executors — one per session tag.
-    // - updateGenerateParams / initGenerateModel: serialised by modelLock, safe to call from either thread.
-    // - applyChatTemplate: pure string formatting, no global state, concurrent-safe.
-    // - session.stream(): uses ss->ctx exclusively, concurrent-safe.
-    // Thread priority is set at creation time from the persisted resourceMode setting.
-    // Changing resourceMode takes effect on the next plugin restart (executors are long-lived).
-    private val inferenceThreadPriority: Int = resolveThreadPriority()
-    private val agentExecutor     = Executors.newSingleThreadExecutor(inferenceThreadFactory("llamatik-agent",     inferenceThreadPriority))
-    private val chatExecutor      = Executors.newSingleThreadExecutor(inferenceThreadFactory("llamatik-chat",      inferenceThreadPriority))
-    private val benchmarkExecutor = Executors.newSingleThreadExecutor(inferenceThreadFactory("llamatik-benchmark", inferenceThreadPriority))
+    constructor() : this(
+        LocalLlamaBackend(
+            fixedModel = null,
+            options = LocalLlamaBackend.Options(
+                threadPriority = resolveThreadPriority(),
+                executorPerSession = true,
+                messages = LocalLlamaBackend.Messages(
+                    noModel = "No model configured. Select a local .gguf model file in Settings > Tools > Llamatik Code.",
+                    settingsHint = " Adjust it in Inference Settings.",
+                    promptTooLong = { ctx ->
+                        "Prompt too long for current Context Size ($ctx tokens). " +
+                            "Reduce context or increase Context Size in Inference Settings."
+                    },
+                    nativeUnavailable = { Strings.Backend.errorNativeLib(it) },
+                    nativeUnavailableLabel = Strings.Backend.LABEL_NATIVE_UNAVAILABLE,
+                    noModelLabel = Strings.Backend.LABEL_NO_MODEL,
+                ),
+            ),
+        ),
+    )
 
-    private val modelLock = Any()
-
-    @Volatile private var initializedModel: String? = null
-    @Volatile private var loadedFinetuneType: String? = null
-    @Volatile private var lastContextLength: Int = -1
-    @Volatile private var lastBatchSize: Int = -1
-    @Volatile private var lastNumThreads: Int = -1
-    @Volatile private var lastFlashAttention: Boolean = false
-    @Volatile private var lastGpuLayers: Int = -1
-
-    // One session per surface — each owns an isolated KV cache.
-    @Volatile private var agentSession:     LlamaSession? = null
-    @Volatile private var chatSession:      LlamaSession? = null
-    @Volatile private var benchmarkSession: LlamaSession? = null
-
-    /**
-     * Captured once on first use. If the native library fails to load (e.g. missing @rpath dylib),
-     * we surface this as a clear error rather than crashing silently on every generate() call.
-     */
-    @Volatile private var nativeLoadError: String? = tryLoadNative()?.also { logger.warn("Native library failed to load: $it") }
-
-    override fun isModelLoaded(): Boolean = nativeLoadError == null && initializedModel != null
-
-    override fun isBaseModel(): Boolean {
-        val finetune = loadedFinetuneType ?: return false
-        return finetune.lowercase() == "base"
-    }
-
-    fun unload() {
-        agentExecutor.submit {
-            synchronized(modelLock) {
-                closeSessionsLocked()
-                if (initializedModel != null) {
-                    runCatching { com.llamatik.core.platform.LlamaBridge.shutdown() }
-                    initializedModel = null
-                    loadedFinetuneType = null
-                }
-            }
-        }
-    }
-
-    override fun selectedModelLabel(): String = when {
-        nativeLoadError != null -> "Native lib unavailable"
-        else -> initializedModel?.let(::displayModelLabel) ?: "No model loaded"
-    }
-
-    override fun generate(request: GenerationRequest, callbacks: GenerationCallbacks): GenerationHandle {
-        val cancelled = AtomicBoolean(false)
-        callbacks.onStarted()
-
-        val loadErr = nativeLoadError
-        if (loadErr != null) {
-            executorFor(request.sessionTag).submit {
-                callbacks.onError(nativeErrorMessage(loadErr), null)
-            }
-            return NoOpHandle(cancelled)
-        }
-
-        // True once we have a complete response at the Kotlin level (stop sequence, token
-        // budget, or natural completion).  Used to prevent double-firing onCompleted.
-        val generationDone = AtomicBoolean(false)
-        // True once session.stream() has returned (naturally or via cancel).
-        // Prevents calling session.cancel() on a session that is no longer running.
-        val nativeFinished = AtomicBoolean(false)
-        // Set on the executor thread as soon as the session is resolved, so cancel()
-        // can reach it even if the user stops before stream() has started.
-        val activeSession = java.util.concurrent.atomic.AtomicReference<LlamaSession?>(null)
-
-        executorFor(request.sessionTag).submit {
-            try {
-                validateConfig(request.config)
-                ensureModelReady(request.config)
-
-                val session = getOrCreateSession(request.sessionTag)
-                    ?: error("Could not create inference session for ${request.sessionTag}")
-                activeSession.set(session)
-                // If cancel() was called before we reached this point, stop now.
-                if (cancelled.get()) return@submit
-
-                // Build message list for the native chat template.
-                // System prompt is prepended as a "system" turn if non-blank.
-                val chatMessages = ChatPromptSupport.chatPairs(request.systemPrompt, request.messages)
-
-                // Use the model's own embedded chat template via the native API.
-                // Falls back to PluginPromptRenderer if the template is unavailable
-                // (e.g. GGUF has no embedded template).
-                val nativePrompt = com.llamatik.core.platform.LlamaBridge
-                    .applyChatTemplate(chatMessages, addAssistantPrefix = true)
-                    ?.removePrefix("<s>")   // strip BOS — tokenizer adds it; double BOS corrupts model
-                    ?.takeIf { it.isNotBlank() }
-
-                val (prompt, stopSequences) = if (nativePrompt != null) {
-                    // When noThink is requested, pre-fill an empty <think> block on the native
-                    // assistant prefix so Qwen3 skips its reasoning phase entirely.
-                    // When assistantPrefill is set, inject it after the think block so the model
-                    // continues generating from that point (e.g. mid-tool-call for write pass).
-                    val withThink = if (request.noThink) nativePrompt + "<think>\n\n</think>\n" else nativePrompt
-                    val finalPrompt = if (request.assistantPrefill.isNotBlank()) withThink + request.assistantPrefill else withThink
-                    // Stop sequences are inferred from the native prompt's format (see ChatPromptSupport).
-                    finalPrompt to ChatPromptSupport.stopSequencesFor(nativePrompt)
-                } else {
-                    val rendered = PluginPromptRenderer.renderForModel(
-                        system = request.systemPrompt,
-                        messages = request.messages,
-                        noThink = request.noThink,
-                        modelPath = request.config.modelIdOrPath,
-                    )
-                    val fallbackPrompt = if (request.assistantPrefill.isNotBlank()) rendered.text + request.assistantPrefill else rendered.text
-                    fallbackPrompt to rendered.stopSequences
-                }
-
-                // Guard against n_tokens_all > n_batch assert in llama_decode.
-                // Context Size is the true model context window; Batch Size is a KV-cache
-                // inference parameter and must not be used to gate prompt length.
-                // ~3 chars/token on average; keep a 10% safety margin.
-                val effectiveContextTokens = request.config.contextLength
-                val maxPromptChars = (effectiveContextTokens * 3 * 0.9).toInt()
-                if (prompt.length > maxPromptChars) {
-                    callbacks.onError(
-                        "Prompt too long for current Context Size ($effectiveContextTokens tokens). " +
-                        "Reduce context or increase Context Size in Inference Settings.",
-                    )
-                    return@submit
-                }
-
-                val acc = StringBuilder()
-                var tokenCount = 0
-
-                val guard = object : GenStream {
-                    override fun onDelta(text: String) {
-                        if (generationDone.get() || cancelled.get()) return
-                        acc.append(text)
-                        tokenCount++
-
-                        if (shouldStop(acc, stopSequences)) {
-                            generationDone.set(true)
-                            val final = trimAtStop(acc.toString(), stopSequences)
-                            callbacks.onCompleted(final)
-                            return
-                        }
-
-                        if (tokenCount >= request.config.maxTokens) {
-                            generationDone.set(true)
-                            callbacks.onCompleted(acc.toString())
-                            return
-                        }
-
-                        callbacks.onToken(text)
-                    }
-
-                    override fun onComplete() {
-                        nativeFinished.set(true)
-                        if (generationDone.compareAndSet(false, true) && !cancelled.get()) {
-                            callbacks.onCompleted(acc.toString())
-                        }
-                    }
-
-                    override fun onError(message: String) {
-                        nativeFinished.set(true)
-                        if (generationDone.compareAndSet(false, true) && !cancelled.get()) {
-                            callbacks.onError(message, null)
-                        }
-                    }
-                }
-
-                session.stream(prompt, guard)
-                nativeFinished.set(true)
-            } catch (t: Throwable) {
-                nativeFinished.set(true)
-                if (!cancelled.get()) {
-                    logger.warn("Generation failed", t)
-                    callbacks.onError(friendlyError(t), t)
-                }
-            }
-        }
-
-        return object : GenerationHandle {
-            override fun cancel() {
-                cancelled.set(true)
-                if (!nativeFinished.get()) {
-                    activeSession.get()?.cancel()
-                }
-            }
-
-            override val isCancelled: Boolean get() = cancelled.get()
-        }
-    }
-
-    // ── Session management ────────────────────────────────────────────────────
-
-    private fun executorFor(tag: SessionTag) = when (tag) {
-        SessionTag.AGENT     -> agentExecutor
-        SessionTag.CHAT      -> chatExecutor
-        SessionTag.BENCHMARK -> benchmarkExecutor
-    }
-
-    private fun sessionFor(tag: SessionTag): LlamaSession? = when (tag) {
-        SessionTag.AGENT     -> agentSession
-        SessionTag.CHAT      -> chatSession
-        SessionTag.BENCHMARK -> benchmarkSession
-    }
-
-    /**
-     * Returns (or lazily creates) the session for [tag].
-     * Must be called from within the tag's own executor thread, after ensureModel().
-     */
-    private fun getOrCreateSession(tag: SessionTag): LlamaSession? {
-        val existing = sessionFor(tag)
-        if (existing != null) return existing
-
-        val session = com.llamatik.core.platform.LlamaBridge.createSession()
-        if (session != null) {
-            when (tag) {
-                SessionTag.AGENT     -> agentSession     = session
-                SessionTag.CHAT      -> chatSession      = session
-                SessionTag.BENCHMARK -> benchmarkSession = session
-            }
-            logger.info("Created LlamaSession for $tag")
-        } else {
-            logger.warn("createSession() returned null for $tag — model may not be loaded")
-        }
-        return session
-    }
-
-    /** Closes all sessions. Must be called while holding modelLock. */
-    private fun closeSessionsLocked() {
-        agentSession?.runCatching     { close() }
-        chatSession?.runCatching      { close() }
-        benchmarkSession?.runCatching { close() }
-        agentSession     = null
-        chatSession      = null
-        benchmarkSession = null
-    }
-
-    // ── Internal helpers ──────────────────────────────────────────────────────
-
-    private fun shouldStop(sb: StringBuilder, stops: List<String>): Boolean =
-        ChatPromptSupport.shouldStop(sb, stops)
-
-    private fun trimAtStop(text: String, stops: List<String>): String =
-        ChatPromptSupport.trimAtStop(text, stops)
-
-    private fun validateConfig(config: com.llamatik.agent.core.backend.BackendConfig) {
-        require(config.contextLength >= 512) {
-            "Context size must be at least 512 tokens (current: ${config.contextLength}). Adjust it in Inference Settings."
-        }
-        require(config.batchSize >= 64) {
-            "Batch size must be at least 64 (current: ${config.batchSize}). Adjust it in Inference Settings."
-        }
-        require(config.batchSize <= config.contextLength) {
-            "Batch size (${config.batchSize}) must not exceed context size (${config.contextLength}). Adjust in Inference Settings."
-        }
-        require(config.maxTokens >= 1) {
-            "Max tokens must be at least 1 (current: ${config.maxTokens}). Adjust it in Inference Settings."
-        }
-        require(config.numThreads >= 1) {
-            "CPU threads must be at least 1 (current: ${config.numThreads}). Adjust it in Inference Settings."
-        }
-    }
-
-    /**
-     * Single locked gate that covers both context-param invalidation and model loading.
-     * Holding modelLock across both operations prevents a second thread from seeing
-     * `initializedModel = null` mid-flight and issuing its own `initGenerateModel` call
-     * while the first load's GPU allocation is still resident — which would double the
-     * VRAM usage and OOM on constrained hardware (e.g. M1 Pro with a 27 GB model).
-     */
-    private fun ensureModelReady(config: com.llamatik.agent.core.backend.BackendConfig) {
-        val normalizedModelPath = validateModelPath(config.modelIdOrPath)
-
-        synchronized(modelLock) {
-            val paramsChanged = config.contextLength != lastContextLength ||
-                config.batchSize != lastBatchSize ||
-                config.numThreads != lastNumThreads ||
-                config.flashAttention != lastFlashAttention ||
-                config.gpuLayers != lastGpuLayers
-
-            val modelChanged = initializedModel != normalizedModelPath
-
-            if (!paramsChanged && !modelChanged) {
-                // Nothing to do — update sampling params only.
-                com.llamatik.core.platform.LlamaBridge.updateGenerateParams(
-                    temperature = config.temperature.toFloat(),
-                    maxTokens = config.maxTokens,
-                    topP = 0.95f,
-                    topK = 40,
-                    repeatPenalty = 1.1f,
-                    contextLength = config.contextLength,
-                    numThreads = config.numThreads,
-                    useMmap = config.useMmap,
-                    flashAttention = config.flashAttention,
-                    batchSize = config.batchSize,
-                    gpuLayers = config.gpuLayers,
-                )
-                return
-            }
-
-            // Close existing sessions before changing model/context so the previous
-            // GPU allocation is freed before the new one is created.
-            closeSessionsLocked()
-            initializedModel = null
-            loadedFinetuneType = null
-
-            com.llamatik.core.platform.LlamaBridge.updateGenerateParams(
-                temperature = config.temperature.toFloat(),
-                maxTokens = config.maxTokens,
-                topP = 0.95f,
-                topK = 40,
-                repeatPenalty = 1.1f,
-                contextLength = config.contextLength,
-                numThreads = config.numThreads,
-                useMmap = config.useMmap,
-                flashAttention = config.flashAttention,
-                batchSize = config.batchSize,
-                gpuLayers = config.gpuLayers,
-            )
-
-            val ok = com.llamatik.core.platform.LlamaBridge.initGenerateModel(normalizedModelPath)
-            if (!ok) error("Failed to initialize Llamatik model: $normalizedModelPath")
-
-            initializedModel = normalizedModelPath
-            loadedFinetuneType = runCatching {
-                com.llamatik.core.platform.LlamaBridge.getModelFinetuneType()
-            }.getOrNull()
-            lastContextLength = config.contextLength
-            lastBatchSize = config.batchSize
-            lastNumThreads = config.numThreads
-            lastFlashAttention = config.flashAttention
-            lastGpuLayers = config.gpuLayers
-            logger.info("Model loaded: $normalizedModelPath (finetune=$loadedFinetuneType, n_ctx=${config.contextLength})")
-        }
-    }
-
-    private fun validateModelPath(rawModelPath: String): String {
-        val modelPath = rawModelPath.trim()
-        require(modelPath.isNotEmpty()) {
-            "No model configured. Select a local .gguf model file in Settings > Tools > Llamatik Code."
-        }
-
-        require(!looksLikeRemoteIdentifier(modelPath)) {
-            "Model must be a local .gguf file path, not a repository identifier: $modelPath"
-        }
-
-        val path = runCatching { Path.of(modelPath) }.getOrElse {
-            throw IllegalArgumentException("Invalid model path: $modelPath", it)
-        }
-
-        require(Files.exists(path)) { "Model file does not exist: $modelPath" }
-        require(Files.isRegularFile(path)) { "Model path is not a file: $modelPath" }
-        require(modelPath.lowercase().endsWith(".gguf")) { "Model file must end with .gguf: $modelPath" }
-
-        return path.toAbsolutePath().normalize().toString()
-    }
-
-    private fun friendlyError(t: Throwable): String {
-        val cause = generateSequence(t) { it.cause }.firstOrNull { it is UnsatisfiedLinkError }
-        if (cause != null) {
-            val msg = cause.message ?: "UnsatisfiedLinkError"
-            nativeLoadError = msg
-            logger.warn("Native library link error during generation: $msg")
-            return nativeErrorMessage(msg)
-        }
-        return t.message ?: "Generation failed"
-    }
-
-    private fun looksLikeRemoteIdentifier(value: String): Boolean {
-        return !value.startsWith("/") &&
-            !value.startsWith(".") &&
-            !value.contains("\\") &&
-            value.count { it == '/' } == 1 &&
-            !value.lowercase().endsWith(".gguf")
-    }
-
-    private fun displayModelLabel(path: String): String = runCatching {
-        Path.of(path).fileName?.toString() ?: path
-    }.getOrDefault(path)
-
-    private class NoOpHandle(private val cancelled: AtomicBoolean) : GenerationHandle {
-        override fun cancel() {
-            cancelled.set(true)
-        }
-
-        override val isCancelled: Boolean get() = cancelled.get()
-    }
+    /** Frees the native model (without waiting); the next request loads it again. */
+    fun unload() = local.unload()
 }
 
 /**
- * Reads the persisted resourceMode and returns the Java thread priority to use for all
- * inference executor threads.
+ * Reads the persisted resourceMode and returns the Java thread priority to use for all inference threads.
  *   BALANCED → NORM_PRIORITY (5) — default OS scheduling, half the available cores
  *   LOW      → MIN_PRIORITY+1 (2) — yields to interactive threads but still makes progress;
  *                MIN_PRIORITY (1) maps to macOS Background QoS, which is nearly never scheduled
@@ -432,33 +51,7 @@ class LlamatikBackendService : AssistantBackend {
  */
 private fun resolveThreadPriority(): Int {
     val mode = runCatching {
-        com.intellij.openapi.components.service<com.llamatik.teammate.settings.LlamatikAppSettings>()
-            .data().resourceMode
+        service<com.llamatik.teammate.settings.LlamatikAppSettings>().data().resourceMode
     }.getOrDefault("BALANCED")
     return if (mode == "LOW") Thread.MIN_PRIORITY + 1 else Thread.NORM_PRIORITY
 }
-
-/**
- * Returns a [ThreadFactory] that names threads with [namePrefix] and sets their OS priority
- * to [priority]. Named threads make inference threads identifiable in profilers and thread dumps.
- */
-private fun inferenceThreadFactory(namePrefix: String, priority: Int): ThreadFactory {
-    val counter = AtomicInteger(0)
-    return ThreadFactory { runnable ->
-        Thread(runnable, "$namePrefix-${counter.incrementAndGet()}").also { t ->
-            t.isDaemon = true
-            t.priority = priority
-        }
-    }
-}
-
-/** Returns a human-readable error string if the native lib can't be loaded, null if it's fine. */
-private fun tryLoadNative(): String? = runCatching {
-    Class.forName("com.llamatik.core.platform.LlamaBridge")
-    null
-}.getOrElse { t ->
-    val link = generateSequence(t) { it.cause }.firstOrNull { it is UnsatisfiedLinkError || it is LinkageError }
-    link?.message ?: t.message ?: t.javaClass.simpleName
-}
-
-private fun nativeErrorMessage(err: String): String = Strings.Backend.errorNativeLib(err)
