@@ -77,8 +77,9 @@ class LocalLlamaBackend(
     private val sessions = mutableMapOf<SessionTag, LlamaSession>()
 
     /** Captured once: a missing native library is reported on every request instead of crashing. */
-    @Volatile private var nativeLoadError: String? = runCatching { Class.forName("com.llamatik.core.platform.LlamaBridge"); null }
-        .getOrElse { t -> generateSequence(t) { it.cause }.firstOrNull { it is LinkageError }?.message ?: t.message ?: t.javaClass.simpleName }
+    @Volatile private var nativeLoadError: String? = CpuSupport.problem()
+        ?: runCatching { Class.forName("com.llamatik.core.platform.LlamaBridge"); null }
+            .getOrElse { t -> generateSequence(t) { it.cause }.firstOrNull { it is LinkageError }?.message ?: t.message ?: t.javaClass.simpleName }
 
     override fun isModelLoaded(): Boolean = nativeLoadError == null && loadedModel != null
     override fun isBaseModel(): Boolean = loadedFinetuneType?.lowercase() == "base"
