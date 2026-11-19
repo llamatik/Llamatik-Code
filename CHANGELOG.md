@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Added
+- **Scan the network for Llamatik servers** — Settings → Llamatik Server → *Scan network* lists the devices that have *Share this device* on (like the Llamatik app); select one to connect. The CLI has `--discover`. Discovery listens on the real LAN interface instead of whichever one the mDNS library picks, which on machines with VPN/tunnel interfaces found nothing.
 - **Connect to a Llamatik server** — new *Settings → Tools → Llamatik Code → Llamatik Server* page. The agent and chat can run inference on a Llamatik server (e.g. the Llamatik app with *Share this device* on) instead of the local model. Supports per-device approval, shows the server's loaded model and capabilities (text / vision / image / audio).
 - **Connection banner** in the tool window shows which server is serving requests, and a warning when the connection is interrupted or lost.
 - **Automatic fallback and recovery** — when the server becomes unreachable the plugin switches back to the local model (configurable) and returns to the server by itself once it answers again.

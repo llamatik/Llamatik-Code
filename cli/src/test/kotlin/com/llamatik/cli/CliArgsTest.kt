@@ -56,4 +56,14 @@ class CliArgsTest {
         assertTrue(CliArgs.parse(listOf("-h")).help)
         assertTrue(CliArgs.parse(listOf("--version")).version)
     }
+
+    @Test
+    fun `discover is a flag of its own and cannot be combined with an explicit model or server`() {
+        assertTrue(CliArgs.parse(listOf("--discover", "-p", "hi")).discover)
+        listOf(listOf("--discover", "-s", "box"), listOf("-m", "a.gguf", "--discover")).forEach {
+            try { CliArgs.parse(it); fail("expected a usage error for $it") } catch (e: UsageException) {
+                assertTrue(e.message!!.contains("--discover"))
+            }
+        }
+    }
 }

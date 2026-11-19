@@ -6,7 +6,7 @@ import java.io.File
 import kotlin.system.exitProcess
 
 fun main(args: Array<String>) {
-    val options = try {
+    var options = try {
         CliArgs.parse(args.toList())
     } catch (e: UsageException) {
         System.err.println("llamatik: ${e.message}")
@@ -14,6 +14,13 @@ fun main(args: Array<String>) {
         exitProcess(64)
     }
     val terminal = SystemTerminal()
+    if (options.discover && !options.help && !options.version) {
+        when (val picked = ServerPicker(terminal).pick()) {
+            is ServerPicker.Result.Picked -> options = options.copy(server = picked.address, discover = false)
+            is ServerPicker.Result.Failed -> { terminal.error(terminal.style(Style.RED, "error: ${picked.reason}")); exitProcess(2) }
+            ServerPicker.Result.Cancelled -> exitProcess(130)
+        }
+    }
     val tokens = FileTokenStore(File(System.getProperty("user.home"), ".llamatik/cli.properties"))
     val app = CliApp(options, terminal) {
         BackendFactory.create(

@@ -14,9 +14,12 @@ Build them with `./gradlew :cli:installDist :acp:installDist`. The launchers are
 
 ## Choosing the model
 
-Exactly one of:
+Exactly one of (`--discover` replaces `--server`):
 
 * `-m, --model <file.gguf>` runs the model in-process through the Llamatik native library (Metal, CUDA or CPU).
+* `--discover` looks for Llamatik servers on the local network (devices with *Share this device* turned on)
+  and lets you pick one; the same scan is in the IDE under Settings → Llamatik Server → *Scan network*.
+  It uses mDNS, so both devices must be on the same network and multicast must not be blocked.
 * `-s, --server <host[:port]>` uses a Llamatik server. Accepts `host`, `host:port` or `http://host:port`.
   If the server asks for per-device approval, accept the request on the server's device; the access token
   is then kept in `~/.llamatik/cli.properties` (readable only by you). Dropped connections are resumed

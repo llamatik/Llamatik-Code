@@ -7,6 +7,8 @@ import java.nio.file.Path
 data class CliOptions(
     val model: String? = null,
     val server: String? = null,
+    /** Look for Llamatik servers on the local network and pick one (instead of `--server`). */
+    val discover: Boolean = false,
     /** One-shot prompt (`-p`); null starts the interactive session. */
     val prompt: String? = null,
     val workDir: Path = Path.of("").toAbsolutePath(),
@@ -43,6 +45,7 @@ object CliArgs {
                 "--version" -> o = o.copy(version = true)
                 "-m", "--model" -> o = o.copy(model = v())
                 "-s", "--server" -> o = o.copy(server = v())
+                "--discover" -> o = o.copy(discover = true)
                 "-p", "--prompt" -> o = o.copy(prompt = v())
                 "-C", "--cwd" -> o = o.copy(workDir = Path.of(v()).toAbsolutePath().normalize())
                 "-y", "--yes" -> o = o.copy(yes = true)
@@ -60,6 +63,9 @@ object CliArgs {
             }
             i++
         }
+        if (o.discover && (o.server != null || o.model != null)) {
+            throw UsageException("--discover looks for a server by itself; do not combine it with --server or --model")
+        }
         return o.copy(params = p)
     }
 
@@ -71,6 +77,7 @@ object CliArgs {
         |Model (one of):
         |  -m, --model <file.gguf>     run a local GGUF model in-process
         |  -s, --server <host[:port]>  use a Llamatik server (e.g. the Llamatik app with "Share this device")
+        |      --discover              scan the local network for Llamatik servers and choose one
         |
         |Session:
         |  -p, --prompt <text>         run one task and exit (otherwise an interactive session starts)

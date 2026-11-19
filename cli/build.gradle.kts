@@ -19,6 +19,9 @@ dependencies {
     implementation(project(":agent-core"))
     implementation(project(":backends"))
 
+    // JmDNS (server discovery) logs through SLF4J; silence the "no provider" notice.
+    runtimeOnly("org.slf4j:slf4j-nop:2.0.16")
+
     testImplementation("junit:junit:4.13.2")
     testImplementation(testFixtures(project(":agent-core")))
     testImplementation(testFixtures(project(":backends")))

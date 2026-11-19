@@ -6,9 +6,13 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.options.Configurable
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
+import com.intellij.ui.components.JBList
+import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTextField
 import com.intellij.util.ui.FormBuilder
 import com.intellij.util.ui.JBUI
+import com.llamatik.agent.backends.remote.DiscoveredServer
+import com.llamatik.agent.backends.remote.ServerDiscovery
 import com.llamatik.teammate.server.ConnectResult
 import com.llamatik.agent.backends.remote.ServerCapabilities
 import com.llamatik.teammate.server.ServerConnectionService
@@ -17,7 +21,10 @@ import com.llamatik.teammate.server.ServerStatus
 import com.llamatik.teammate.ui.LlamatikTheme
 import com.llamatik.teammate.ui.Strings
 import java.awt.FlowLayout
+import javax.swing.DefaultListModel
 import javax.swing.JButton
+import javax.swing.ListSelectionModel
+import javax.swing.Timer
 import javax.swing.JComponent
 import javax.swing.JPanel
 
@@ -42,6 +49,15 @@ class ServerSettingsConfigurable : Configurable {
     private lateinit var capabilitiesLabel: JBLabel
     private lateinit var modelLabel: JBLabel
 
+    // Network scan (mDNS), like the Llamatik app's "Scan"
+    private lateinit var scanBtn: JButton
+    private lateinit var connectSelectedBtn: JButton
+    private lateinit var scanStatusLabel: JBLabel
+    private val foundModel = DefaultListModel<DiscoveredServer>()
+    private lateinit var foundList: JBList<DiscoveredServer>
+    private var scan: AutoCloseable? = null
+    private var scanTimeout: Timer? = null
+
     private var removeListener: (() -> Unit)? = null
     private var connecting = false
     private var lastError: String? = null
@@ -64,6 +80,34 @@ class ServerSettingsConfigurable : Configurable {
         capabilitiesLabel = JBLabel()
         modelLabel = JBLabel()
 
+        scanBtn = JButton(Strings.Server.SCAN).apply { addActionListener { if (scan == null) startScan() else stopScan() } }
+        connectSelectedBtn = JButton(Strings.Server.CONNECT_SELECTED).apply { isEnabled = false; addActionListener { connectToSelected() } }
+        scanStatusLabel = JBLabel(Strings.Server.NOT_SCANNING).apply { foreground = LlamatikTheme.onSurfaceVariant }
+        foundList = JBList(foundModel).apply {
+            selectionMode = ListSelectionModel.SINGLE_SELECTION
+            visibleRowCount = 4
+            cellRenderer = javax.swing.ListCellRenderer { _, value, _, selected, _ ->
+                JBLabel("${value.name}  —  ${value.address}").apply {
+                    border = JBUI.Borders.empty(3, 6)
+                    isOpaque = true
+                    background = if (selected) javax.swing.UIManager.getColor("List.selectionBackground") else javax.swing.UIManager.getColor("List.background")
+                    foreground = if (selected) javax.swing.UIManager.getColor("List.selectionForeground") else javax.swing.UIManager.getColor("List.foreground")
+                }
+            }
+            addListSelectionListener { connectSelectedBtn.isEnabled = selectedValue != null && !settings.data().serverEnabled }
+            addMouseListener(object : java.awt.event.MouseAdapter() {
+                override fun mouseClicked(e: java.awt.event.MouseEvent) {
+                    if (e.clickCount == 2 && selectedValue != null && connectSelectedBtn.isEnabled) connectToSelected()
+                }
+            })
+        }
+        val scanButtons = JPanel(FlowLayout(FlowLayout.LEFT, 8, 0)).apply {
+            isOpaque = false
+            add(scanBtn)
+            add(connectSelectedBtn)
+            add(scanStatusLabel)
+        }
+
         val buttons = JPanel(FlowLayout(FlowLayout.LEFT, 8, 0)).apply {
             isOpaque = false
             add(connectBtn)
@@ -77,6 +121,10 @@ class ServerSettingsConfigurable : Configurable {
 
         val form = FormBuilder.createFormBuilder()
             .addComponent(intro)
+            .addVerticalGap(8)
+            .addComponent(JBLabel("<html><b>${Strings.Server.NEARBY}</b></html>"))
+            .addComponent(scanButtons)
+            .addComponent(JBScrollPane(foundList).apply { preferredSize = java.awt.Dimension(520, 90) })
             .addVerticalGap(8)
             .addLabeledComponent(Strings.Server.FIELD_NAME, nameField)
             .addLabeledComponent(Strings.Server.FIELD_HOST, hostField)
@@ -133,11 +181,60 @@ class ServerSettingsConfigurable : Configurable {
     }
 
     override fun disposeUIResources() {
+        stopScan()
         removeListener?.invoke()
         removeListener = null
     }
 
     // ── Actions ─────────────────────────────────────────────────────────────
+
+    // ── Network scan ─────────────────────────────────────────────────────────
+
+    private fun startScan() {
+        if (scan != null) return
+        foundModel.clear()
+        scanBtn.text = Strings.Server.STOP_SCAN
+        scanStatusLabel.text = Strings.Server.SCANNING
+        val later: (() -> Unit) -> Unit = { ApplicationManager.getApplication().invokeLater(it, ModalityState.any()) }
+        scan = ServerDiscovery().start(
+            onFound = { server -> later { upsert(server) } },
+            onLost = { id -> later { remove(id) } },
+            onError = { message -> later { stopScan(); scanStatusLabel.text = Strings.Server.scanFailed(message) } },
+        )
+        // Scanning keeps a multicast listener open: do not leave it running forever.
+        scanTimeout = Timer(SCAN_TIMEOUT_MS) { stopScan() }.apply { isRepeats = false; start() }
+    }
+
+    private fun stopScan() {
+        scanTimeout?.stop()
+        scanTimeout = null
+        scan?.close()
+        scan = null
+        if (::scanBtn.isInitialized) {
+            scanBtn.text = Strings.Server.SCAN
+            scanStatusLabel.text = if (foundModel.isEmpty) Strings.Server.NO_SERVERS_YET else Strings.Server.serversFound(foundModel.size())
+        }
+    }
+
+    private fun upsert(server: DiscoveredServer) {
+        val index = (0 until foundModel.size()).firstOrNull { foundModel[it].id == server.id }
+        if (index != null) foundModel.set(index, server) else foundModel.addElement(server)
+        if (scan != null) scanStatusLabel.text = "${Strings.Server.SCANNING} ${Strings.Server.serversFound(foundModel.size())}"
+    }
+
+    private fun remove(id: String) {
+        val index = (0 until foundModel.size()).firstOrNull { foundModel[it].id == id } ?: return
+        foundModel.remove(index)
+    }
+
+    private fun connectToSelected() {
+        val server = foundList.selectedValue ?: return
+        stopScan()
+        nameField.text = server.name
+        hostField.text = server.host
+        portField.text = server.port.toString()
+        onConnect()
+    }
 
     private fun onConnect() {
         val port = portField.text.trim().toIntOrNull()
@@ -190,6 +287,9 @@ class ServerSettingsConfigurable : Configurable {
         portField.isEnabled = editable
         connectBtn.isVisible = !enabled
         connectBtn.isEnabled = !busy
+        scanBtn.isEnabled = !enabled && !busy
+        foundList.isEnabled = !enabled && !busy
+        connectSelectedBtn.isEnabled = !enabled && !busy && foundList.selectedValue != null
         disconnectBtn.isVisible = enabled
         disconnectBtn.isEnabled = !busy
         cancelBtn.isVisible = st.state == ServerConnectionState.PAIRING
@@ -217,4 +317,8 @@ class ServerSettingsConfigurable : Configurable {
     }
 
     private fun escape(s: String) = s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    private companion object {
+        const val SCAN_TIMEOUT_MS = 60_000
+    }
 }

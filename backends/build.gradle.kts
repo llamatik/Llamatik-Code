@@ -20,15 +20,18 @@ dependencies {
     api(project(":agent-core"))
     // Native llama.cpp bridge (local inference).
     api("com.llamatik:core:2.4.0")
-    // The Llamatik server client (resumable streaming, pairing, status). mDNS discovery is not used here.
-    api("com.llamatik:network:2.4.0") { exclude(group = "org.jmdns") }
+    // The Llamatik server client (resumable streaming, pairing, status) and mDNS discovery (JmDNS).
+    api("com.llamatik:network:2.4.0")
     // The HTTP stack is chosen explicitly (JDK engine) instead of by service discovery: inside the IDE the
     // platform ships its own ktor engines.
+    // Already a dependency of the network library; used directly to choose the network interface(s) to scan on.
+    implementation("org.jmdns:jmdns:3.6.5")
     implementation("io.ktor:ktor-client-core:3.6.1")
     implementation("io.ktor:ktor-client-java:3.6.1")
     implementation("io.ktor:ktor-client-content-negotiation:3.6.1")
     implementation("io.ktor:ktor-serialization-kotlinx-json:3.6.1")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
+    // ServerDiscovery and ServerApi expose Flow in their signatures.
+    api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
 
     testFixturesApi(project(":agent-core"))

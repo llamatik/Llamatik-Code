@@ -39,8 +39,8 @@ repositories {
 
 dependencies {
     intellijPlatform {
-        intellijIdea("2026.1")
-        //local("/Applications/Android Studio.app")
+        //intellijIdea("2026.1")
+        local("/Applications/Android Studio.app")
         testFramework(org.jetbrains.intellij.platform.gradle.TestFrameworkType.Platform)
         bundledPlugin("com.intellij.java")
         bundledPlugin("org.jetbrains.kotlin")
@@ -49,13 +49,15 @@ dependencies {
     implementation(project(":agent-core"))
     implementation(project(":backends")) {
         // The IDE platform provides these (coroutines 1.10, serialization 1.9, ktor client with the Java engine
-        // and content negotiation, slf4j). Bundling a second copy next to the platform's is the classic way to
+        // and content negotiation). slf4j-api is NOT excluded: the IDE has none and JmDNS (server discovery)
+        // needs it. Bundling a second copy next to the platform's is the classic way to
         // break a plugin, so the plugin runs on the platform's versions; RemoteBackendOnPlatformTest checks that
         // the Llamatik network client works on exactly that classpath.
         exclude(group = "org.jetbrains.kotlinx")
         exclude(group = "io.ktor")
-        exclude(group = "org.slf4j")
     }
+    // JmDNS (server discovery) logs through SLF4J, which the IDE does not provide; keep its logging quiet.
+    runtimeOnly("org.slf4j:slf4j-nop:2.0.16")
     implementation("com.llamatik:core:2.4.0")
     testImplementation("junit:junit:4.13.2")
     testImplementation(testFixtures(project(":agent-core")))
