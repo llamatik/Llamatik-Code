@@ -47,15 +47,9 @@ dependencies {
     }
 
     implementation(project(":agent-core"))
-    implementation(project(":backends")) {
-        // The IDE platform provides these (coroutines 1.10, serialization 1.9, ktor client with the Java engine
-        // and content negotiation). slf4j-api is NOT excluded: the IDE has none and JmDNS (server discovery)
-        // needs it. Bundling a second copy next to the platform's is the classic way to
-        // break a plugin, so the plugin runs on the platform's versions; RemoteBackendOnPlatformTest checks that
-        // the Llamatik network client works on exactly that classpath.
-        exclude(group = "org.jetbrains.kotlinx")
-        exclude(group = "io.ktor")
-    }
+    // :backends must stay free of coroutines, ktor and serialization: the plugin runs on the IDE's own (older)
+    // copies, which the Llamatik network library cannot run on. RemoteBackendOnPlatformTest guards this.
+    implementation(project(":backends"))
     // JmDNS (server discovery) logs through SLF4J, which the IDE does not provide; keep its logging quiet.
     runtimeOnly("org.slf4j:slf4j-nop:2.0.16")
     implementation("com.llamatik:core:2.4.0")

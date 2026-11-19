@@ -1,20 +1,18 @@
 package com.llamatik.cli
 
+import com.llamatik.agent.backends.remote.DiscoveredServer
+import com.llamatik.agent.backends.remote.DiscoverySource
 import com.llamatik.agent.backends.remote.ServerDiscovery
-import com.llamatik.network.discovery.DiscoveredNode
-import com.llamatik.network.discovery.DiscoveryEvent
-import kotlinx.coroutines.awaitCancellation
-import kotlinx.coroutines.flow.flow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ServerPickerTest {
-    private fun node(name: String, host: String, port: Int = 8080) = DiscoveredNode(name, host, port, name)
+    private fun node(name: String, host: String, port: Int = 8080) = DiscoveredServer(name, host, port, name)
 
-    private fun picker(terminal: Terminal, vararg nodes: DiscoveredNode) = ServerPicker(
+    private fun picker(terminal: Terminal, vararg nodes: DiscoveredServer) = ServerPicker(
         terminal,
-        ServerDiscovery { flow { nodes.forEach { emit(DiscoveryEvent.NodeFound(it)) }; awaitCancellation() } },
+        ServerDiscovery(DiscoverySource { onFound, _, _ -> nodes.forEach(onFound); AutoCloseable { } }),
         scanMs = 200,
     )
 

@@ -1,7 +1,7 @@
 package com.llamatik.teammate.server
 
 import com.llamatik.agent.backends.remote.RemoteBackend
-import com.llamatik.agent.backends.remote.ServerApi
+import com.llamatik.agent.backends.remote.LlamatikServerClient
 import com.llamatik.agent.backends.remote.ServerCapabilities
 import com.llamatik.agent.backends.remote.ServerEndpoint
 import com.llamatik.agent.backends.remote.ServerProbe
@@ -24,9 +24,11 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 /**
- * The plugin does not bundle coroutines, serialization or ktor: it runs on the IDE platform's copies. This
- * test runs the Llamatik server client and remote backend on the plugin's own classpath (the platform's jars
- * plus the plugin's dependencies) to prove that combination works, including a resumed stream.
+ * The plugin runs on the IDE platform's own coroutines, ktor and serialization, which are older than what the
+ * Llamatik network library (ktor 3.6, coroutines 1.11) was built against: that library fails inside the IDE
+ * (`NoSuchMethodError` on `runBlockingK` and on ktor's `TypeInfo`). So the server client in :backends must be plain
+ * JDK code. These tests run it on the plugin's real classpath (the platform's jars plus the plugin's own
+ * dependencies, nothing else) and guard against such a library creeping back in.
  */
 class RemoteBackendOnPlatformTest {
     private lateinit var server: FakeLlamatikServer
@@ -34,24 +36,22 @@ class RemoteBackendOnPlatformTest {
     @Before fun setUp() { server = FakeLlamatikServer() }
     @After fun tearDown() = server.close()
 
-    /** The jar a class is loaded from (the IDE's test class loader reports no code source, so ask for the class file). */
-    private fun sourceOf(className: String): String =
-        Class.forName(className).getResource("/" + className.replace('.', '/') + ".class")!!.toString()
+    private fun classFile(className: String): String? =
+        Class.forName(className).getResource("/" + className.replace('.', '/') + ".class")?.toString()
 
     @Test
-    fun `the HTTP and coroutine libraries come from the IDE platform, not from the plugin`() {
-        // If these resolved to Gradle's copies this test would prove nothing about the packaged plugin.
-        listOf("kotlinx.coroutines.Job", "kotlinx.serialization.json.Json", "io.ktor.client.HttpClient").forEach { cls ->
-            val path = sourceOf(cls)
-            assertTrue("$cls loaded from $path; expected the IDE platform's library", path.contains("/idea-") || path.contains("intellij"))
-        }
-        // The library under test is the plugin's own dependency.
-        assertTrue(sourceOf("com.llamatik.network.client.LlamatikServerClient").contains("network-jvm"))
+    fun `the libraries on the plugin classpath are the platforms, and the network library is not there`() {
+        val coroutines = classFile("kotlinx.coroutines.Job")!!
+        assertTrue("coroutines loaded from $coroutines; expected the IDE platform's library", coroutines.contains("/idea-") || coroutines.contains("intellij"))
+        // Not just "the platform's wins": nothing of ours may need a newer version at all.
+        assertTrue("the Llamatik network library must not be a plugin dependency", runCatching { Class.forName("com.llamatik.network.client.LlamatikServerClient") }.isFailure)
+        val coroutinesJars = System.getProperty("java.class.path").split(java.io.File.pathSeparator).filter { it.contains("kotlinx-coroutines-core") }
+        assertTrue("Gradle's coroutines on the plugin classpath: $coroutinesJars", coroutinesJars.none { it.contains("modules-2") })
     }
 
     @Test
     fun `status probe works on the platform classpath`() {
-        val probe = ServerApi(ServerEndpoint("127.0.0.1", server.port)).probe()
+        val probe = LlamatikServerClient(ServerEndpoint("127.0.0.1", server.port)).probe()
         assertTrue(probe.toString(), probe is ServerProbe.Ok)
         assertEquals("qwen.gguf", (probe as ServerProbe.Ok).capabilities.textModel)
     }

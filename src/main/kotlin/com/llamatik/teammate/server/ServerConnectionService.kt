@@ -1,6 +1,6 @@
 package com.llamatik.teammate.server
 
-import com.llamatik.agent.backends.remote.ServerApi
+import com.llamatik.agent.backends.remote.LlamatikServerClient
 import com.llamatik.agent.backends.remote.ServerEndpoint
 import com.llamatik.agent.backends.remote.PairingResult
 import com.llamatik.agent.backends.remote.ServerLink
@@ -155,7 +155,7 @@ class ServerConnectionService : ServerLink {
         loadToken(cleanHost, port)
         publish(ServerStatus(ServerConnectionState.CONNECTING, cleanHost, port, name, message = "Connecting…"))
 
-        var probe = ServerApi(ServerEndpoint(cleanHost, port, token)).probe()
+        var probe = LlamatikServerClient(ServerEndpoint(cleanHost, port, token)).probe()
         if (probe is ServerProbe.Unauthorized) {
             // No token yet, or it was revoked: ask the owner to approve this device.
             saveToken(cleanHost, port, null)
@@ -164,7 +164,7 @@ class ServerConnectionService : ServerLink {
                 publish(ServerStatus(ServerConnectionState.DISABLED, message = paired))
                 return ConnectResult.Failed(paired)
             }
-            probe = ServerApi(ServerEndpoint(cleanHost, port, token)).probe()
+            probe = LlamatikServerClient(ServerEndpoint(cleanHost, port, token)).probe()
         }
         return when (probe) {
             is ServerProbe.Ok -> {
@@ -246,7 +246,7 @@ class ServerConnectionService : ServerLink {
 
         var nextDelay = HEALTHY_INTERVAL_MS
         try {
-            when (val probe = ServerApi(ServerEndpoint(host, port, token)).probe()) {
+            when (val probe = LlamatikServerClient(ServerEndpoint(host, port, token)).probe()) {
                 is ServerProbe.Ok -> {
                     val previous = status.state
                     failures = 0

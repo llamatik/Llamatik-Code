@@ -1,11 +1,5 @@
 package com.llamatik.agent.backends.remote
 
-import com.llamatik.network.discovery.DiscoveredNode
-import com.llamatik.network.discovery.DiscoveryEvent
-import kotlinx.coroutines.awaitCancellation
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeNoException
@@ -14,24 +8,41 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.concurrent.thread
 
 class ServerDiscoveryTest {
-    private fun node(id: String, port: Int = 8080) = DiscoveredNode(id, "192.168.1.$port", port, id)
+    private fun server(id: String, port: Int = 8080) = DiscoveredServer(id, "192.168.1.$port", port, id)
 
-    private fun events(vararg e: DiscoveryEvent, thenWait: Boolean = true): () -> Flow<DiscoveryEvent> = {
-        flow { e.forEach { emit(it) }; if (thenWait) awaitCancellation() }
+    private sealed interface Event {
+        data class Found(val server: DiscoveredServer) : Event
+        data class Lost(val id: String) : Event
+        data class Failed(val message: String) : Event
+    }
+
+    /** A scripted source: replays [events] from another thread, then stays quiet until closed. */
+    private fun source(vararg events: Event, closedFlag: AtomicBoolean = AtomicBoolean(false)) = DiscoverySource { onFound, onLost, onError ->
+        thread(isDaemon = true) {
+            events.forEach {
+                when (it) {
+                    is Event.Found -> onFound(it.server)
+                    is Event.Lost -> onLost(it.id)
+                    is Event.Failed -> onError(it.message)
+                }
+            }
+        }
+        AutoCloseable { closedFlag.set(true) }
     }
 
     @Test
     fun `a timed scan returns the servers still present, deduplicated`() {
-        val discovery = ServerDiscovery(events(
-            DiscoveryEvent.NodeFound(node("Mac Studio", 8080)),
-            DiscoveryEvent.NodeFound(node("Pixel", 9000)),
-            DiscoveryEvent.NodeFound(node("Mac Studio", 8081)), // announced again: latest wins
-            DiscoveryEvent.NodeLost("Pixel"),
+        val discovery = ServerDiscovery(source(
+            Event.Found(server("Mac Studio", 8080)),
+            Event.Found(server("Pixel", 9000)),
+            Event.Found(server("Mac Studio", 8081)), // announced again: latest wins
+            Event.Lost("Pixel"),
         ))
         val seen = CopyOnWriteArrayList<String>()
-        val found = discovery.scan(300) { seen += it.name }
+        val found = discovery.scan(400) { seen += it.name }
         assertEquals(listOf("Mac Studio"), found.map { it.name })
         assertEquals(8081, found.single().port)
         assertEquals(listOf("Mac Studio", "Pixel", "Mac Studio"), seen)
@@ -46,6 +57,47 @@ class ServerDiscoveryTest {
     }
 
     @Test
+    fun `a timed scan ends on time even when the network is silent, and releases the listener`() {
+        val closed = AtomicBoolean(false)
+        val started = System.currentTimeMillis()
+        assertTrue(ServerDiscovery(source(closedFlag = closed)).scan(200).isEmpty())
+        assertTrue(System.currentTimeMillis() - started < 3_000)
+        assertTrue("the scan must be closed when it ends", closed.get())
+    }
+
+    @Test
+    fun `a scan that cannot work ends early`() {
+        val started = System.currentTimeMillis()
+        assertTrue(ServerDiscovery(source(Event.Failed("no network interface"))).scan(10_000).isEmpty())
+        assertTrue("should not wait out the full timeout", System.currentTimeMillis() - started < 5_000)
+    }
+
+    @Test
+    fun `a continuous scan reports found and lost servers until closed`() {
+        val closed = AtomicBoolean(false)
+        val gotTwo = CountDownLatch(2)
+        val lostA = CountDownLatch(1)
+        val found = CopyOnWriteArrayList<DiscoveredServer>()
+        val handle = ServerDiscovery(source(Event.Found(server("A", 1)), Event.Found(server("B", 2)), Event.Lost("A"), closedFlag = closed))
+            .start(onFound = { found += it; gotTwo.countDown() }, onLost = { if (it == "A") lostA.countDown() })
+        assertTrue(gotTwo.await(5, TimeUnit.SECONDS))
+        assertTrue(lostA.await(5, TimeUnit.SECONDS))
+        assertEquals(listOf("A", "B"), found.map { it.id })
+        assertEquals("192.168.1.1:1", found.first().address)
+        handle.close()
+        assertTrue("closing must stop the underlying scan", closed.get())
+    }
+
+    @Test
+    fun `a failing scan is reported instead of thrown`() {
+        val failed = CountDownLatch(1)
+        var message: String? = null
+        ServerDiscovery(source(Event.Failed("no network interface"))).start(onFound = {}, onError = { message = it; failed.countDown() })
+        assertTrue(failed.await(5, TimeUnit.SECONDS))
+        assertEquals("no network interface", message)
+    }
+
+    @Test
     fun `discovery listens only on real LAN interfaces, never tunnels or link-local addresses`() {
         // On a Mac with VPN/tunnel interfaces the library's default picked fe80::...%utun2 and found nothing.
         val addresses = LanMdns.lanAddresses()
@@ -57,47 +109,12 @@ class ServerDiscoveryTest {
     }
 
     @Test
-    fun `a timed scan ends on time even when the network is silent`() {
+    fun `starting real discovery never blocks the caller`() {
+        // JmDNS can block for minutes on a network that drops multicast; start() must return at once regardless.
         val started = System.currentTimeMillis()
-        assertTrue(ServerDiscovery(events()).scan(200).isEmpty())
-        assertTrue(System.currentTimeMillis() - started < 3_000)
-    }
-
-    @Test
-    fun `a continuous scan reports found and lost servers until closed`() {
-        val cancelled = AtomicBoolean(false)
-        val gotTwo = CountDownLatch(2)
-        val found = CopyOnWriteArrayList<DiscoveredServer>()
-        val lost = CopyOnWriteArrayList<String>()
-        val discovery = ServerDiscovery {
-            flow {
-                try {
-                    emit(DiscoveryEvent.NodeFound(node("A", 1)))
-                    emit(DiscoveryEvent.NodeFound(node("B", 2)))
-                    emit(DiscoveryEvent.NodeLost("A"))
-                    awaitCancellation()
-                } finally { cancelled.set(true) }
-            }
-        }
-        val handle = discovery.start(onFound = { found += it; gotTwo.countDown() }, onLost = { lost += it })
-        assertTrue(gotTwo.await(5, TimeUnit.SECONDS))
-        assertEquals(listOf("A", "B"), found.map { it.id })
-        assertEquals("192.168.1.1:1", found.first().address)
-        Thread.sleep(100)
-        assertEquals(listOf("A"), lost)
-
+        val handle = ServerDiscovery().start(onFound = {})
+        assertTrue("start() took ${System.currentTimeMillis() - started} ms", System.currentTimeMillis() - started < 1_000)
         handle.close()
-        val until = System.currentTimeMillis() + 5_000
-        while (!cancelled.get() && System.currentTimeMillis() < until) Thread.sleep(20)
-        assertTrue("closing must stop the underlying scan", cancelled.get())
-    }
-
-    @Test
-    fun `a failing scan is reported instead of thrown`() {
-        val error = CompletableErrors()
-        ServerDiscovery { flow { delay(10); throw java.io.IOException("no network interface") } }
-            .start(onFound = {}, onError = error::set)
-        assertEquals("no network interface", error.await())
     }
 
     @Test
@@ -120,17 +137,10 @@ class ServerDiscoveryTest {
             while (result.isEmpty() && System.currentTimeMillis() < until) Thread.sleep(200)
             org.junit.Assume.assumeTrue("no mDNS answer within 15 s (multicast blocked?)", result.isNotEmpty())
             assertEquals(18080, result.first().port)
-            assertTrue("host should be the LAN IPv4 address: ${result.first().host}", result.first().host == lan.first().hostAddress)
+            assertEquals(lan.first().hostAddress, result.first().host)
         } finally {
             handle.close()
-            Thread { runCatching { advertiser.close() } }.apply { isDaemon = true }.start()
+            thread(isDaemon = true) { runCatching { advertiser.close() } }
         }
-    }
-
-    private class CompletableErrors {
-        private val latch = CountDownLatch(1)
-        @Volatile private var message: String? = null
-        fun set(m: String) { message = m; latch.countDown() }
-        fun await(): String? { latch.await(5, TimeUnit.SECONDS); return message }
     }
 }

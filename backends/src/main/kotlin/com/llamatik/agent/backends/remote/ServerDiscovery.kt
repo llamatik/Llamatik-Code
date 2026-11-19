@@ -1,14 +1,7 @@
 package com.llamatik.agent.backends.remote
 
-import com.llamatik.network.discovery.DiscoveryEvent
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withTimeoutOrNull
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 /** A Llamatik server announced on the local network. */
 data class DiscoveredServer(
@@ -22,15 +15,21 @@ data class DiscoveredServer(
     val address: String get() = if (host.contains(':') && !host.startsWith("[")) "[$host]:$port" else "$host:$port"
 }
 
+/** Where discovery events come from: mDNS on the LAN ([LanMdns]), or a fake in tests. */
+fun interface DiscoverySource {
+    /** Starts listening; events arrive on any thread until the returned handle is closed. */
+    fun start(onFound: (DiscoveredServer) -> Unit, onLost: (id: String) -> Unit, onError: (message: String) -> Unit): AutoCloseable
+}
+
 /**
  * Finds Llamatik servers on the local network (mDNS service `_llamatik._tcp`), the same way the Llamatik
  * app's "Scan" does: any device with *Share this device* turned on announces itself.
  *
- * @param source stream of discovery events; [LanMdns] (the library's protocol on the real LAN interfaces) by default
+ * Deliberately free of coroutines and HTTP-library types: inside the IDE the plugin runs on the platform's own
+ * copies of those, and a different version here breaks at runtime.
  */
-class ServerDiscovery(
-    private val source: () -> Flow<DiscoveryEvent> = { LanMdns.events() },
-) {
+class ServerDiscovery(private val source: DiscoverySource = LanMdns) {
+
     /**
      * Scans until the returned handle is closed, reporting servers as they appear and disappear. Callbacks run
      * on a background thread. Closing stops the scan and releases the network listener.
@@ -39,41 +38,22 @@ class ServerDiscovery(
         onFound: (DiscoveredServer) -> Unit,
         onLost: (id: String) -> Unit = {},
         onError: (message: String) -> Unit = {},
-    ): AutoCloseable {
-        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-        scope.launch {
-            try {
-                source().collect { event -> dispatch(event, onFound, onLost) }
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (e: Throwable) {
-                onError(e.message ?: "Discovery failed")
-            }
-        }
-        return AutoCloseable { scope.cancel() }
-    }
+    ): AutoCloseable = source.start(onFound, onLost, onError)
 
     /** Scans for [timeoutMs] and returns what was found, deduplicated and still present at the end. */
     fun scan(timeoutMs: Long, onFound: (DiscoveredServer) -> Unit = {}): List<DiscoveredServer> {
         val found = LinkedHashMap<String, DiscoveredServer>()
-        runBlocking(Dispatchers.IO) {
-            withTimeoutOrNull(timeoutMs) {
-                source().collect { event ->
-                    dispatch(
-                        event,
-                        onFound = { found[it.id] = it; onFound(it) },
-                        onLost = { found.remove(it) },
-                    )
-                }
-            }
+        val failed = CountDownLatch(1)
+        val handle = source.start(
+            onFound = { synchronized(found) { found[it.id] = it }; onFound(it) },
+            onLost = { id -> synchronized(found) { found.remove(id) } },
+            onError = { failed.countDown() },
+        )
+        try {
+            failed.await(timeoutMs, TimeUnit.MILLISECONDS) // returns early only if the scan cannot work at all
+        } finally {
+            handle.close()
         }
-        return found.values.toList()
-    }
-
-    private fun dispatch(event: DiscoveryEvent, onFound: (DiscoveredServer) -> Unit, onLost: (String) -> Unit) {
-        when (event) {
-            is DiscoveryEvent.NodeFound -> with(event.node) { onFound(DiscoveredServer(id, host, port, name)) }
-            is DiscoveryEvent.NodeLost -> onLost(event.nodeId)
-        }
+        return synchronized(found) { found.values.toList() }
     }
 }

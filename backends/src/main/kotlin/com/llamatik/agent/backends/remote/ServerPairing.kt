@@ -25,7 +25,7 @@ object ServerPairing {
         timeoutMs: Long = DEFAULT_TIMEOUT_MS,
         pollMs: Long = DEFAULT_POLL_MS,
     ): PairingResult {
-        val client = ServerApi(endpoint.copy(token = null))
+        val client = LlamatikServerClient(endpoint.copy(token = null))
         val requestId = client.requestPairing(clientId, clientName)
             ?: return PairingResult.Failed("The server refused the approval request.")
         onWaiting()

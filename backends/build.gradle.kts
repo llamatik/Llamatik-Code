@@ -20,21 +20,15 @@ dependencies {
     api(project(":agent-core"))
     // Native llama.cpp bridge (local inference).
     api("com.llamatik:core:2.4.0")
-    // The Llamatik server client (resumable streaming, pairing, status) and mDNS discovery (JmDNS).
-    api("com.llamatik:network:2.4.0")
-    // The HTTP stack is chosen explicitly (JDK engine) instead of by service discovery: inside the IDE the
-    // platform ships its own ktor engines.
-    // Already a dependency of the network library; used directly to choose the network interface(s) to scan on.
+    // Server discovery (mDNS). Everything else is plain JDK: the plugin runs on the IDE's own coroutines, ktor
+    // and serialization, and the Llamatik network library (ktor 3.6, coroutines 1.11) cannot run on those.
     implementation("org.jmdns:jmdns:3.6.5")
-    implementation("io.ktor:ktor-client-core:3.6.1")
-    implementation("io.ktor:ktor-client-java:3.6.1")
-    implementation("io.ktor:ktor-client-content-negotiation:3.6.1")
-    implementation("io.ktor:ktor-serialization-kotlinx-json:3.6.1")
-    // ServerDiscovery and ServerApi expose Flow in their signatures.
-    api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
+    // Gson comes with the IDE platform, so it must not be bundled into the plugin: compile-only here, and
+    // added explicitly by the command-line applications.
+    compileOnly("com.google.code.gson:gson:2.11.0")
 
     testFixturesApi(project(":agent-core"))
+    testFixturesCompileOnly("com.google.code.gson:gson:2.11.0")
     testImplementation("junit:junit:4.13.2")
     testImplementation("com.google.code.gson:gson:2.11.0")
 }

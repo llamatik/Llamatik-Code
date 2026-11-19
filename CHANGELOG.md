@@ -24,7 +24,7 @@
 - `terminal_last_output` returns the most recent command's output instead of the slowest one.
 
 ### Changed
-- Llamatik library updated to 2.4.0. The server connection now uses the library's own network client (`com.llamatik:network`), and the IDE, the CLI and the ACP agent share one local inference engine instead of each having a copy.
+- Llamatik library updated to 2.4.0. The IDE, the CLI and the ACP agent now share one local inference engine and one server client instead of each having a copy.
 
 ## [1.7.0] - 2026-05-27
 

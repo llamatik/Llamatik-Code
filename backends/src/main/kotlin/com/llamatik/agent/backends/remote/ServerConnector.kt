@@ -65,7 +65,7 @@ class ServerConnector(
         isCancelled: () -> Boolean = { false },
     ): ConnectOutcome {
         var endpoint = ServerEndpoint(host, port, tokens.get(host, port))
-        var probe = ServerApi(endpoint).probe()
+        var probe = LlamatikServerClient(endpoint).probe()
         if (probe is ServerProbe.Unauthorized) {
             // No token yet, or it was revoked: ask the owner to approve this device.
             tokens.put(host, port, null)
@@ -76,7 +76,7 @@ class ServerConnector(
                     endpoint = endpoint.copy(token = result.token)
                 }
             }
-            probe = ServerApi(endpoint).probe()
+            probe = LlamatikServerClient(endpoint).probe()
         }
         return when (probe) {
             is ServerProbe.Ok -> {
