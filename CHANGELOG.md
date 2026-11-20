@@ -24,7 +24,7 @@
 - `terminal_last_output` returns the most recent command's output instead of the slowest one.
 
 ### Changed
-- Llamatik library updated to 2.4.0. The IDE, the CLI and the ACP agent now share one local inference engine and one server client instead of each having a copy.
+- Llamatik library updated to 2.5.0, which handles CPUs without AVX2/FMA/F16C itself (the plugin no longer carries its own check). The IDE, the CLI and the ACP agent now share one local inference engine and one server client instead of each having a copy.
 
 ## [1.7.0] - 2026-05-27
 

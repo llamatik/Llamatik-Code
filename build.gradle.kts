@@ -52,7 +52,7 @@ dependencies {
     implementation(project(":backends"))
     // JmDNS (server discovery) logs through SLF4J, which the IDE does not provide; keep its logging quiet.
     runtimeOnly("org.slf4j:slf4j-nop:2.0.16")
-    implementation("com.llamatik:core:2.4.0")
+    implementation("com.llamatik:core:2.5.0")
     testImplementation("junit:junit:4.13.2")
     testImplementation(testFixtures(project(":agent-core")))
     testImplementation(testFixtures(project(":backends")))

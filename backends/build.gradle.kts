@@ -19,7 +19,7 @@ repositories {
 dependencies {
     api(project(":agent-core"))
     // Native llama.cpp bridge (local inference).
-    api("com.llamatik:core:2.4.0")
+    api("com.llamatik:core:2.5.0")
     // Server discovery (mDNS). Everything else is plain JDK: the plugin runs on the IDE's own coroutines, ktor
     // and serialization, and the Llamatik network library (ktor 3.6, coroutines 1.11) cannot run on those.
     implementation("org.jmdns:jmdns:3.6.5")
